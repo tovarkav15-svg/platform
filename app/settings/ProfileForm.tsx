@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { saveProfile, type SettingsState } from "./save";
 import { isUsernameTaken } from "@/lib/api";
 import { ProfileHeader } from "../ProfileHeader";
+import { SECTION_TITLES } from "@/lib/sections";
 import { NICHES } from "@/lib/niches";
 import { ACCENTS, COVERS } from "@/lib/style";
 import { normalizeUsername, validateUsername, USERNAME_MAX } from "@/lib/username";
@@ -11,6 +12,7 @@ import { normalizeUsername, validateUsername, USERNAME_MAX } from "@/lib/usernam
 type Initial = {
   displayName: string; username: string; bio: string; accent: string; cover: string; avatar: string;
   telegram: string; website: string; niches: string; earnings: number; earningsGoal: number; showEarnings: boolean;
+  headline: string; status: string; city: string; skills: string; openToWork: boolean; sections: string; pinnedProject: string;
 };
 
 const fmt = (n: number) => (n ? n.toLocaleString("ru-RU").replace(/ /g, " ") : "");
@@ -34,9 +36,9 @@ function resizeImage(file: File): Promise<string> {
   });
 }
 
-type Props = { userId: string; initial: Initial; founder: boolean; onSaved: () => Promise<void> };
+type Props = { userId: string; initial: Initial; role: string; projects: { id: string; name: string }[]; onSaved: () => Promise<void> };
 
-export function ProfileForm({ userId, initial, founder, onSaved }: Props) {
+export function ProfileForm({ userId, initial, role, projects, onSaved }: Props) {
   const [state, setState] = useState<SettingsState>({});
   const [pending, setPending] = useState(false);
   const e = state.errors ?? {};
@@ -77,6 +79,19 @@ export function ProfileForm({ userId, initial, founder, onSaved }: Props) {
     catch { setAvatarError("Не получилось открыть картинку"); }
   }
 
+  // Порядок и видимость разделов: включённые по порядку, затем выключенные
+  const ALL = Object.keys(SECTION_TITLES);
+  const activeSections = f.sections.split(",").filter((x) => ALL.includes(x));
+  const orderedSections = [...activeSections, ...ALL.filter((x) => !activeSections.includes(x))];
+  const toggleSection = (id: string) =>
+    set("sections", (activeSections.includes(id) ? activeSections.filter((x) => x !== id) : [...activeSections, id]).join(","));
+  const moveSection = (id: string, d: number) => {
+    const list = [...orderedSections];
+    const i = list.indexOf(id), j = i + d;
+    [list[i], list[j]] = [list[j], list[i]];
+    set("sections", list.filter((x) => activeSections.includes(x)).join(","));
+  };
+
   const earnings = num(f.earnings), goal = num(f.earningsGoal);
   const pct = goal ? Math.min(100, Math.round((earnings / goal) * 100)) : 0;
 
@@ -86,7 +101,8 @@ export function ProfileForm({ userId, initial, founder, onSaved }: Props) {
         <div className="label">Так тебя видят другие</div>
         <ProfileHeader
           displayName={f.displayName} username={normalizeUsername(f.username)} bio={f.bio}
-          accent={f.accent} cover={f.cover} avatar={f.avatar} founder={founder}
+          headline={f.headline} status={f.status} openToWork={f.openToWork}
+          accent={f.accent} cover={f.cover} avatar={f.avatar} role={role}
         />
       </div>
 
@@ -154,6 +170,22 @@ export function ProfileForm({ userId, initial, founder, onSaved }: Props) {
           </label>
         </div>
 
+        <div className="row2">
+          <label className="field">
+            <span>Кто ты одной строкой <span className="count">{f.headline.length}/60</span></span>
+            <div className="input"><input id="headline" name="headline" value={f.headline} maxLength={60} placeholder="Монтажёр · Продюсер" onChange={(ev) => set("headline", ev.target.value)} /></div>
+          </label>
+          <label className="field">
+            <span>Город</span>
+            <div className="input"><input id="city" name="city" value={f.city} maxLength={40} placeholder="Москва" onChange={(ev) => set("city", ev.target.value)} /></div>
+          </label>
+        </div>
+
+        <label className="field">
+          <span>Статус <span className="count">чем занят сейчас · {f.status.length}/80</span></span>
+          <div className="input"><input id="status" name="status" value={f.status} maxLength={80} placeholder="Собираю первый дроп, ищу фотографа" onChange={(ev) => set("status", ev.target.value)} /></div>
+        </label>
+
         <label className="field">
           <span>Описание <span className="count">{f.bio.length}/160</span></span>
           <div className={`input ${e.bio ? "err" : ""}`}>
@@ -175,6 +207,17 @@ export function ProfileForm({ userId, initial, founder, onSaved }: Props) {
           </div>
         </fieldset>
 
+        <label className="field">
+          <span>Навыки <span className="count">через запятую</span></span>
+          <div className="input"><input id="skills" name="skills" value={f.skills} maxLength={300} placeholder="Premiere Pro, After Effects, сторителлинг" onChange={(ev) => set("skills", ev.target.value)} /></div>
+        </label>
+
+        <label className="toggle light">
+          <input id="openToWork" type="checkbox" name="openToWork" checked={f.openToWork} onChange={(ev) => set("openToWork", ev.target.checked)} />
+          <span className="knob" />
+          <span>{f.openToWork ? "Открыт к работе и сотрудничеству: тебя видно в фильтре People" : "Не ищу работу сейчас"}</span>
+        </label>
+
         <div className="row2">
           <label className="field">
             <span>Telegram</span>
@@ -187,6 +230,42 @@ export function ProfileForm({ userId, initial, founder, onSaved }: Props) {
             <span className="hint bad">{e.website}</span>
           </label>
         </div>
+      </section>
+
+      {/* Разделы профиля */}
+      <section className="card">
+        <h2 className="h-md caps">Разделы <span className="it">профиля</span></h2>
+        <p className="lead small">Включи нужные разделы и расставь их по порядку. Первый открывается сразу.</p>
+        <ul className="section-order">
+          {orderedSections.map((id, i) => {
+            const on = activeSections.includes(id);
+            return (
+              <li key={id} className={on ? "on" : ""}>
+                <label className="mini-toggle">
+                  <input type="checkbox" checked={on} onChange={() => toggleSection(id)} />
+                  <b>{SECTION_TITLES[id].label}</b>
+                  <span>{SECTION_TITLES[id].sub}</span>
+                </label>
+                <span className="order-btns">
+                  <button type="button" className="icon-btn sm" disabled={i === 0} onClick={() => moveSection(id, -1)} aria-label="Выше">↑</button>
+                  <button type="button" className="icon-btn sm" disabled={i === orderedSections.length - 1} onClick={() => moveSection(id, 1)} aria-label="Ниже">↓</button>
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+        <input type="hidden" name="sections" value={activeSections.join(",")} />
+
+        <label className="field">
+          <span>Закреплённый проект</span>
+          <div className="input">
+            <select id="pinnedProject" name="pinnedProject" value={f.pinnedProject} onChange={(ev) => set("pinnedProject", ev.target.value)}>
+              <option value="">Не закреплять</option>
+              {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          </div>
+          {!projects.length && <span className="hint">Сначала добавь проект во вкладке «Проекты» своего профиля.</span>}
+        </label>
       </section>
 
       {/* Доход */}

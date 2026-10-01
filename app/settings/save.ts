@@ -24,6 +24,12 @@ export async function saveProfile(userId: string, currentUsername: string, form:
   const website = String(form.get("website") ?? "").trim();
   const nicheIds = NICHES.map((n) => n.id) as string[];
   const niches = form.getAll("niches").map(String).filter((id) => nicheIds.includes(id));
+  const headline = String(form.get("headline") ?? "").trim().slice(0, 60);
+  const status = String(form.get("status") ?? "").trim().slice(0, 80);
+  const city = String(form.get("city") ?? "").trim().slice(0, 40);
+  const skills = String(form.get("skills") ?? "").split(",").map((x) => x.trim()).filter(Boolean).slice(0, 15).join(", ").slice(0, 300);
+  const sections = String(form.get("sections") ?? "").split(",").filter((x) => ["work", "projects", "goals"].includes(x)).join(",");
+  const pinnedProject = String(form.get("pinnedProject") ?? "") || null;
 
   const errors: Record<string, string> = {};
   if (displayName.length < 2 || displayName.length > 40) errors.displayName = "От 2 до 40 символов";
@@ -43,6 +49,8 @@ export async function saveProfile(userId: string, currentUsername: string, form:
     supabase.from("profiles").update({
       username, display_name: displayName, bio, accent, cover, telegram, website,
       niches: niches.join(","), avatar: avatar || null,
+      headline, status, city, skills, sections, pinned_project: pinnedProject,
+      open_to_work: form.get("openToWork") === "on",
     }).eq("id", userId),
     supabase.from("earnings").update({
       amount: toInt(form.get("earnings")),

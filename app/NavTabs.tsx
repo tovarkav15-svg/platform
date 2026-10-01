@@ -38,9 +38,11 @@ export function NavTabs({ me }: { me: Profile }) {
   const isMyProfile = path.startsWith("/u") && params.get("n") === me.username;
   const tabs = [
     { href: profileHref(me.username), label: "Профиль", active: isMyProfile },
-    { href: "/messages/", label: "Мессенджер", active: path.startsWith("/messages"), count: unread },
-    { href: "/friends/", label: "Друзья", active: path.startsWith("/friends"), count: requests },
-    { href: "/settings/", label: "Настройки", active: path.startsWith("/settings") },
+    { href: "/goals/", label: "Цели", active: path.startsWith("/goals") },
+    { href: "/people/", label: "People", active: path.startsWith("/people") },
+    { href: "/community/", label: "Community", active: path.startsWith("/community"), count: requests },
+    { href: "/discover/", label: "Discover", active: path.startsWith("/discover") || path.startsWith("/project") },
+    { href: "/messages/", label: "Чаты", active: path.startsWith("/messages"), count: unread },
   ];
 
   return (

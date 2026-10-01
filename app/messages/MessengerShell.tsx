@@ -7,6 +7,8 @@ import { chatHref } from "@/lib/links";
 import { Avatar } from "../Avatar";
 import { shortTime } from "./time";
 
+const KIND_LABEL: Record<string, string> = { image: "Фото", video: "Видео", voice: "Голосовое сообщение", file: "Файл" };
+
 type Props = { chats: ChatListItem[] | null; activeId: string | null; children: React.ReactNode };
 
 export function MessengerShell({ chats, activeId, children }: Props) {
@@ -23,7 +25,7 @@ export function MessengerShell({ chats, activeId, children }: Props) {
       <aside className="chat-list">
         <div className="chat-list-head">
           <h1 className="caps">Чаты</h1>
-          <Link href="/friends/?tab=find" className="btn ghost sm">Новый</Link>
+          <Link href="/people/" className="btn ghost sm">Новый</Link>
         </div>
         <div className="input chat-search">
           <input id="chatSearch" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Поиск по чатам" autoComplete="off" />
@@ -36,7 +38,7 @@ export function MessengerShell({ chats, activeId, children }: Props) {
                 <span className="chat-item-text">
                   <span className="row"><b>{c.other_name}</b>{c.last_at && <time>{shortTime(c.last_at)}</time>}</span>
                   <span className="row">
-                    <small>{c.last_text ? `${c.last_mine ? "Ты: " : ""}${c.last_text}` : "Нет сообщений"}</small>
+                    <small>{c.last_at ? `${c.last_mine ? "Ты: " : ""}${c.last_text || KIND_LABEL[c.last_kind ?? ""] || "Сообщение"}` : "Нет сообщений"}</small>
                     {c.unread > 0 && <span className="count-badge">{c.unread}</span>}
                   </span>
                 </span>
@@ -47,7 +49,7 @@ export function MessengerShell({ chats, activeId, children }: Props) {
         {chats && !chats.length && (
           <div className="chat-list-empty">
             <p className="lead">Чатов пока нет. Найди друзей и напиши первым.</p>
-            <Link className="btn sm" href="/friends/">К друзьям</Link>
+            <Link className="btn sm" href="/people/">Найти людей</Link>
           </div>
         )}
       </aside>

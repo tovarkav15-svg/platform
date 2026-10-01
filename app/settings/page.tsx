@@ -10,10 +10,13 @@ import { PasswordForm } from "./PasswordForm";
 export default function SettingsPage() {
   const { me, session, refreshMe } = useRequireMe();
   const [earnings, setEarnings] = useState<Earnings | null>(null);
+  const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
 
   useEffect(() => {
     document.title = "Настройки профиля";
     if (!me) return;
+    supabase.from("projects").select("id, name").eq("user_id", me.id).order("updated_at", { ascending: false })
+      .then(({ data }) => setProjects(data ?? []));
     supabase.from("earnings").select("*").eq("user_id", me.id).maybeSingle().then(({ data }) => {
       setEarnings((data as Earnings) ?? { user_id: me.id, amount: 0, goal: 0, is_public: false });
     });
@@ -32,12 +35,15 @@ export default function SettingsPage() {
             <ProfileForm
               key={me.id}
               userId={me.id}
-              founder={me.role === "founder"}
+              role={me.role}
+              projects={projects}
               onSaved={refreshMe}
               initial={{
                 displayName: me.display_name, username: me.username, bio: me.bio, accent: me.accent, cover: me.cover,
                 avatar: me.avatar ?? "", telegram: me.telegram, website: me.website, niches: me.niches,
                 earnings: earnings.amount, earningsGoal: earnings.goal, showEarnings: earnings.is_public,
+                headline: me.headline, status: me.status, city: me.city, skills: me.skills, openToWork: me.open_to_work,
+                sections: me.sections, pinnedProject: me.pinned_project ?? "",
               }}
             />
             <PasswordForm authEmail={session.user.email ?? ""} />
