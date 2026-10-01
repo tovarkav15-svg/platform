@@ -12,6 +12,7 @@ import { TopBar } from "../TopBar";
 import { CountUp } from "../CountUp";
 import { Coverflow, JobBadge, JobDetail, type Job, type JobRow } from "./JobCard";
 import { JobEditor } from "./JobEditor";
+import { BadgeGuide } from "./BadgeGuide";
 
 type Sort = "new" | "cheap" | "pricey";
 
@@ -71,6 +72,8 @@ export default function JobsPage() {
 
         {rows === null ? <div className="skeleton bx-cf-ph" /> : featured.length > 0 && <Coverflow jobs={featured} onOpen={setOpen} />}
 
+        <BadgeGuide onCreate={me ? () => setEdit("new") : undefined} />
+
         <div className="bx-tools">
           <div className="input bx-search"><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Услуга, имя или @ник" aria-label="Поиск" /></div>
           <select className="mini-select" value={niche} onChange={(e) => setNiche(e.target.value)} aria-label="Ниша">
@@ -102,7 +105,8 @@ export default function JobsPage() {
       <JobDetail job={open} onClose={() => setOpen(null)} canWrite={!!me && open?.user_id !== me.id}
         onEdit={open && open.user_id === me?.id ? () => { setEdit(open); setOpen(null); } : undefined}
         onWrite={async () => { if (open) router.push(chatHref(await openDm(open.user_id))); }} />
-      {me && <JobEditor open={edit !== null} onClose={() => setEdit(null)} userId={me.id} job={edit === "new" ? null : edit} onSaved={load} />}
+      {me && <JobEditor open={edit !== null} onClose={() => setEdit(null)} userId={me.id} job={edit === "new" ? null : edit} onSaved={load}
+        author={{ id: me.id, username: me.username, display_name: me.display_name, avatar: me.avatar, accent: me.accent, niches: me.niches, role: me.role, headline: me.headline, open_to_work: me.open_to_work, city: me.city, skills: me.skills }} />}
     </>
   );
 }

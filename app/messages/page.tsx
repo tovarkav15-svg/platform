@@ -43,7 +43,7 @@ export default function MessagesPage() {
             key={chatId}
             chatId={chatId}
             meId={me.id}
-            other={{ username: active.other_username, displayName: active.other_name, avatar: active.other_avatar, accent: active.other_accent }}
+            other={{ id: active.other_id, username: active.other_username, displayName: active.other_name, avatar: active.other_avatar, accent: active.other_accent }}
           />
         ) : chats ? (
           <div className="chat-placeholder"><p className="lead">Чат не найден.</p></div>

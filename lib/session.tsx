@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useState } from "rea
 import { useRouter } from "next/navigation";
 import type { Session } from "@supabase/supabase-js";
 import { supabase, type Profile } from "./supabase";
+import { startHeartbeat } from "./presence";
 
 type Ctx = {
   ready: boolean;
@@ -38,6 +39,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     });
     return () => sub.subscription.unsubscribe();
   }, [loadMe]);
+
+  // Пока человек на сайте, отмечаем его «в сети»
+  const uid = session?.user.id;
+  useEffect(() => (uid ? startHeartbeat(uid) : undefined), [uid]);
 
   const refreshMe = useCallback(() => loadMe(session), [loadMe, session]);
 

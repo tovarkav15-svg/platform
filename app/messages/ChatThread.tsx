@@ -5,7 +5,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { supabase } from "@/lib/supabase";
 import { profileHref } from "@/lib/links";
 import { CHAT_MAX_BYTES, compressImage, kindOf, uploadChatFile } from "@/lib/upload";
-import { Avatar } from "../Avatar";
+import { Avatar, PresenceLabel } from "../Avatar";
 import { clock, dayLabel } from "./time";
 import { FileMedia, ImageMedia, imageSize, VideoMedia, VoiceMedia, useVoiceRecorder, type MediaMeta } from "./ChatMedia";
 
@@ -15,7 +15,7 @@ type Msg = {
   kind: Kind; media_path: string | null; media_meta: MediaMeta;
   pending?: boolean; failed?: boolean; retry?: () => void;
 };
-type Other = { username: string; displayName: string; avatar: string | null; accent: string };
+type Other = { id: string; username: string; displayName: string; avatar: string | null; accent: string };
 
 const FIELDS = "id, text, sender_id, created_at, kind, media_path, media_meta";
 const POLL_MS = 5000; // запасной опрос, основная доставка — Realtime
@@ -45,7 +45,7 @@ export function ChatThread({ chatId, meId, other }: { chatId: string; meId: stri
   }, []);
 
   const markRead = useCallback(async () => {
-    await supabase.from("chat_members").update({ last_read_at: new Date().toISOString() }).eq("chat_id", chatId).eq("user_id", meId);
+    await supabase.rpc("mark_chat_read", { p_chat: chatId });
     window.dispatchEvent(new Event("chats:refresh"));
   }, [chatId, meId]);
 
@@ -77,6 +77,11 @@ export function ChatThread({ chatId, meId, other }: { chatId: string; meId: stri
         const m = payload.new as Msg;
         merge([m]);
         if (m.sender_id !== meId && !document.hidden) markRead();
+      })
+      // Собеседник прочитал — галочки обновляются сразу
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "chat_members", filter: `chat_id=eq.${chatId}` }, (payload) => {
+        const row = payload.new as { user_id: string; last_read_at: string };
+        if (row.user_id !== meId) setOtherReadAt((prev) => (!prev || row.last_read_at > prev ? row.last_read_at : prev));
       })
       .subscribe();
 
@@ -192,7 +197,6 @@ export function ChatThread({ chatId, meId, other }: { chatId: string; meId: stri
     el.style.height = Math.min(el.scrollHeight, 160) + "px";
   }
 
-  const lastMine = [...messages].reverse().find((m) => m.sender_id === meId && !m.pending && !m.failed);
 
   return (
     <div
@@ -204,8 +208,8 @@ export function ChatThread({ chatId, meId, other }: { chatId: string; meId: stri
       <header className="thread-head">
         <Link href="/messages/" className="back" aria-label="Назад к чатам">←</Link>
         <Link href={profileHref(other.username)} className="thread-who">
-          <Avatar name={other.displayName} avatar={other.avatar} accent={other.accent} size={40} />
-          <span><b>{other.displayName}</b><small>@{other.username}</small></span>
+          <Avatar name={other.displayName} avatar={other.avatar} accent={other.accent} size={40} userId={other.id} />
+          <span><b>{other.displayName}</b><PresenceLabel userId={other.id} /></span>
         </Link>
       </header>
 
@@ -224,7 +228,7 @@ export function ChatThread({ chatId, meId, other }: { chatId: string; meId: stri
           const newDay = !prev || dayLabel(prev.created_at) !== dayLabel(m.created_at);
           const mine = m.sender_id === meId;
           const groupEnd = !next || next.sender_id !== m.sender_id || dayLabel(next.created_at) !== dayLabel(m.created_at);
-          const read = mine && lastMine?.id === m.id && !!otherReadAt && new Date(otherReadAt) >= new Date(m.created_at);
+          const read = mine && !m.pending && !m.failed && !!otherReadAt && new Date(otherReadAt).getTime() >= new Date(m.created_at).getTime();
           const visual = m.kind === "image" || m.kind === "video";
           return (
             <div key={m.id} className="msg-wrap">
@@ -237,7 +241,7 @@ export function ChatThread({ chatId, meId, other }: { chatId: string; meId: stri
                 {m.text && <span className="msg-text">{m.text}</span>}
                 <span className="msg-meta">
                   {m.pending && m.kind !== "text" ? "загружаю…" : clock(m.created_at)}
-                  {mine && !m.pending && !m.failed && <span className={`ticks ${read ? "read" : ""}`} aria-label={read ? "Прочитано" : "Доставлено"}>{read ? "✓✓" : "✓"}</span>}
+                  {mine && <Ticks state={m.failed ? "failed" : m.pending ? "pending" : read ? "read" : "sent"} />}
                 </span>
               </div>
               {m.failed && <button className="retry" type="button" onClick={() => m.retry?.()}>Не отправилось · повторить</button>}
@@ -295,5 +299,24 @@ export function ChatThread({ chatId, meId, other }: { chatId: string; meId: stri
         </form>
       )}
     </div>
+  );
+}
+
+/** Галочки: часики — отправляется, ✓ — доставлено, ✓✓ синие — прочитано */
+function Ticks({ state }: { state: "pending" | "sent" | "read" | "failed" }) {
+  const label = { pending: "Отправляется", sent: "Доставлено", read: "Прочитано", failed: "Не отправилось" }[state];
+  return (
+    <span className={`ticks t-${state}`} role="img" aria-label={label} title={label}>
+      {state === "pending" ? (
+        <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" strokeWidth="1.6" /><path d="M8 4.5V8l2.3 1.4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
+      ) : state === "failed" ? (
+        <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><circle cx="8" cy="8" r="7" fill="currentColor" /><path d="M8 4.2v4.6M8 11v.6" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" /></svg>
+      ) : (
+        <svg viewBox="0 0 20 12" width="19" height="12" aria-hidden="true">
+          <path className="tk1" d="M1.5 6.5l3.2 3.2L11 3" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          <path className="tk2" d="M8.4 9.7L15.2 3" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      )}
+    </span>
   );
 }

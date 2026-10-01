@@ -120,97 +120,80 @@ function ProfileView({ user, earnings, friends, state, works, projects, tab, isM
     { n: days, label: `${plural(days, "день", "дня", "дней")} на платформе` },
   ];
 
-  const socials = [
-    user.telegram && { label: "Telegram", value: "@" + user.telegram, href: `https://t.me/${user.telegram}` },
-    user.website && { label: "Сайт", value: user.website.replace(/^https?:\/\//, "").replace(/\/$/, "").slice(0, 28), href: user.website },
-    user.city && { label: "Город", value: user.city },
-  ].filter(Boolean) as { label: string; value: string; href?: string }[];
-
   return (
     <>
-      <div className="bento">
-        <div className="bt bt-id" style={{ "--i": 0 } as React.CSSProperties}>
-          <ProfileHeader
-            displayName={user.display_name} username={user.username} headline={user.headline} bio={user.bio}
-            status={user.status} openToWork={user.open_to_work} accent={user.accent} avatar={user.avatar} role={user.role}
-            banner={publicMedia(user.banner_path)} bannerPreset={user.banner_preset}
-            actions={isMe
-              ? <Link className="btn" href="/settings/">Редактировать</Link>
-              : loggedIn && state
-                ? <FriendActions userId={user.id} state={state} onChange={reload} />
-                : <Link className="btn" href="/login">Войти, чтобы написать</Link>}
-          />
-        </div>
+      <ProfileHeader
+        displayName={user.display_name} username={user.username} headline={user.headline} bio={user.bio}
+        status={user.status} openToWork={user.open_to_work} accent={user.accent} avatar={user.avatar} role={user.role}
+        banner={publicMedia(user.banner_path)} bannerPreset={user.banner_preset} userId={user.id}
+        actions={isMe
+          ? <Link className="btn" href="/settings/">Редактировать</Link>
+          : loggedIn && state
+            ? <FriendActions userId={user.id} state={state} onChange={reload} />
+            : <Link className="btn" href="/login">Войти, чтобы написать</Link>}
+        meta={
+          <div className="ph2-links">
+            {user.city && <span className="chip-soft">⌖ {user.city}</span>}
+            {user.telegram && <a className="chip-soft" href={`https://t.me/${user.telegram}`} target="_blank" rel="noopener noreferrer">Telegram ↗</a>}
+            {user.website && <a className="chip-soft" href={user.website} target="_blank" rel="noopener noreferrer nofollow">{user.website.replace(/^https?:\/\//, "").replace(/\/$/, "").slice(0, 32)} ↗</a>}
+            <span className="chip-soft muted">С {since.toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" })}</span>
+          </div>
+        }
+      />
 
-        <div className="bt bt-stats" style={{ "--i": 1 } as React.CSSProperties}>
-          {stats.map((s, i) => {
-            const inner = <><b className="mono"><CountUp value={s.n} /></b><span>{s.label}</span></>;
-            return s.href
-              ? <Link key={i} href={s.href} replace={s.href.startsWith("/u/")} scroll={false} className="bt-stat">{inner}</Link>
-              : <div key={i} className="bt-stat">{inner}</div>;
-          })}
-        </div>
+      <div className="pf-stats">
+        {stats.map((s, i) => {
+          const inner = <><b className="mono"><CountUp value={s.n} /></b><span>{s.label}</span></>;
+          return s.href
+            ? <Link key={i} href={s.href} replace={s.href.startsWith("/u/")} scroll={false} className="pf-stat" style={{ "--i": i } as React.CSSProperties}>{inner}</Link>
+            : <div key={i} className="pf-stat" style={{ "--i": i } as React.CSSProperties}>{inner}</div>;
+        })}
+      </div>
 
-        <section className="bt bt-about" style={{ "--i": 2 } as React.CSSProperties}>
-          <header><b>О себе</b>{isMe && <Link href="/settings/#about" className="link-btn">Изменить</Link>}</header>
-          {user.about ? (
-            <div className="pf-about-text">{user.about.split(/\n{2,}/).map((p, i) => <p key={i}>{p}</p>)}</div>
-          ) : (
-            <p className="pf-muted">{isMe ? "Расскажи подробнее, чем занимаешься, с кем работал и что ищешь." : "Пока ничего не рассказал о себе."}</p>
-          )}
-        </section>
-
-        {earnings ? (
-          <section className="bt bt-money" style={{ "--i": 3 } as React.CSSProperties}>
-            <header><b>{isMe ? "Заработал" : "Доход за месяц"}</b>{isMe && <span className="bt-lock">{earnings.is_public ? "◉ видят все" : "◎ только ты"}</span>}</header>
-            <div className="bt-sum mono"><CountUp value={earnings.amount} format={fmt} ms={900} /><em>₽</em></div>
-            {earnings.goal > 0 && (
-              <div className="bt-goal">
-                <svg viewBox="0 0 120 8" preserveAspectRatio="none" aria-hidden="true"><rect width="120" height="8" rx="4" className="bt-goal-bg" /><rect width={1.2 * pct} height="8" rx="4" className="bt-goal-fg" /></svg>
-                <span>{pct}% от {fmt(earnings.goal)} ₽</span>
+      <div className="pf-layout">
+        <aside className="pf-side">
+          <section className="pf-card pf-about">
+            <header><span className="pf-dot" /><b>О себе</b>{isMe && <Link href="/settings/#about" className="link-btn">Изменить</Link>}</header>
+            {user.about ? (
+              <div className="pf-about-text">{user.about.split(/\n{2,}/).map((p, i) => <p key={i}>{p}</p>)}</div>
+            ) : (
+              <p className="pf-muted">{isMe ? "Расскажи подробнее, чем занимаешься, с кем работал и что ищешь. Это видят все, кто открыл профиль." : "Пока ничего не рассказал о себе."}</p>
+            )}
+            {niches.length > 0 && (
+              <div className="pf-tags">
+                {niches.map((n) => <span key={n.id} className="tag" style={{ "--c": n.color } as React.CSSProperties}>{n.title}</span>)}
+              </div>
+            )}
+            {skills.length > 0 && (
+              <div className="pf-skills">
+                <span className="label">Навыки</span>
+                <div className="tags">{skills.map((s, i) => <span key={s} className="skill" style={{ "--i": i } as React.CSSProperties}>{s}</span>)}</div>
               </div>
             )}
           </section>
-        ) : (
-          <section className="bt bt-since" style={{ "--i": 3 } as React.CSSProperties}>
-            <header><b>На платформе</b></header>
-            <div className="bt-sum mono">{since.toLocaleDateString("ru-RU", { day: "numeric", month: "short" }).replace(".", "")}<em>{since.getFullYear()}</em></div>
-          </section>
-        )}
 
-        <section className="bt bt-tags" style={{ "--i": 4 } as React.CSSProperties}>
-          <header><b>Ниши и навыки</b></header>
-          {niches.length || skills.length ? (
-            <div className="bt-cloud">
-              {niches.map((n, i) => <span key={n.id} className="bt-niche" style={{ "--c": n.color, "--k": i } as React.CSSProperties}><i />{n.title}</span>)}
-              {skills.map((s, i) => <span key={s} className="bt-skill" style={{ "--k": i + niches.length } as React.CSSProperties}>{s}</span>)}
-            </div>
-          ) : <p className="pf-muted">{isMe ? <>Не выбраны. <Link href="/settings/">Добавить</Link></> : "Не указаны."}</p>}
-        </section>
+          {earnings && (
+            <section className="card money">
+              <div className="label">{isMe ? "Сколько ты заработал" : "Заработал в этом месяце"}</div>
+              <div className="sum"><CountUp value={earnings.amount} format={fmt} ms={900} /><span className="it">₽</span></div>
+              {isMe && <div className="private"><i></i>{earnings.is_public ? "Видят все" : "Видишь только ты"}</div>}
+              {earnings.goal > 0 && (
+                <>
+                  <div className="bar"><b style={{ width: `${pct}%` }} /></div>
+                  <div className="money-row"><span>Цель: {fmt(earnings.goal)} ₽</span><span>{pct}%</span></div>
+                </>
+              )}
+            </section>
+          )}
 
-        <section className="bt bt-links" style={{ "--i": 5 } as React.CSSProperties}>
-          <header><b>Связь</b></header>
-          {socials.length ? (
-            <ul>
-              {socials.map((x) => (
-                <li key={x.label}>
-                  <span>{x.label}</span>
-                  {x.href ? <a href={x.href} target="_blank" rel="noopener noreferrer nofollow">{x.value} ↗</a> : <b>{x.value}</b>}
-                </li>
-              ))}
-            </ul>
-          ) : <p className="pf-muted">{isMe ? <>Добавь Telegram и сайт в <Link href="/settings/">настройках</Link>.</> : "Контакты не указаны."}</p>}
-        </section>
+          {pinned && (
+            <section className="pf-card pf-pinned">
+              <header><span className="pf-dot" /><b>Сейчас строю</b></header>
+              <ProjectCard project={pinned} pinned />
+            </section>
+          )}
+        </aside>
 
-        {pinned && (
-          <section className="bt bt-pinned" style={{ "--i": 6 } as React.CSSProperties}>
-            <header><b>Сейчас строю</b></header>
-            <ProjectCard project={pinned} pinned />
-          </section>
-        )}
-      </div>
-
-      <div className="pf-sections">
         <section className="pf-main">
           {sections.length > 1 && (
             <nav className="pf-tabs" ref={tabsRef} aria-label="Разделы профиля">

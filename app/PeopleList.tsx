@@ -21,7 +21,7 @@ export function PeopleList({ people, stateOf, onChange, extra, layout = "list" }
         <li key={p.id} className="person" style={{ "--i": i, "--c": NICHES.find((n) => p.niches.split(",")[0] === n.id)?.color ?? "var(--ink)" } as React.CSSProperties}>
           <Link href={profileHref(p.username)} className="person-main">
             <span className="avatar-wrap sm">
-              <Avatar name={p.display_name} avatar={p.avatar} accent={p.accent} size={52} />
+              <Avatar name={p.display_name} avatar={p.avatar} accent={p.accent} size={52} userId={p.id} />
               {p.open_to_work && <span className="otw-dot" title="Открыт к работе" />}
             </span>
             <span className="person-text">

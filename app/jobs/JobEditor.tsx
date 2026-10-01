@@ -6,17 +6,18 @@ import { uploadPublicImage } from "@/lib/upload";
 import { NICHES } from "@/lib/niches";
 import { Modal } from "../Modal";
 import { ImagePicker } from "../ImagePicker";
-import type { Job, JobCase } from "./JobCard";
+import { JobBadge, type Job, type JobCase } from "./JobCard";
+import type { ProfileCard } from "@/lib/supabase";
 
-export function JobEditor({ open, onClose, userId, job, onSaved }: { open: boolean; onClose: () => void; userId: string; job: Job | null; onSaved: () => void }) {
+export function JobEditor({ open, onClose, userId, job, onSaved, author }: { open: boolean; onClose: () => void; userId: string; job: Job | null; onSaved: () => void; author: ProfileCard }) {
   return (
     <Modal open={open} onClose={onClose} title={job ? <>Изменить <span className="it">карточку</span></> : <>Разместить <span className="it">вакансию</span></>}>
-      {open && <Form key={job?.id ?? "new"} userId={userId} job={job} onDone={() => { onSaved(); onClose(); }} />}
+      {open && <Form key={job?.id ?? "new"} userId={userId} job={job} author={author} onDone={() => { onSaved(); onClose(); }} />}
     </Modal>
   );
 }
 
-function Form({ userId, job, onDone }: { userId: string; job: Job | null; onDone: () => void }) {
+function Form({ userId, job, author, onDone }: { userId: string; job: Job | null; author: ProfileCard; onDone: () => void }) {
   const [f, setF] = useState({
     service: job?.service ?? "", niche: job?.niche ?? "", description: job?.description ?? "",
     avg_check: job?.avg_check ? String(job.avg_check) : "", active: job?.active ?? true,
@@ -51,8 +52,20 @@ function Form({ userId, job, onDone }: { userId: string; job: Job | null; onDone
     }
   }
 
+  // Живое превью: бейдж обновляется, пока заполняешь поля
+  const draft = {
+    id: "draft", user_id: userId, service: f.service || "Твоя услуга", niche: f.niche, description: f.description,
+    avg_check: parseInt(f.avg_check.replace(/\D/g, ""), 10) || 0, photo_path: null, active: true, created_at: "", updated_at: "",
+    cases: cases.filter((c) => c.title || c.link), author,
+  };
+
   return (
-    <form onSubmit={save} className="editor">
+    <form onSubmit={save} className="editor je">
+      <div className="je-preview" aria-label="Так будет выглядеть бейдж">
+        <span className="label">Так увидят другие</span>
+        <JobBadge job={draft} i={0} onOpen={() => {}} photo={preview} />
+      </div>
+      <div className="je-fields">
       <ImagePicker preview={preview} onPick={setFile} onClear={() => { setFile(null); setPhotoPath(null); }} />
       <p className="hint">Фото для карточки: ты за работой, кадр из кейса или результат. Без фото возьмём аватар.</p>
       <label className="field">
@@ -100,6 +113,7 @@ function Form({ userId, job, onDone }: { userId: string; job: Job | null; onDone
           ? <button type="button" className="btn danger" disabled={busy} onClick={async () => { setBusy(true); await supabase.from("jobs").delete().eq("id", job.id); onDone(); }}>Точно удалить</button>
           : <button type="button" className="btn ghost" onClick={() => setConfirm(true)}>Удалить</button>)}
         <button type="submit" className="btn" disabled={busy}>{busy ? "Сохраняю…" : job ? "Сохранить" : "Разместить"}</button>
+      </div>
       </div>
     </form>
   );

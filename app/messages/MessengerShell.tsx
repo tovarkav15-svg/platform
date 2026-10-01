@@ -34,7 +34,7 @@ export function MessengerShell({ chats, activeId, children }: Props) {
           {shown.map((c, i) => (
             <li key={c.chat_id} style={{ "--i": i } as React.CSSProperties}>
               <Link href={chatHref(c.chat_id)} className="chat-item" aria-current={activeId === c.chat_id ? "page" : undefined}>
-                <Avatar name={c.other_name} avatar={c.other_avatar} accent={c.other_accent} size={46} />
+                <Avatar name={c.other_name} avatar={c.other_avatar} accent={c.other_accent} size={46} userId={c.other_id} />
                 <span className="chat-item-text">
                   <span className="row"><b>{c.other_name}</b>{c.last_at && <time>{shortTime(c.last_at)}</time>}</span>
                   <span className="row">

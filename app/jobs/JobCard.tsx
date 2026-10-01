@@ -20,9 +20,9 @@ const nicheOf = (id: string) => NICHES.find((n) => n.id === id);
 const photoOf = (j: JobRow) => publicMedia(j.photo_path) ?? j.author.avatar;
 
 /** Бейдж на ленточке: висит, раскачивается при наведении */
-export function JobBadge({ job, i, onOpen }: { job: JobRow; i: number; onOpen: () => void }) {
+export function JobBadge({ job, i, onOpen, photo: photoOverride }: { job: JobRow; i: number; onOpen: () => void; photo?: string | null }) {
   const n = nicheOf(job.niche);
-  const photo = photoOf(job);
+  const photo = photoOverride ?? photoOf(job);
   return (
     <div className="bd-wrap" style={{ "--i": i, "--c": n?.color ?? "#141414", "--sw": `${(i % 2 ? 1 : -1) * (2 + (i % 3))}deg` } as React.CSSProperties}>
       <span className="bd-strap" aria-hidden="true" />
