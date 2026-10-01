@@ -6,11 +6,15 @@ import { isUsernameTaken } from "@/lib/api";
 import { ProfileHeader } from "../ProfileHeader";
 import { SECTION_TITLES } from "@/lib/sections";
 import { NICHES } from "@/lib/niches";
-import { ACCENTS, COVERS } from "@/lib/style";
+import { ACCENTS } from "@/lib/style";
+import { BANNERS } from "@/lib/banners";
+import { publicMedia } from "@/lib/supabase";
+import { uploadPublicImage } from "@/lib/upload";
+import { Banner } from "../ProfileHeader";
 import { normalizeUsername, validateUsername, USERNAME_MAX } from "@/lib/username";
 
 type Initial = {
-  displayName: string; username: string; bio: string; accent: string; cover: string; avatar: string;
+  displayName: string; username: string; bio: string; accent: string; avatar: string; bannerPath: string; bannerPreset: string; about: string;
   telegram: string; website: string; niches: string; earnings: number; earningsGoal: number; showEarnings: boolean;
   headline: string; status: string; city: string; skills: string; openToWork: boolean; sections: string; pinnedProject: string;
 };
@@ -92,6 +96,21 @@ export function ProfileForm({ userId, initial, role, projects, onSaved }: Props)
     set("sections", list.filter((x) => activeSections.includes(x)).join(","));
   };
 
+  // Баннер: своя картинка грузится сразу, в форму уходит только путь к ней
+  const [bannerLocal, setBannerLocal] = useState<string | null>(null);
+  const [bannerBusy, setBannerBusy] = useState(false);
+  const [bannerError, setBannerError] = useState("");
+  const bannerPreview = bannerLocal ?? (f.bannerPath ? publicMedia(f.bannerPath) : null);
+  async function onBanner(file?: File) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) return setBannerError("Нужна картинка: JPG, PNG или WEBP");
+    setBannerError(""); setBannerBusy(true);
+    setBannerLocal(URL.createObjectURL(file));
+    try { set("bannerPath", await uploadPublicImage(userId, file)); }
+    catch { setBannerError("Не получилось загрузить. Попробуй другую картинку."); setBannerLocal(null); }
+    setBannerBusy(false);
+  }
+
   const earnings = num(f.earnings), goal = num(f.earningsGoal);
   const pct = goal ? Math.min(100, Math.round((earnings / goal) * 100)) : 0;
 
@@ -102,7 +121,8 @@ export function ProfileForm({ userId, initial, role, projects, onSaved }: Props)
         <ProfileHeader
           displayName={f.displayName} username={normalizeUsername(f.username)} bio={f.bio}
           headline={f.headline} status={f.status} openToWork={f.openToWork}
-          accent={f.accent} cover={f.cover} avatar={f.avatar} role={role}
+          accent={f.accent} avatar={f.avatar} role={role}
+          banner={bannerPreview} bannerPreset={f.bannerPreset}
         />
       </div>
 
@@ -137,16 +157,26 @@ export function ProfileForm({ userId, initial, role, projects, onSaved }: Props)
         </fieldset>
 
         <fieldset className="field plain">
-          <span>Обложка</span>
-          <div className="covers">
-            {Object.entries(COVERS).map(([id, title]) => (
-              <label key={id} className="cover-opt" data-cover={id} style={{ "--c": ACCENTS[f.accent as keyof typeof ACCENTS]?.color } as React.CSSProperties}>
-                <input type="radio" name="cover" value={id} checked={f.cover === id} onChange={() => set("cover", id)} />
-                <span className="cover-swatch" />
-                <b>{title}</b>
+          <span>Баннер</span>
+          <div className="banner-picks" style={{ "--c": ACCENTS[f.accent as keyof typeof ACCENTS]?.color } as React.CSSProperties}>
+            {BANNERS.map((b) => (
+              <label key={b.id} className={`banner-pick ${!f.bannerPath && f.bannerPreset === b.id ? "on" : ""}`}>
+                <input type="radio" name="bannerPresetPick" checked={!f.bannerPath && f.bannerPreset === b.id}
+                  onChange={() => { set("bannerPreset", b.id); set("bannerPath", ""); setBannerLocal(null); }} />
+                <Banner preset={b.id} className="mini" />
+                <b>{b.title}</b>
               </label>
             ))}
+            <label className={`banner-pick upload ${f.bannerPath || bannerLocal ? "on" : ""}`}>
+              <input type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={(ev) => { onBanner(ev.target.files?.[0]); ev.target.value = ""; }} />
+              {bannerPreview ? <Banner image={bannerPreview} className="mini" /> : <span className="banner-upload-art">+</span>}
+              <b>{bannerBusy ? "Загружаю…" : bannerPreview ? "Своё фото · заменить" : "Своё фото"}</b>
+            </label>
           </div>
+          <input type="hidden" name="bannerPreset" value={f.bannerPreset} />
+          <input type="hidden" name="bannerPath" value={f.bannerPath} />
+          <span className="hint bad">{bannerError}</span>
+          <span className="hint">Готовые баннеры медленно переливаются. Для своего фото лучше горизонтальное, примерно 1600×500.</span>
         </fieldset>
       </section>
 
@@ -206,6 +236,16 @@ export function ProfileForm({ userId, initial, role, projects, onSaved }: Props)
             ))}
           </div>
         </fieldset>
+
+        <label className="field" id="about">
+          <span>О себе подробно <span className="count">{f.about.length}/1500</span></span>
+          <div className={`input ${e.about ? "err" : ""}`}>
+            <textarea id="aboutText" name="about" rows={6} maxLength={1500} value={f.about}
+              placeholder={"Чем занимаешься, с кем работал, какие результаты.\n\nЧто ищешь сейчас: клиентов, команду, проекты.\n\nПустая строка начинает новый абзац."}
+              onChange={(ev) => set("about", ev.target.value)} />
+          </div>
+          <span className="hint bad">{e.about}</span>
+        </label>
 
         <label className="field">
           <span>Навыки <span className="count">через запятую</span></span>

@@ -39,7 +39,7 @@ export default function SettingsPage() {
               projects={projects}
               onSaved={refreshMe}
               initial={{
-                displayName: me.display_name, username: me.username, bio: me.bio, accent: me.accent, cover: me.cover,
+                displayName: me.display_name, username: me.username, bio: me.bio, accent: me.accent, bannerPath: me.banner_path ?? "", bannerPreset: me.banner_preset, about: me.about,
                 avatar: me.avatar ?? "", telegram: me.telegram, website: me.website, niches: me.niches,
                 earnings: earnings.amount, earningsGoal: earnings.goal, showEarnings: earnings.is_public,
                 headline: me.headline, status: me.status, city: me.city, skills: me.skills, openToWork: me.open_to_work,

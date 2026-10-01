@@ -25,6 +25,9 @@ export type Profile = {
   open_to_work: boolean;
   sections: string;
   pinned_project: string | null;
+  banner_path: string | null;
+  banner_preset: string;
+  about: string;
 };
 
 export type Earnings = { user_id: string; amount: number; goal: number; is_public: boolean };

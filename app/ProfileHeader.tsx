@@ -9,11 +9,13 @@ type Props = {
   status?: string;
   openToWork?: boolean;
   accent: string;
-  cover: string;
   avatar?: string | null;
   role?: string;
+  banner?: string | null;      // ссылка на свою картинку
+  bannerPreset?: string;       // готовый градиент, если своей картинки нет
   meta?: React.ReactNode;
   actions?: React.ReactNode;
+  compact?: boolean;
 };
 
 export function RoleBadge({ role, small }: { role?: string; small?: boolean }) {
@@ -21,27 +23,43 @@ export function RoleBadge({ role, small }: { role?: string; small?: boolean }) {
   return <span className={`badge owner ${small ? "sm" : ""}`}>Owner</span>;
 }
 
-// Шапка профиля. Используется и на странице профиля, и как живое превью в настройках
-export function ProfileHeader({ displayName, username, headline, bio, status, openToWork, accent, cover, avatar, role, meta, actions }: Props) {
+export function Banner({ image, preset = "aurora", className = "" }: { image?: string | null; preset?: string; className?: string }) {
   return (
-    <section className="profile-head" data-cover={cover} style={{ "--c": accentColor(accent) } as React.CSSProperties}>
-      <div className="avatar-wrap">
-        <div className="avatar">
-          {avatar ? <img src={avatar} alt="" /> : (displayName || username || "?").slice(0, 1).toUpperCase()}
+    <div className={`ph2-banner bn-${image ? "image" : preset} ${className}`}>
+      {image ? <img src={image} alt="" /> : <><i className="bn-l1" /><i className="bn-l2" /><i className="bn-l3" /></>}
+    </div>
+  );
+}
+
+// Шапка профиля: баннер, аватар с кольцом, имя. Используется в профиле и как живое превью в настройках
+export function ProfileHeader({ displayName, username, headline, bio, status, openToWork, accent, avatar, role, banner, bannerPreset, meta, actions, compact }: Props) {
+  return (
+    <section className={`ph2 ${compact ? "compact" : ""}`} style={{ "--c": accentColor(accent) } as React.CSSProperties}>
+      <Banner image={banner} preset={bannerPreset} />
+      <div className="ph2-body">
+        <div className={`ph2-avatar ${openToWork ? "otw-on" : ""}`}>
+          <span className="ph2-ring" />
+          <div className="avatar">
+            {avatar ? <img src={avatar} alt="" /> : (displayName || username || "?").slice(0, 1).toUpperCase()}
+          </div>
+          {openToWork && <span className="otw">Открыт к работе</span>}
         </div>
-        {openToWork && <span className="otw" title="Открыт к сотрудничеству">Открыт к работе</span>}
-      </div>
-      <div className="info">
-        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-          <h1 className="caps">{displayName || "Имя"}</h1>
-          <RoleBadge role={role} />
+        <div className="ph2-id">
+          <div className="ph2-name">
+            <h1 className="caps">{displayName || "Имя"}</h1>
+            <RoleBadge role={role} />
+          </div>
+          <span className="handle">@{username || "username"}{headline && <span className="headline"> · {headline}</span>}</span>
+          {status && <span className="status-line"><i />{status}</span>}
         </div>
-        <span className="handle">@{username || "username"}{headline && <span className="headline"> · {headline}</span>}</span>
-        {status && <span className="status-line"><i />{status}</span>}
-        {bio && <p className="lead">{bio}</p>}
-        {meta}
+        {actions && <div className="ph2-actions">{actions}</div>}
       </div>
-      {actions && <div className="actions">{actions}</div>}
+      {(bio || meta) && (
+        <div className="ph2-foot">
+          {bio && <p className="ph2-bio">{bio}</p>}
+          {meta}
+        </div>
+      )}
     </section>
   );
 }

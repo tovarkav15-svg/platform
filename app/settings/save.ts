@@ -1,7 +1,8 @@
 import { supabase } from "@/lib/supabase";
 import { isUsernameTaken } from "@/lib/api";
 import { NICHES } from "@/lib/niches";
-import { isAccent, isCover } from "@/lib/style";
+import { isAccent } from "@/lib/style";
+import { isBanner } from "@/lib/banners";
 import { normalizeUsername, validateUsername } from "@/lib/username";
 
 export type SettingsState = { ok?: boolean; message?: string; errors?: Record<string, string> };
@@ -18,7 +19,9 @@ export async function saveProfile(userId: string, currentUsername: string, form:
   const username = normalizeUsername(String(form.get("username") ?? ""));
   const bio = String(form.get("bio") ?? "").trim();
   const accent = String(form.get("accent") ?? "");
-  const cover = String(form.get("cover") ?? "");
+  const bannerPreset = String(form.get("bannerPreset") ?? "aurora");
+  const bannerPath = String(form.get("bannerPath") ?? "") || null;
+  const about = String(form.get("about") ?? "").replace(/\r/g, "").trim();
   const avatar = String(form.get("avatar") ?? "");
   const telegram = String(form.get("telegram") ?? "").trim().replace(/^(https?:\/\/)?t\.me\//, "").replace(/^@/, "");
   const website = String(form.get("website") ?? "").trim();
@@ -38,7 +41,9 @@ export async function saveProfile(userId: string, currentUsername: string, form:
   if (uErr) errors.username = uErr;
   else if (username !== currentUsername && (await isUsernameTaken(username))) errors.username = "Этот юзернейм уже занят";
   if (!isAccent(accent)) errors.accent = "Выбери цвет";
-  if (!isCover(cover)) errors.cover = "Выбери обложку";
+  if (!isBanner(bannerPreset)) errors.banner = "Выбери баннер";
+  if (bannerPath && !bannerPath.startsWith(userId + "/")) errors.banner = "Баннер не подошёл";
+  if (about.length > 1500) errors.about = "Максимум 1500 символов";
   if (avatar && (!/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(avatar) || avatar.length > MAX_AVATAR))
     errors.avatar = "Картинка не подошла, попробуй другую";
   if (telegram && !/^[a-zA-Z0-9_]{4,32}$/.test(telegram)) errors.telegram = "Ник в Telegram: латиница, цифры и _";
@@ -47,7 +52,8 @@ export async function saveProfile(userId: string, currentUsername: string, form:
 
   const [p, e] = await Promise.all([
     supabase.from("profiles").update({
-      username, display_name: displayName, bio, accent, cover, telegram, website,
+      username, display_name: displayName, bio, accent, telegram, website,
+      banner_preset: bannerPreset, banner_path: bannerPath, about,
       niches: niches.join(","), avatar: avatar || null,
       headline, status, city, skills, sections, pinned_project: pinnedProject,
       open_to_work: form.get("openToWork") === "on",

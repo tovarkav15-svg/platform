@@ -2,13 +2,15 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
-import { supabase, type Earnings, type FriendState, type Profile, type Project, type Work } from "@/lib/supabase";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { supabase, publicMedia, type Earnings, type FriendState, type Profile, type Project, type Work } from "@/lib/supabase";
 import { friendState } from "@/lib/api";
 import { useSession } from "@/lib/session";
 import { parseNiches } from "@/lib/niches";
+import { accentColor } from "@/lib/style";
 import { profileHref } from "@/lib/links";
 import { normalizeUsername } from "@/lib/username";
+import { SECTION_TITLES } from "@/lib/sections";
 import { ProfileHeader } from "../ProfileHeader";
 import { TopBar } from "../TopBar";
 import { FriendActions } from "../FriendActions";
@@ -16,9 +18,9 @@ import { ProjectCard, WorkCard } from "../Cards";
 import { WorkEditor } from "../work/WorkEditor";
 import { ProjectEditor } from "../project/ProjectEditor";
 import { GoalsBoard } from "../goals/GoalsBoard";
-import { SECTION_TITLES } from "@/lib/sections";
+import { CountUp } from "../CountUp";
 
-const fmt = (n: number) => n.toLocaleString("ru-RU").replace(/ /g, " ");
+const fmt = (n: number) => Math.round(n).toLocaleString("ru-RU").replace(/ /g, " ");
 const plural = (n: number, one: string, few: string, many: string) => {
   const m10 = n % 10, m100 = n % 100;
   if (m10 === 1 && m100 !== 11) return one;
@@ -64,8 +66,11 @@ export default function ProfilePage() {
   return (
     <>
       <TopBar />
-      <main className="page wide">
-        {data === null && <div className="skeleton profile-skeleton" />}
+      {data && data !== "missing" && (
+        <div className="pf-aurora" aria-hidden="true" style={{ "--c": accentColor(data.user.accent) } as React.CSSProperties}><i /><i /></div>
+      )}
+      <main className="page wide pf">
+        {data === null && <><div className="skeleton pf-skeleton" /><div className="skeleton list-skeleton" /></>}
         {data === "missing" && (
           <div className="empty">
             <b className="caps">Профиль не найден</b>
@@ -84,45 +89,93 @@ export default function ProfilePage() {
 function ProfileView({ user, earnings, friends, state, works, projects, tab, isMe, loggedIn, reload }: Data & { tab: string | null; isMe: boolean; loggedIn: boolean; reload: () => void }) {
   const niches = parseNiches(user.niches);
   const skills = user.skills.split(",").map((s) => s.trim()).filter(Boolean);
-  const since = new Date(user.created_at).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" });
+  const since = new Date(user.created_at);
+  const days = Math.max(1, Math.round((Date.now() - since.getTime()) / 86400000));
   const pct = earnings?.goal ? Math.min(100, Math.round((earnings.amount / earnings.goal) * 100)) : 0;
 
   const sections = user.sections.split(",").filter((s) => s in SECTION_TITLES);
   const active = tab && sections.includes(tab) ? tab : sections[0];
-  const counts: Record<string, number> = { work: works.length, projects: projects.length };
   const pinned = projects.find((p) => p.id === user.pinned_project);
 
   const [workEdit, setWorkEdit] = useState<Work | null | "new">(null);
   const [projectEdit, setProjectEdit] = useState<Project | null | "new">(null);
 
+  // Подсветка активной вкладки едет за ней
+  const tabsRef = useRef<HTMLElement>(null);
+  const [pill, setPill] = useState<{ left: number; width: number } | null>(null);
+  useLayoutEffect(() => {
+    const place = () => {
+      const el = tabsRef.current?.querySelector<HTMLElement>(`[data-s="${active}"]`);
+      if (el) setPill({ left: el.offsetLeft, width: el.offsetWidth });
+    };
+    place();
+    window.addEventListener("resize", place);
+    return () => window.removeEventListener("resize", place);
+  }, [active, works.length, projects.length]);
+
+  const stats = [
+    { n: works.length, label: plural(works.length, "работа", "работы", "работ"), href: profileHref(user.username, "work") },
+    { n: projects.length, label: plural(projects.length, "проект", "проекта", "проектов"), href: profileHref(user.username, "projects") },
+    { n: friends, label: plural(friends, "друг", "друга", "друзей"), href: isMe ? "/community/" : undefined },
+    { n: days, label: `${plural(days, "день", "дня", "дней")} на платформе` },
+  ];
+
   return (
     <>
       <ProfileHeader
         displayName={user.display_name} username={user.username} headline={user.headline} bio={user.bio}
-        status={user.status} openToWork={user.open_to_work}
-        accent={user.accent} cover={user.cover} avatar={user.avatar} role={user.role}
-        meta={
-          <div className="links">
-            {user.city && <span className="label">{user.city}</span>}
-            <span className="label">С {since}</span>
-            <Link href={isMe ? "/community/" : profileHref(user.username)} className="label">{friends} {plural(friends, "друг", "друга", "друзей")}</Link>
-            {user.telegram && <a href={`https://t.me/${user.telegram}`} target="_blank" rel="noopener noreferrer">Telegram</a>}
-            {user.website && <a href={user.website} target="_blank" rel="noopener noreferrer nofollow">Сайт</a>}
-          </div>
-        }
+        status={user.status} openToWork={user.open_to_work} accent={user.accent} avatar={user.avatar} role={user.role}
+        banner={publicMedia(user.banner_path)} bannerPreset={user.banner_preset}
         actions={isMe
           ? <Link className="btn" href="/settings/">Редактировать</Link>
           : loggedIn && state
             ? <FriendActions userId={user.id} state={state} onChange={reload} />
             : <Link className="btn" href="/login">Войти, чтобы написать</Link>}
+        meta={
+          <div className="ph2-links">
+            {user.city && <span className="chip-soft">⌖ {user.city}</span>}
+            {user.telegram && <a className="chip-soft" href={`https://t.me/${user.telegram}`} target="_blank" rel="noopener noreferrer">Telegram ↗</a>}
+            {user.website && <a className="chip-soft" href={user.website} target="_blank" rel="noopener noreferrer nofollow">{user.website.replace(/^https?:\/\//, "").replace(/\/$/, "").slice(0, 32)} ↗</a>}
+            <span className="chip-soft muted">С {since.toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" })}</span>
+          </div>
+        }
       />
 
-      <div className="profile-layout">
-        <aside className="profile-side">
+      <div className="pf-stats">
+        {stats.map((s, i) => {
+          const inner = <><b className="mono"><CountUp value={s.n} /></b><span>{s.label}</span></>;
+          return s.href
+            ? <Link key={i} href={s.href} replace={s.href.startsWith("/u/")} scroll={false} className="pf-stat" style={{ "--i": i } as React.CSSProperties}>{inner}</Link>
+            : <div key={i} className="pf-stat" style={{ "--i": i } as React.CSSProperties}>{inner}</div>;
+        })}
+      </div>
+
+      <div className="pf-layout">
+        <aside className="pf-side">
+          <section className="pf-card pf-about">
+            <header><span className="pf-dot" /><b>О себе</b>{isMe && <Link href="/settings/#about" className="link-btn">Изменить</Link>}</header>
+            {user.about ? (
+              <div className="pf-about-text">{user.about.split(/\n{2,}/).map((p, i) => <p key={i}>{p}</p>)}</div>
+            ) : (
+              <p className="pf-muted">{isMe ? "Расскажи подробнее, чем занимаешься, с кем работал и что ищешь. Это видят все, кто открыл профиль." : "Пока ничего не рассказал о себе."}</p>
+            )}
+            {niches.length > 0 && (
+              <div className="pf-tags">
+                {niches.map((n) => <span key={n.id} className="tag" style={{ "--c": n.color } as React.CSSProperties}>{n.title}</span>)}
+              </div>
+            )}
+            {skills.length > 0 && (
+              <div className="pf-skills">
+                <span className="label">Навыки</span>
+                <div className="tags">{skills.map((s, i) => <span key={s} className="skill" style={{ "--i": i } as React.CSSProperties}>{s}</span>)}</div>
+              </div>
+            )}
+          </section>
+
           {earnings && (
             <section className="card money">
               <div className="label">{isMe ? "Сколько ты заработал" : "Заработал в этом месяце"}</div>
-              <div className="sum">{fmt(earnings.amount)}<span className="it">₽</span></div>
+              <div className="sum"><CountUp value={earnings.amount} format={fmt} ms={900} /><span className="it">₽</span></div>
               {isMe && <div className="private"><i></i>{earnings.is_public ? "Видят все" : "Видишь только ты"}</div>}
               {earnings.goal > 0 && (
                 <>
@@ -134,35 +187,22 @@ function ProfileView({ user, earnings, friends, state, works, projects, tab, isM
           )}
 
           {pinned && (
-            <section className="card">
-              <div className="label">Сейчас строю</div>
+            <section className="pf-card pf-pinned">
+              <header><span className="pf-dot" /><b>Сейчас строю</b></header>
               <ProjectCard project={pinned} pinned />
             </section>
           )}
-
-          <section className="card">
-            <div className="label">Ниши</div>
-            {niches.length ? (
-              <div className="tags">{niches.map((n) => <span key={n.id} className="tag" style={{ "--c": n.color } as React.CSSProperties}>{n.title}</span>)}</div>
-            ) : (
-              <p className="lead small">{isMe ? <>Не выбраны. <Link href="/settings/">Выбрать</Link></> : "Не выбраны."}</p>
-            )}
-            {skills.length > 0 && (
-              <>
-                <div className="label" style={{ marginTop: 6 }}>Навыки</div>
-                <div className="tags">{skills.map((s) => <span key={s} className="skill">{s}</span>)}</div>
-              </>
-            )}
-          </section>
         </aside>
 
-        <section className="profile-main">
+        <section className="pf-main">
           {sections.length > 1 && (
-            <nav className="seg" aria-label="Разделы профиля">
+            <nav className="pf-tabs" ref={tabsRef} aria-label="Разделы профиля">
+              {pill && <span className="pf-tabs-pill" style={{ transform: `translateX(${pill.left}px)`, width: pill.width }} />}
               {sections.map((s) => (
-                <Link key={s} href={profileHref(user.username, s)} replace scroll={false} className="seg-item" aria-current={active === s ? "page" : undefined}>
+                <Link key={s} data-s={s} href={profileHref(user.username, s)} replace scroll={false} className="pf-tab" aria-current={active === s ? "page" : undefined}>
                   {SECTION_TITLES[s].label}
-                  {counts[s] !== undefined && counts[s] > 0 && <span className="count-plain">{counts[s]}</span>}
+                  {s === "work" && works.length > 0 && <em>{works.length}</em>}
+                  {s === "projects" && projects.length > 0 && <em>{projects.length}</em>}
                 </Link>
               ))}
             </nav>
@@ -171,8 +211,8 @@ function ProfileView({ user, earnings, friends, state, works, projects, tab, isM
           {active === "work" && (
             <div className="section-block" key="work">
               <div className="section-head">
-                <h2 className="h-md caps">Proof <span className="it">of</span> Work</h2>
-                {isMe && <button type="button" className="btn sm" onClick={() => setWorkEdit("new")}>Добавить работу</button>}
+                <div><h2 className="h-md caps">Proof <span className="it">of</span> Work</h2><span className="pf-sub">Что уже сделано, с цифрами</span></div>
+                {isMe && <button type="button" className="btn sm" onClick={() => setWorkEdit("new")}>+ Работа</button>}
               </div>
               {works.length ? (
                 <div className="pgrid">
@@ -187,8 +227,8 @@ function ProfileView({ user, earnings, friends, state, works, projects, tab, isM
           {active === "projects" && (
             <div className="section-block" key="projects">
               <div className="section-head">
-                <h2 className="h-md caps">Что <span className="it">строю</span></h2>
-                {isMe && <button type="button" className="btn sm" onClick={() => setProjectEdit("new")}>Новый проект</button>}
+                <div><h2 className="h-md caps">Что <span className="it">строю</span></h2><span className="pf-sub">Проекты, цели и команда</span></div>
+                {isMe && <button type="button" className="btn sm" onClick={() => setProjectEdit("new")}>+ Проект</button>}
               </div>
               {projects.length ? (
                 <div className="pgrid">
@@ -205,7 +245,7 @@ function ProfileView({ user, earnings, friends, state, works, projects, tab, isM
           {active === "goals" && (
             <div className="section-block" key="goals">
               <div className="section-head">
-                <h2 className="h-md caps">К чему <span className="it">иду</span></h2>
+                <div><h2 className="h-md caps">К чему <span className="it">иду</span></h2><span className="pf-sub">Открытые цели</span></div>
                 {isMe && <Link className="btn sm" href="/goals/">Все мои цели</Link>}
               </div>
               <GoalsBoard userId={user.id} editable={false} />
@@ -227,7 +267,8 @@ function ProfileView({ user, earnings, friends, state, works, projects, tab, isM
 
 function Empty({ isMe, text, meText, cta, onCta }: { isMe: boolean; text: string; meText: string; cta: string; onCta: () => void }) {
   return (
-    <div className="empty">
+    <div className="pf-empty">
+      <span className="pf-empty-art" aria-hidden="true"><i /><i /><i /></span>
       <p className="lead">{isMe ? meText : text}</p>
       {isMe && <button type="button" className="btn" onClick={onCta}>{cta}</button>}
     </div>
