@@ -26,6 +26,7 @@ export async function saveProfile(userId: string, currentUsername: string, form:
   const nameStyle = String(form.get("nameStyle") ?? "plain");
   const emoji = String(form.get("emoji") ?? "").slice(0, 8);
   const pageBg = String(form.get("pageBg") ?? "aurora");
+  const lookingFor = String(form.get("lookingFor") ?? "").trim().slice(0, 200);
   const avatar = String(form.get("avatar") ?? "");
   const telegram = String(form.get("telegram") ?? "").trim().replace(/^(https?:\/\/)?t\.me\//, "").replace(/^@/, "");
   const website = String(form.get("website") ?? "").trim();
@@ -60,7 +61,7 @@ export async function saveProfile(userId: string, currentUsername: string, form:
       banner_preset: bannerPreset, banner_path: bannerPath, about,
       avatar_ring: ["spin", "neon", "solid", "none"].includes(ring) ? ring : "spin",
       name_style: ["plain", "gradient", "outline"].includes(nameStyle) ? nameStyle : "plain",
-      emoji, page_bg: ["aurora", "plain", "dots"].includes(pageBg) ? pageBg : "aurora",
+      emoji, looking_for: lookingFor, page_bg: ["aurora", "plain", "dots"].includes(pageBg) ? pageBg : "aurora",
       niches: niches.join(","), avatar: avatar || null,
       headline, status, city, skills, sections, pinned_project: pinnedProject,
       open_to_work: form.get("openToWork") === "on",

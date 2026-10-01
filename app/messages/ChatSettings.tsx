@@ -9,8 +9,9 @@ import { Avatar } from "../Avatar";
 import { RoleBadge } from "../ProfileHeader";
 import { ChatLookForm, type ChatLook } from "./ChatForm";
 import { KIND_NAME } from "./ChatAvatar";
+import { ChatAccess } from "./ChatAccess";
 
-export type Member = { user_id: string; role: "owner" | "admin" | "member"; username: string; display_name: string; avatar: string | null; accent: string; user_role: string };
+export type Member = { user_id: string; role: "owner" | "admin" | "member"; username: string; display_name: string; avatar: string | null; accent: string; user_role: string; is_support?: boolean };
 const ROLE_NAME = { owner: "Владелец", admin: "Админ", member: "Участник" } as const;
 
 export function ChatSettings({ chat, open, meId, onClose, onChanged, onLeft }: {
@@ -69,6 +70,8 @@ function Body({ chat, meId, onChanged, onLeft }: { chat: ChatListItem; meId: str
         </section>
       )}
 
+      {canEdit && <ChatAccess chat={chat} onChanged={onChanged} />}
+
       <section className="cs-block">
         <div className="label">{chat.kind === "channel" ? "Подписчики" : "Участники"} · {members.length}</div>
         <ul className="cs-members">
@@ -76,7 +79,7 @@ function Body({ chat, meId, onChanged, onLeft }: { chat: ChatListItem; meId: str
             <li key={m.user_id}>
               <Link href={profileHref(m.username)} className="cs-person">
                 <Avatar name={m.display_name} avatar={m.avatar} accent={m.accent} size={36} userId={m.user_id} />
-                <span><b>{m.display_name}<RoleBadge role={m.user_role} small /></b><small>@{m.username}</small></span>
+                <span><b>{m.display_name}<RoleBadge role={m.user_role} small support={m.is_support} /></b><small>@{m.username}</small></span>
               </Link>
               <span className={`cs-role r-${m.role}`}>{chat.kind === "support" && m.role === "admin" ? "Команда" : ROLE_NAME[m.role]}</span>
               {chat.my_role === "owner" && m.user_id !== meId && chat.kind !== "support" && (

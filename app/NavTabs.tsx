@@ -43,13 +43,14 @@ export function NavTabs({ me }: { me: Profile }) {
     { href: "/people/", label: "People", active: path.startsWith("/people") },
     { href: "/community/", label: "Community", active: path.startsWith("/community"), count: requests },
     { href: "/jobs/", label: "Биржа", active: path.startsWith("/jobs") },
+    { href: "/aura/", label: "AURA", active: path.startsWith("/aura") },
     { href: "/discover/", label: "Discover", active: path.startsWith("/discover") || path.startsWith("/project") },
     { href: "/messages/", label: "Чаты", active: path.startsWith("/messages"), count: unread },
   ];
 
   // В фокусе виден только Workspace
   const inFocus = !!me.focus_until && new Date(me.focus_until) > new Date();
-  const visible = inFocus ? tabs.filter((t) => t.href === "/workspace/") : tabs;
+  const visible = inFocus ? tabs.filter((t) => t.href === "/workspace/" || t.href === "/learn/") : tabs;
 
   return (
     <nav className={`navtabs ${inFocus ? "focus" : ""}`} aria-label="Разделы">

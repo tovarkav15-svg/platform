@@ -36,7 +36,7 @@ export function JobBadge({ job, i, onOpen, photo: photoOverride }: { job: JobRow
         <span className="bd-photo">
           {photo ? <img src={photo} alt="" loading="lazy" /> : <span className="caps">{job.author.display_name.slice(0, 1)}</span>}
         </span>
-        <span className="bd-name"><b>{job.author.display_name}</b><RoleBadge role={job.author.role} small /></span>
+        <span className="bd-name"><b>{job.author.display_name}</b><RoleBadge role={job.author.role} small support={job.author.is_support} /></span>
         <span className="bd-handle it">@{job.author.username}</span>
         <span className="bd-service">{job.service}</span>
         <span className="bd-check"><small>средний чек</small><b className="mono">{rub(job.avg_check)}</b></span>
@@ -106,7 +106,7 @@ export function JobDetail({ job, onClose, onWrite, onEdit, canWrite }: {
             <span className="jd-photo">{photo ? <img src={photo} alt="" /> : <span className="caps">{job.author.display_name.slice(0, 1)}</span>}</span>
             <div className="jd-who">
               <span className="label">{n?.title ?? "Услуга"}</span>
-              <Link href={profileHref(job.author.username)} className="jd-name"><b>{job.author.display_name}</b> <RoleBadge role={job.author.role} small /></Link>
+              <Link href={profileHref(job.author.username)} className="jd-name"><b>{job.author.display_name}</b> <RoleBadge role={job.author.role} small support={job.author.is_support} /></Link>
               <span className="it">@{job.author.username}</span>
             </div>
             <div className="jd-check"><small>средний чек</small><b className="mono">{rub(job.avg_check)}</b></div>

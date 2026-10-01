@@ -21,11 +21,16 @@ type Props = {
   ring?: string;
   nameStyle?: string;
   emoji?: string;
+  support?: boolean;
 };
 
-export function RoleBadge({ role, small }: { role?: string; small?: boolean }) {
-  if (!isOwner(role)) return null;
-  return <span className={`badge owner ${small ? "sm" : ""}`}>Owner</span>;
+export function RoleBadge({ role, small, support }: { role?: string; small?: boolean; support?: boolean }) {
+  return (
+    <>
+      {isOwner(role) && <span className={`badge owner ${small ? "sm" : ""}`}>Owner</span>}
+      {support && <span className={`badge support ${small ? "sm" : ""}`} title="Команда поддержки платформы">Поддержка</span>}
+    </>
+  );
 }
 
 export function Banner({ image, preset = "aurora", className = "" }: { image?: string | null; preset?: string; className?: string }) {
@@ -37,7 +42,7 @@ export function Banner({ image, preset = "aurora", className = "" }: { image?: s
 }
 
 // Шапка профиля: баннер, аватар с кольцом, имя. Используется в профиле и как живое превью в настройках
-export function ProfileHeader({ displayName, username, headline, bio, status, openToWork, accent, avatar, role, banner, bannerPreset, meta, actions, compact, userId, ring = "spin", nameStyle = "plain", emoji }: Props) {
+export function ProfileHeader({ displayName, username, headline, bio, status, openToWork, accent, avatar, role, banner, bannerPreset, meta, actions, compact, userId, ring = "spin", nameStyle = "plain", emoji, support }: Props) {
   return (
     <section className={`ph2 ${compact ? "compact" : ""}`} style={{ "--c": accentColor(accent) } as React.CSSProperties}>
       <Banner image={banner} preset={bannerPreset} />
@@ -54,7 +59,7 @@ export function ProfileHeader({ displayName, username, headline, bio, status, op
           <div className="ph2-name">
             <h1 className={`caps name-${nameStyle}`}>{displayName || "Имя"}</h1>
             {emoji && <span className="name-emoji" aria-hidden="true">{emoji}</span>}
-            <RoleBadge role={role} />
+            <RoleBadge role={role} support={support} />
           </div>
           <span className="handle">@{username || "username"}{headline && <span className="headline"> · {headline}</span>}</span>
           {userId && <PresenceLabel userId={userId} />}

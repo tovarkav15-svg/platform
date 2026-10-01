@@ -25,7 +25,7 @@ export function PeopleList({ people, stateOf, onChange, extra, layout = "list" }
               {p.open_to_work && <span className="otw-dot" title="Открыт к работе" />}
             </span>
             <span className="person-text">
-              <b>{p.display_name}<RoleBadge role={p.role} small /></b>
+              <b>{p.display_name}<RoleBadge role={p.role} small support={p.is_support} /></b>
               <small>@{p.username}{p.headline && <span className="headline"> · {p.headline}</span>}</small>
               <span className="person-niches">
                 {parseNiches(p.niches).slice(0, 3).map((n) => (

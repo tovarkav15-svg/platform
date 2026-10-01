@@ -15,7 +15,7 @@ import { normalizeUsername, validateUsername, USERNAME_MAX } from "@/lib/usernam
 
 type Initial = {
   displayName: string; username: string; bio: string; accent: string; avatar: string; bannerPath: string; bannerPreset: string; about: string;
-  ring: string; nameStyle: string; emoji: string; pageBg: string;
+  ring: string; nameStyle: string; emoji: string; pageBg: string; lookingFor: string;
   telegram: string; website: string; niches: string; earnings: number; earningsGoal: number; showEarnings: boolean;
   headline: string; status: string; city: string; skills: string; openToWork: boolean; sections: string; pinnedProject: string;
 };
@@ -283,6 +283,11 @@ export function ProfileForm({ userId, initial, role, projects, onSaved }: Props)
             ))}
           </div>
         </fieldset>
+
+        <label className="field" id="looking">
+          <span>Ищу <span className="count">{f.lookingFor.length}/200</span></span>
+          <div className="input"><input id="lookingFor" name="lookingFor" value={f.lookingFor} maxLength={200} placeholder="Монтажёра в команду, клиентов на рилсы, наставника по продюсированию" onChange={(ev) => set("lookingFor", ev.target.value)} /></div>
+        </label>
 
         <label className="field" id="about">
           <span>О себе подробно <span className="count">{f.about.length}/1500</span></span>

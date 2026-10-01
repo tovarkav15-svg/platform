@@ -33,6 +33,8 @@ export type Profile = {
   name_style: "plain" | "gradient" | "outline";
   emoji: string;
   page_bg: "aurora" | "plain" | "dots";
+  is_support: boolean;
+  looking_for: string;
 };
 
 export type Earnings = { user_id: string; amount: number; goal: number; is_public: boolean };
@@ -62,6 +64,8 @@ export type ChatListItem = {
   last_sender: string | null;
   last_at: string | null;
   unread: number;
+  username?: string | null;
+  support_status?: "open" | "resolved";
 };
 
 export type Work = {
@@ -82,8 +86,8 @@ export type ProjectTask = { id: string; project_id: string; title: string; done:
 export type Goal = { id: string; user_id: string; title: string; due_date: string | null; is_public: boolean; done: boolean; created_at: string };
 export type Task = { id: string; user_id: string; goal_id: string | null; title: string; due_date: string | null; done: boolean; created_at: string };
 
-export const PROFILE_CARD = "id, username, display_name, avatar, accent, niches, role, headline, open_to_work, city, skills";
-export type ProfileCard = Pick<Profile, "id" | "username" | "display_name" | "avatar" | "accent" | "niches" | "role" | "headline" | "open_to_work" | "city" | "skills">;
+export const PROFILE_CARD = "id, username, display_name, avatar, accent, niches, role, headline, open_to_work, city, skills, is_support";
+export type ProfileCard = Pick<Profile, "id" | "username" | "display_name" | "avatar" | "accent" | "niches" | "role" | "headline" | "open_to_work" | "city" | "skills"> & { is_support?: boolean };
 
 export const STAGES: Record<Stage, string> = {
   idea: "Идея",

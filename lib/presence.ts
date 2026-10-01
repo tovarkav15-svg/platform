@@ -79,6 +79,8 @@ export function startHeartbeat(userId: string) {
   };
   const onVisible = () => { mark(); beat(); };
   beat();
+  // Активный день для AURA: одна отметка в сутки
+  supabase.from("activity_days").upsert({ user_id: userId }, { onConflict: "user_id,day", ignoreDuplicates: true }).then(() => {});
   const t = setInterval(beat, 45_000);
   window.addEventListener("pointerdown", mark);
   window.addEventListener("keydown", mark);

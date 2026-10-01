@@ -8,10 +8,13 @@ import { CHAT_MAX_BYTES, compressImage, kindOf, uploadChatFile } from "@/lib/upl
 import { Avatar, PresenceLabel } from "../Avatar";
 import { ChatAvatar, chatTitle, SupportMark } from "./ChatAvatar";
 import type { Member } from "./ChatSettings";
+import { StickerPicker } from "./StickerPicker";
+import { StickerArt } from "@/lib/stickers";
+import { useSession } from "@/lib/session";
 import { clock, dayLabel } from "./time";
 import { FileMedia, ImageMedia, imageSize, VideoMedia, VoiceMedia, useVoiceRecorder, type MediaMeta } from "./ChatMedia";
 
-type Kind = "text" | "image" | "video" | "voice" | "file" | "system";
+type Kind = "text" | "image" | "video" | "voice" | "file" | "system" | "sticker";
 type Msg = {
   id: string; text: string; sender_id: string; created_at: string;
   kind: Kind; media_path: string | null; media_meta: MediaMeta;
@@ -29,6 +32,20 @@ export function ChatThread({ chatId, meId, chat, onSettings, onCall }: { chatId:
   const multi = chat.kind === "group" || chat.kind === "support" || chat.kind === "channel";
   const canWrite = chat.kind !== "channel" || chat.my_role === "owner" || chat.my_role === "admin";
   const [people, setPeople] = useState<Map<string, Member>>(new Map());
+  const { me } = useSession();
+  const isAdmin = chat.my_role === "owner" || chat.my_role === "admin";
+  const staffView = chat.kind === "support" && !!me?.is_support && chat.support_for !== meId;
+  type Extra = { username: string | null; pinned_message: string | null; sign_posts: boolean; support_status: "open" | "resolved"; description: string };
+  const [extra, setExtra] = useState<Extra | null>(null);
+  const loadExtra = useCallback(async () => {
+    const { data } = await supabase.from("chats").select("username, pinned_message, sign_posts, support_status, description").eq("id", chatId).maybeSingle();
+    setExtra(data as Extra | null);
+  }, [chatId]);
+  useEffect(() => { loadExtra(); }, [loadExtra]);
+  async function pin(id: string | null) {
+    await supabase.from("chats").update({ pinned_message: id }).eq("id", chatId);
+    loadExtra();
+  }
   useEffect(() => {
     if (!multi) return;
     supabase.rpc("chat_people", { p_chat: chatId }).then(({ data }) => setPeople(new Map(((data as Member[]) ?? []).map((m) => [m.user_id, m]))));
@@ -157,6 +174,12 @@ export function ChatThread({ chatId, meId, chat, onSettings, onCall }: { chatId:
     kind, media_path: null, media_meta: meta,
   });
 
+  const [stickers, setStickers] = useState(false);
+  function sendSticker(code: string) {
+    setStickers(false);
+    return deliver(draft("sticker", code), async () => ({}));
+  }
+
   function sendText(body: string) {
     return deliver(draft("text", body), async () => ({}));
   }
@@ -234,10 +257,18 @@ export function ChatThread({ chatId, meId, chat, onSettings, onCall }: { chatId:
             <span>
               <b>{chatTitle(chat)}</b>
               <small className="thread-sub">
-                {chat.kind === "support" ? "Команда платформы: @fedonko, @awiny" : chat.kind === "channel" ? `Канал · ${chat.member_count} подписчиков` : `Группа · ${chat.member_count} участников`}
+                {chat.kind === "support"
+                  ? (staffView ? "Обращение пользователя · отвечает команда" : "Команда платформы: @fedonko, @awiny")
+                  : `${extra?.username ? `@${extra.username} · ` : ""}${chat.member_count} ${chat.kind === "channel" ? "подписчиков" : "участников"}`}
               </small>
             </span>
           </button>
+        )}
+        {staffView && extra && (
+          <button type="button" className={`ticket ${extra.support_status}`} onClick={async () => {
+            await supabase.rpc("set_support_status", { p_chat: chatId, p_status: extra.support_status === "open" ? "resolved" : "open" });
+            loadExtra();
+          }}>{extra.support_status === "open" ? "● Открыто · отметить решённым" : "✓ Решено · открыть снова"}</button>
         )}
         <span className="thread-tools">
           {isDm && (
@@ -254,6 +285,18 @@ export function ChatThread({ chatId, meId, chat, onSettings, onCall }: { chatId:
         </span>
       </header>
 
+      {extra?.pinned_message && (() => {
+        const pm = messages.find((x) => x.id === extra.pinned_message);
+        return (
+          <div className="pinned-bar">
+            <i>📌</i>
+            <button type="button" className="pinned-text" onClick={() => document.getElementById(`m-${extra.pinned_message}`)?.scrollIntoView({ behavior: "smooth", block: "center" })}>
+              <b>Закреплено</b><span>{pm ? (pm.kind === "text" ? pm.text : pm.kind === "sticker" ? "Стикер" : "Вложение") : "Сообщение"}</span>
+            </button>
+            {isAdmin && chat.kind !== "dm" && <button type="button" className="icon-btn sm" onClick={() => pin(null)} aria-label="Открепить">×</button>}
+          </div>
+        );
+      })()}
       <div className="msgs" ref={scroller} onScroll={onScroll}>
         {!loaded && <div className="msgs-loading"><span /><span /><span /></div>}
         {loaded && chat.kind === "support" && !messages.some((m) => m.kind !== "system") && (
@@ -289,30 +332,34 @@ export function ChatThread({ chatId, meId, chat, onSettings, onCall }: { chatId:
               <div className="msg-system">{m.text}</div>
             </div>
           );
-          const author = multi && !mine ? people.get(m.sender_id) : undefined;
+          const author = multi && !mine && !(chat.kind === "channel" && extra && !extra.sign_posts) ? people.get(m.sender_id) : undefined;
           const groupStart = !prev || prev.sender_id !== m.sender_id || prev.kind === "system" || newDay;
           return (
-            <div key={m.id} className={`msg-wrap ${author ? "with-author" : ""}`}>
+            <div key={m.id} id={`m-${m.id}`} className={`msg-wrap ${author ? "with-author" : ""} ${extra?.pinned_message === m.id ? "is-pinned" : ""}`}>
               {newDay && <div className="day-sep"><span>{dayLabel(m.created_at)}</span></div>}
               {author && groupStart && (
                 <Link href={profileHref(author.username)} className="msg-author">
                   <Avatar name={author.display_name} avatar={author.avatar} accent={author.accent} size={22} userId={author.user_id} />
                   <b>{author.display_name}</b>
-                  {chat.kind === "support" && author.role === "admin" && <em>команда</em>}
+                  {chat.kind === "support" && author.role === "admin" && <em className="em-support">поддержка</em>}
                   {chat.kind !== "support" && author.role !== "member" && <em>{author.role === "owner" ? "владелец" : "админ"}</em>}
                 </Link>
               )}
-              <div className={`msg kind-${m.kind} ${visual && !m.text ? "bare" : ""} ${mine ? "mine" : ""} ${groupEnd ? "end" : ""} ${m.pending ? "pending" : ""} ${m.failed ? "failed" : ""}`}>
+              <div className={`msg kind-${m.kind} ${(visual && !m.text) || m.kind === "sticker" ? "bare" : ""} ${mine ? "mine" : ""} ${groupEnd ? "end" : ""} ${m.pending ? "pending" : ""} ${m.failed ? "failed" : ""}`}>
                 {m.kind === "image" && <ImageMedia path={m.media_path} meta={m.media_meta} />}
                 {m.kind === "video" && <VideoMedia path={m.media_path} meta={m.media_meta} />}
                 {m.kind === "file" && <FileMedia path={m.media_path} meta={m.media_meta} />}
                 {m.kind === "voice" && <VoiceMedia path={m.media_path} meta={m.media_meta} mine={mine} />}
-                {m.text && <span className="msg-text">{m.text}</span>}
+                {m.kind === "sticker" && <span className="msg-sticker"><StickerArt code={m.text} size={140} /></span>}
+                {m.text && m.kind !== "sticker" && <span className="msg-text">{m.text}</span>}
                 <span className="msg-meta">
                   {m.pending && m.kind !== "text" ? "загружаю…" : clock(m.created_at)}
                   {mine && <Ticks state={m.failed ? "failed" : m.pending ? "pending" : read ? "read" : "sent"} />}
                 </span>
               </div>
+              {isAdmin && chat.kind !== "dm" && chat.kind !== "support" && !m.pending && !m.failed && extra?.pinned_message !== m.id && (
+                <button type="button" className={`pin-btn ${mine ? "mine" : ""}`} onClick={() => pin(m.id)} aria-label="Закрепить">📌</button>
+              )}
               {m.failed && <button className="retry" type="button" onClick={() => m.retry?.()}>Не отправилось · повторить</button>}
             </div>
           );
@@ -344,6 +391,12 @@ export function ChatThread({ chatId, meId, chat, onSettings, onCall }: { chatId:
         </div>
       ) : (
         <form className="composer" onSubmit={submit}>
+          <span className="stk-anchor">
+            <button type="button" className={`attach stk-btn ${stickers ? "on" : ""}`} onClick={() => setStickers((v) => !v)} aria-label="Стикеры" title="Стикеры">
+              <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><circle cx="12" cy="12" r="9.5" fill="none" stroke="currentColor" strokeWidth="1.8" /><circle cx="9" cy="10" r="1.3" fill="currentColor" /><circle cx="15" cy="10" r="1.3" fill="currentColor" /><path d="M8 14.5q4 3.5 8 0" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
+            </button>
+            {stickers && <StickerPicker onPick={sendSticker} onClose={() => setStickers(false)} />}
+          </span>
           <button type="button" className="attach" onClick={() => fileInput.current?.click()} aria-label="Прикрепить фото, видео или файл" title="Фото, видео, файл">
             <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M16.5 6.5v10a4.5 4.5 0 0 1-9 0V5a3 3 0 0 1 6 0v10.5a1.5 1.5 0 0 1-3 0V6.5H9v9a3 3 0 0 0 6 0V5a4.5 4.5 0 0 0-9 0v11.5a6 6 0 0 0 12 0v-10z" /></svg>
           </button>

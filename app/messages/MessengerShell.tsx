@@ -9,14 +9,17 @@ import { shortTime } from "./time";
 import { ChatAvatar, chatTitle } from "./ChatAvatar";
 import { CreateChat } from "./CreateChat";
 import { ChannelsBrowser } from "./ChannelsBrowser";
+import { useSession } from "@/lib/session";
 
-const KIND_LABEL: Record<string, string> = { image: "Фото", video: "Видео", voice: "Голосовое сообщение", file: "Файл" };
-type Filter = "all" | "dm" | "group" | "channel";
+const KIND_LABEL: Record<string, string> = { image: "Фото", video: "Видео", voice: "Голосовое сообщение", file: "Файл", sticker: "Стикер" };
+type Filter = "all" | "dm" | "group" | "channel" | "tickets";
 
 type Props = { chats: ChatListItem[] | null; activeId: string | null; meId: string; children: React.ReactNode; onChanged: () => void };
 
 export function MessengerShell({ chats, activeId, meId, children, onChanged }: Props) {
   const router = useRouter();
+  const { me } = useSession();
+  const staff = !!me?.is_support;
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const [menu, setMenu] = useState(false);
@@ -26,7 +29,8 @@ export function MessengerShell({ chats, activeId, meId, children, onChanged }: P
   const list = useMemo(() => chats ?? [], [chats]);
   const shown = useMemo(() => {
     const s = q.trim().toLowerCase();
-    return list.filter((c) => (filter === "all" || c.kind === filter || (filter === "dm" && c.kind === "support"))
+    const isTicket = (c: ChatListItem) => c.kind === "support" && c.support_for !== meId;
+    return list.filter((c) => (filter === "all" || (filter === "tickets" ? isTicket(c) : c.kind === filter || (filter === "dm" && c.kind === "support" && !isTicket(c))))
       && (!s || chatTitle(c).toLowerCase().includes(s) || (c.other_username ?? "").includes(s)));
   }, [list, q, filter]);
   const hasSupport = list.some((c) => c.kind === "support" && c.support_for === meId);
@@ -38,7 +42,7 @@ export function MessengerShell({ chats, activeId, meId, children, onChanged }: P
 
   const preview = (c: ChatListItem) => {
     if (!c.last_at) return "Нет сообщений";
-    const body = c.last_text || KIND_LABEL[c.last_kind ?? ""] || "Сообщение";
+    const body = (c.last_kind === "sticker" ? "" : c.last_text) || KIND_LABEL[c.last_kind ?? ""] || "Сообщение";
     if (c.last_kind === "system") return body;
     if (c.last_mine) return `Ты: ${body}`;
     return c.kind === "group" || c.kind === "support" ? `${c.last_sender ?? ""}: ${body}` : body;
@@ -65,8 +69,10 @@ export function MessengerShell({ chats, activeId, meId, children, onChanged }: P
           <input id="chatSearch" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Поиск по чатам" autoComplete="off" />
         </div>
         <div className="chat-filters" role="tablist" aria-label="Виды чатов">
-          {([["all", "Все"], ["dm", "Личные"], ["group", "Группы"], ["channel", "Каналы"]] as [Filter, string][]).map(([k, l]) => (
-            <button key={k} type="button" role="tab" aria-selected={filter === k} onClick={() => setFilter(k)}>{l}</button>
+          {([["all", "Все"], ["dm", "Личные"], ["group", "Группы"], ["channel", "Каналы"], ...(staff ? [["tickets", "Обращения"]] : [])] as [Filter, string][]).map(([k, l]) => (
+            <button key={k} type="button" role="tab" aria-selected={filter === k} className={k === "tickets" ? "tickets" : ""} onClick={() => setFilter(k)}>
+              {l}{k === "tickets" && <em>{list.filter((c) => c.kind === "support" && c.support_for !== meId && c.unread > 0).length || ""}</em>}
+            </button>
           ))}
         </div>
         <ul>

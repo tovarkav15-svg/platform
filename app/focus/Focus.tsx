@@ -16,7 +16,8 @@ const fmt = (ms: number) => {
   return h ? `${h}:${String(m).padStart(2, "0")}:${String(r).padStart(2, "0")}` : `${String(m).padStart(2, "0")}:${String(r).padStart(2, "0")}`;
 };
 
-/** В фокусе открыт только Workspace: остальные разделы возвращают туда */
+/** В фокусе открыты только Workspace и Обучение: остальные разделы возвращают в Workspace */
+const FOCUS_OPEN = ["/workspace", "/learn"];
 export function FocusGuard({ children }: { children: React.ReactNode }) {
   const { me, refreshMe } = useSession();
   const path = usePathname();
@@ -24,7 +25,7 @@ export function FocusGuard({ children }: { children: React.ReactNode }) {
   const left = focusLeft(me?.focus_until);
 
   useEffect(() => {
-    if (left > 0 && !path.startsWith("/workspace")) router.replace("/workspace/");
+    if (left > 0 && !FOCUS_OPEN.some((p) => path.startsWith(p))) router.replace("/workspace/");
   }, [left > 0, path, router]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Когда время фокуса вышло — обновляем профиль, и разделы снова открываются
@@ -87,7 +88,7 @@ export function FocusButton() {
       <Modal open={open} onClose={() => setOpen(false)} title={<>Режим <span className="it">фокуса</span></>}>
         {open && (
           <div className="focus-modal">
-            <p className="lead">На это время тебе никто не сможет написать в личку и позвонить. Все разделы закроются, кроме Workspace. Другие увидят, что ты в фокусе.</p>
+            <p className="lead">На это время тебе никто не сможет написать в личку и позвонить. Все разделы закроются, кроме Workspace и Обучения. Другие увидят, что ты в фокусе.</p>
             <div className="focus-presets">
               {PRESETS.map((p, i) => (
                 <button key={p.min} type="button" style={{ "--i": i } as React.CSSProperties} onClick={() => start(p.min)}>

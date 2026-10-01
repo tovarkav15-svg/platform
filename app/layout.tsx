@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { SessionProvider } from "@/lib/session";
 import { CallLayer } from "./calls/CallLayer";
 import { FocusGuard } from "./focus/Focus";
+import { NotifyLayer } from "./notify/NotifyLayer";
+import { Suspense } from "react";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -21,7 +23,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body>
-        <SessionProvider><CallLayer><FocusGuard>{children}</FocusGuard></CallLayer></SessionProvider>
+        <SessionProvider><CallLayer><FocusGuard>{children}</FocusGuard><Suspense fallback={null}><NotifyLayer /></Suspense></CallLayer></SessionProvider>
       </body>
     </html>
   );

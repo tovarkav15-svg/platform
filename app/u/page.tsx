@@ -19,6 +19,10 @@ import { WorkEditor } from "../work/WorkEditor";
 import { ProjectEditor } from "../project/ProjectEditor";
 import { GoalsBoard } from "../goals/GoalsBoard";
 import { CountUp } from "../CountUp";
+import { ChatAvatar } from "../messages/ChatAvatar";
+import { tierOf } from "@/lib/aura";
+import { chatHref } from "@/lib/links";
+import { useRouter } from "next/navigation";
 
 const fmt = (n: number) => Math.round(n).toLocaleString("ru-RU").replace(/ /g, " ");
 const plural = (n: number, one: string, few: string, many: string) => {
@@ -28,7 +32,9 @@ const plural = (n: number, one: string, few: string, many: string) => {
   return many;
 };
 
-type Data = { user: Profile; earnings: Earnings | null; friends: number; state: FriendState | null; works: Work[]; projects: Project[] };
+type Channel = { chat_id: string; title: string; username: string | null; avatar: string | null; accent: string; emoji: string; description: string; member_count: number };
+type JobLite = { id: string; service: string; niche: string; avg_check: number };
+type Data = { user: Profile; earnings: Earnings | null; friends: number; state: FriendState | null; works: Work[]; projects: Project[]; aura: number; channels: Channel[]; jobs: JobLite[] };
 
 export default function ProfilePage() {
   const sp = useSearchParams();
@@ -40,16 +46,20 @@ export default function ProfilePage() {
     const { data: user } = await supabase.from("profiles").select("*").eq("username", username).maybeSingle();
     if (!user) return setData("missing");
     // Доход отдаёт сама база: владельцу всегда, остальным только если он открыт
-    const [{ data: earnings }, { data: friends }, state, { data: works }, { data: projects }] = await Promise.all([
+    const [{ data: earnings }, { data: friends }, state, { data: works }, { data: projects }, { data: aura }, { data: channels }, { data: jobs }] = await Promise.all([
       supabase.from("earnings").select("*").eq("user_id", user.id).maybeSingle(),
       supabase.rpc("friend_count", { p_user: user.id }),
       me ? friendState(me.id, user.id) : Promise.resolve(null),
       supabase.from("works").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
       supabase.from("projects").select("*").eq("user_id", user.id).order("updated_at", { ascending: false }),
+      supabase.rpc("my_aura", { p_user: user.id }),
+      supabase.rpc("user_channels", { p_user: user.id }),
+      supabase.from("jobs").select("id, service, niche, avg_check").eq("user_id", user.id).eq("active", true).order("updated_at", { ascending: false }),
     ]);
     setData({
       user: user as Profile, earnings: earnings as Earnings | null, friends: friends ?? 0, state,
       works: (works as Work[]) ?? [], projects: (projects as Project[]) ?? [],
+      aura: (aura as number) ?? 0, channels: (channels as Channel[]) ?? [], jobs: (jobs as JobLite[]) ?? [],
     });
   }, [username, me]);
 
@@ -86,7 +96,7 @@ export default function ProfilePage() {
   );
 }
 
-function ProfileView({ user, earnings, friends, state, works, projects, tab, isMe, loggedIn, reload }: Data & { tab: string | null; isMe: boolean; loggedIn: boolean; reload: () => void }) {
+function ProfileView({ user, earnings, friends, state, works, projects, aura, channels, jobs, tab, isMe, loggedIn, reload }: Data & { tab: string | null; isMe: boolean; loggedIn: boolean; reload: () => void }) {
   const niches = parseNiches(user.niches);
   const skills = user.skills.split(",").map((s) => s.trim()).filter(Boolean);
   const since = new Date(user.created_at);
@@ -125,7 +135,7 @@ function ProfileView({ user, earnings, friends, state, works, projects, tab, isM
       <ProfileHeader
         displayName={user.display_name} username={user.username} headline={user.headline} bio={user.bio}
         status={user.status} openToWork={user.open_to_work} accent={user.accent} avatar={user.avatar} role={user.role}
-        banner={publicMedia(user.banner_path)} bannerPreset={user.banner_preset} userId={user.id} ring={user.avatar_ring} nameStyle={user.name_style} emoji={user.emoji}
+        banner={publicMedia(user.banner_path)} bannerPreset={user.banner_preset} userId={user.id} ring={user.avatar_ring} nameStyle={user.name_style} emoji={user.emoji} support={user.is_support}
         actions={isMe
           ? <Link className="btn" href="/settings/">Редактировать</Link>
           : loggedIn && state
@@ -152,6 +162,50 @@ function ProfileView({ user, earnings, friends, state, works, projects, tab, isM
 
       <div className="pf-layout">
         <aside className="pf-side">
+          <AuraCard aura={aura} isMe={isMe} />
+
+          {user.is_support && (
+            <section className="pf-card pf-support">
+              <header><span className="pf-dot" /><b>Команда поддержки</b></header>
+              <p className="pf-muted">{isMe ? "Ты в команде поддержки: обращения приходят тебе во вкладку «Обращения» в чатах." : `${user.display_name} из команды платформы. Если что-то не работает или есть идея, напиши в поддержку, ответим.`}</p>
+              {!isMe && <SupportButton />}
+            </section>
+          )}
+
+          {(user.looking_for || isMe) && (
+            <section className="pf-card pf-looking">
+              <header><span className="pf-dot" /><b>Ищу</b>{isMe && <Link href="/settings/#looking" className="link-btn">Изменить</Link>}</header>
+              {user.looking_for ? <p className="pf-looking-text">{user.looking_for}</p> : <p className="pf-muted">Напиши, кого или что ищешь: команду, клиентов, наставника. Это видят все.</p>}
+              {projects.filter((p) => p.looking_for).slice(0, 3).map((p) => (
+                <Link key={p.id} href={`/project/?id=${p.id}`} className="pf-looking-proj"><b>{p.name}</b><span>{p.looking_for}</span></Link>
+              ))}
+            </section>
+          )}
+
+          {channels.length > 0 && (
+            <section className="pf-card pf-channels">
+              <header><span className="pf-dot" /><b>Каналы</b></header>
+              <ul>
+                {channels.map((c) => (
+                  <li key={c.chat_id}>
+                    <Link href={c.username ? `/c/?u=${c.username}` : "/messages/"} className="pf-channel">
+                      <ChatAvatar size={40} c={{ kind: "channel", avatar: c.avatar, accent: c.accent, emoji: c.emoji, title: c.title, other_id: null, other_name: null, other_avatar: null, other_accent: null }} />
+                      <span><b>{c.title}</b><small>{c.username ? `@${c.username} · ` : ""}{c.member_count} подписчиков</small></span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {jobs.length > 0 && (
+            <section className="pf-card pf-jobs">
+              <header><span className="pf-dot" /><b>На бирже</b><Link href="/jobs/" className="link-btn">Биржа →</Link></header>
+              {jobs.map((j) => (
+                <div key={j.id} className="pf-job"><b>{j.service}</b><span className="mono">{j.avg_check ? `${Math.round(j.avg_check).toLocaleString("ru-RU").replace(/\u00a0/g, " ")} ₽` : "по договорённости"}</span></div>
+              ))}
+            </section>
+          )}
           <section className="pf-card pf-about">
             <header><span className="pf-dot" /><b>О себе</b>{isMe && <Link href="/settings/#about" className="link-btn">Изменить</Link>}</header>
             {user.about ? (
@@ -272,5 +326,31 @@ function Empty({ isMe, text, meText, cta, onCta }: { isMe: boolean; text: string
       <p className="lead">{isMe ? meText : text}</p>
       {isMe && <button type="button" className="btn" onClick={onCta}>{cta}</button>}
     </div>
+  );
+}
+
+function AuraCard({ aura, isMe }: { aura: number; isMe: boolean }) {
+  const t = tierOf(aura);
+  return (
+    <Link href="/aura/" className="pf-aura" style={{ "--t": t.color } as React.CSSProperties}>
+      <span className="pf-aura-orb" aria-hidden="true" />
+      <span className="pf-aura-text">
+        <span className="label">AURA · {t.name}</span>
+        <b className="mono"><CountUp value={aura} /></b>
+        {t.next
+          ? <span className="pf-aura-next"><i style={{ width: `${Math.round(t.progress * 100)}%` }} /><em>{isMe ? `ещё ${t.next.min - aura} до «${t.next.name}»` : `до «${t.next.name}» ${t.next.min - aura}`}</em></span>
+          : <span className="pf-aura-next"><em>Высший уровень</em></span>}
+      </span>
+    </Link>
+  );
+}
+
+function SupportButton() {
+  const router = useRouter();
+  return (
+    <button type="button" className="btn sm" onClick={async () => {
+      const { data } = await supabase.rpc("open_support");
+      if (data) router.push(chatHref(data as string));
+    }}>Написать в поддержку</button>
   );
 }
