@@ -7,10 +7,18 @@ import { parseNiches } from "@/lib/niches";
 import { normalizeUsername } from "@/lib/username";
 import { ProfileHeader } from "../../ProfileHeader";
 import { TopBar } from "../../TopBar";
+import { FriendActions } from "../../friends/FriendActions";
+import { friendState } from "@/lib/social";
 
 type Props = { params: Promise<{ username: string }> };
 
 const fmt = (n: number) => n.toLocaleString("ru-RU").replace(/ /g, " ");
+const plural = (n: number, one: string, few: string, many: string) => {
+  const m10 = n % 10, m100 = n % 100;
+  if (m10 === 1 && m100 !== 11) return one;
+  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
+  return many;
+};
 
 async function load(raw: string) {
   const username = normalizeUsername(decodeURIComponent(raw));
@@ -33,6 +41,9 @@ export default async function ProfilePage({ params }: Props) {
   const niches = parseNiches(p.niches);
   const pct = p.earningsGoal ? Math.min(100, Math.round((p.earnings / p.earningsGoal) * 100)) : 0;
   const since = user.createdAt.toLocaleDateString("ru-RU", { month: "long", year: "numeric" });
+  const friendsCount = await db.friendship.count({
+    where: { status: "accepted", OR: [{ requesterId: user.id }, { addresseeId: user.id }] },
+  });
 
   return (
     <>
@@ -44,13 +55,16 @@ export default async function ProfilePage({ params }: Props) {
           meta={
             <div className="links">
               <span className="label">На платформе с {since}</span>
+              <span className="label">{friendsCount} {plural(friendsCount, "друг", "друга", "друзей")}</span>
               {p.telegram && <a href={`https://t.me/${p.telegram}`} target="_blank" rel="noopener noreferrer">Telegram</a>}
               {p.website && <a href={p.website} target="_blank" rel="noopener noreferrer nofollow">Сайт</a>}
             </div>
           }
           actions={isMe
             ? <Link className="btn" href="/settings">Редактировать</Link>
-            : <span className="btn ghost" aria-disabled>Написать · скоро</span>}
+            : me
+              ? <FriendActions userId={user.id} state={await friendState(me.id, user.id)} />
+              : <Link className="btn" href="/login">Войти, чтобы написать</Link>}
         />
 
         <div className="grid2">
