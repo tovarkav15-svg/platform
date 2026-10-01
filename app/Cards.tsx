@@ -54,6 +54,12 @@ export function ProjectCard({ project, author, onEdit, pinned, i = 0 }: { projec
         {author && <Author p={author} />}
         <h3><Link href={projectHref(project.id)}>{project.name}</Link></h3>
         {project.tagline && <p className="pcard-text">{project.tagline}</p>}
+        {project.goal_target > 0 && (
+          <div className="pcard-goal">
+            <span><b>{project.goal_label || "Цель"}</b><em>{project.goal_current} / {project.goal_target}</em></span>
+            <div className="bar light"><b style={{ width: `${Math.min(100, Math.round((project.goal_current / project.goal_target) * 100))}%` }} /></div>
+          </div>
+        )}
         {project.looking_for && <p className="looking"><b>Ищу:</b> {project.looking_for}</p>}
         <div className="pcard-foot">
           <Link href={projectHref(project.id)}>Подробнее</Link>

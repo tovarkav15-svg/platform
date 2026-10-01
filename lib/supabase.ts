@@ -54,7 +54,11 @@ export type Stage = "idea" | "building" | "launched" | "scaling";
 export type Project = {
   id: string; user_id: string; name: string; tagline: string; description: string; stage: Stage;
   niche: string; link: string; looking_for: string; image_path: string | null; created_at: string; updated_at: string;
+  goal_label: string; goal_target: number; goal_current: number;
 };
+
+export type Milestone = { id: string; project_id: string; title: string; status: "todo" | "current" | "done"; position: number };
+export type ProjectTask = { id: string; project_id: string; title: string; done: boolean; assignee: string | null; due_date: string | null; created_at: string };
 
 export type Goal = { id: string; user_id: string; title: string; due_date: string | null; is_public: boolean; done: boolean; created_at: string };
 export type Task = { id: string; user_id: string; goal_id: string | null; title: string; due_date: string | null; done: boolean; created_at: string };

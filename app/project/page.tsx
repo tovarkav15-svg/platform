@@ -12,6 +12,7 @@ import { TopBar } from "../TopBar";
 import { Avatar } from "../Avatar";
 import { RoleBadge } from "../ProfileHeader";
 import { ProjectEditor } from "./ProjectEditor";
+import { ProjectBoard } from "./ProjectBoard";
 
 type Member = { user_id: string; role: string; p: ProfileCard };
 
@@ -64,6 +65,8 @@ export default function ProjectPage() {
   const img = publicMedia(project.image_path);
   const memberIds = new Set(members.map((m) => m.user_id));
   const isPinned = me?.pinned_project === project.id;
+  const canEdit = isAuthor || (!!me && memberIds.has(me.id));
+  const team = [...(author ? [author] : []), ...members.map((m) => m.p)];
 
   return (
     <>
@@ -97,6 +100,8 @@ export default function ProjectPage() {
 
         <div className="profile-layout">
           <section className="profile-main">
+            <ProjectBoard project={project} canEdit={canEdit} team={team}
+              onProgress={(v) => setProject({ ...project, goal_current: v })} />
             {project.description && (
               <section className="card">
                 <div className="label">О проекте</div>

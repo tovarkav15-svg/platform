@@ -21,6 +21,7 @@ function Form({ userId, project, onDone }: { userId: string; project?: Project |
   const [f, setF] = useState({
     name: project?.name ?? "", tagline: project?.tagline ?? "", description: project?.description ?? "",
     stage: (project?.stage ?? "idea") as Stage, niche: project?.niche ?? "", link: project?.link ?? "", looking_for: project?.looking_for ?? "",
+    goal_label: project?.goal_label ?? "", goal_target: project?.goal_target ? String(project.goal_target) : "",
   });
   const [file, setFile] = useState<File | null>(null);
   const [imagePath, setImagePath] = useState(project?.image_path ?? null);
@@ -36,7 +37,8 @@ function Form({ userId, project, onDone }: { userId: string; project?: Project |
     setBusy(true); setError("");
     try {
       const image_path = file ? await uploadPublicImage(userId, file) : imagePath;
-      const row = { ...f, name: f.name.trim(), image_path, updated_at: new Date().toISOString() };
+      const { goal_target, ...rest } = f;
+      const row = { ...rest, goal_target: Math.max(0, parseInt(goal_target.replace(/\D/g, ""), 10) || 0), name: f.name.trim(), image_path, updated_at: new Date().toISOString() };
       const res = project
         ? await supabase.from("projects").update(row).eq("id", project.id).select("id").single()
         : await supabase.from("projects").insert(row).select("id").single();
@@ -77,6 +79,16 @@ function Form({ userId, project, onDone }: { userId: string; project?: Project |
           ))}
         </div>
       </fieldset>
+      <div className="row2">
+        <label className="field">
+          <span>Цель проекта</span>
+          <div className="input"><input id="pGoal" value={f.goal_label} maxLength={60} onChange={(e) => setF({ ...f, goal_label: e.target.value })} placeholder="10 видео" /></div>
+        </label>
+        <label className="field">
+          <span>Сколько всего <span className="count">для прогресса</span></span>
+          <div className="input"><input id="pTarget" inputMode="numeric" value={f.goal_target} onChange={(e) => setF({ ...f, goal_target: e.target.value.replace(/\D/g, "") })} placeholder="10" /></div>
+        </label>
+      </div>
       <label className="field">
         <span>Подробнее <span className="count">{f.description.length}/1000</span></span>
         <div className="input"><textarea id="pDesc" rows={4} value={f.description} maxLength={1000} onChange={(e) => setF({ ...f, description: e.target.value })} placeholder="Что за проект, для кого, что уже сделано" /></div>
