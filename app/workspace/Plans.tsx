@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { GoalsSpace } from "./GoalsSpace";
 import { supabase } from "@/lib/supabase";
 import { ACCENTS, accentColor } from "@/lib/style";
 import {
@@ -19,6 +21,10 @@ export function Plans({ userId }: { userId: string }) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [sideOpen, setSideOpen] = useState(false);
   const [toast, setToast] = useState<{ text: string; undo?: () => void } | null>(null);
+  // Plans / Цели: два пространства внутри одного раздела
+  const [space, setSpace] = useState<"tasks" | "goals">(useSearchParams().get("view") === "goals" ? "goals" : "tasks");
+  const pickSpace = (v: "tasks" | "goals") => { setSpace(v); setOpenId(null); try { localStorage.setItem("plans:space", v); } catch {} };
+  useEffect(() => { try { const v = localStorage.getItem("plans:space"); if (v === "goals" && !location.search.includes("view=")) setSpace("goals"); } catch {} }, []);
 
   const load = useCallback(async () => {
     const [l, t] = await Promise.all([
@@ -115,26 +121,37 @@ export function Plans({ userId }: { userId: string }) {
   return (
     <div className={`plans ${open ? "with-detail" : ""}`}>
       <aside className={`plans-side ${sideOpen ? "open" : ""}`}>
+        <div className={`space-switch ${space}`} role="tablist" aria-label="Plans / Цели">
+          <span className="space-switch-pill" />
+          <button type="button" role="tab" aria-selected={space === "tasks"} onClick={() => pickSpace("tasks")}>Plans</button>
+          <button type="button" role="tab" aria-selected={space === "goals"} onClick={() => pickSpace("goals")}>Цели</button>
+        </div>
         <nav className="plans-nav" aria-label="Списки">
           {SMART.map((s) => (
-            <ScopeBtn key={s.id} active={scope.kind === "smart" && scope.id === s.id} label={s.label} icon={s.id}
+            <ScopeBtn key={s.id} active={space === "tasks" && scope.kind === "smart" && scope.id === s.id} label={s.label} icon={s.id}
               count={s.id === "done" ? undefined : count({ kind: "smart", id: s.id })}
-              onClick={() => { setScope({ kind: "smart", id: s.id }); setSideOpen(false); }} />
+              onClick={() => { setScope({ kind: "smart", id: s.id }); setSideOpen(false); pickSpace("tasks"); }} />
           ))}
         </nav>
-        <ListsBlock lists={lists} scope={scope} count={count} userId={userId} onPick={(id) => { setScope({ kind: "list", id }); setSideOpen(false); }} onChange={load} />
+        <ListsBlock lists={lists} scope={scope} count={count} userId={userId} onPick={(id) => { setScope({ kind: "list", id }); setSideOpen(false); pickSpace("tasks"); }} onChange={load} />
         {tags.length > 0 && (
           <div className="plans-group">
             <div className="label">Теги</div>
             {tags.map((t) => (
               <ScopeBtn key={t} active={scope.kind === "tag" && scope.id === t} label={`#${t}`} count={count({ kind: "tag", id: t })}
-                onClick={() => { setScope({ kind: "tag", id: t }); setSideOpen(false); }} />
+                onClick={() => { setScope({ kind: "tag", id: t }); setSideOpen(false); pickSpace("tasks"); }} />
             ))}
           </div>
         )}
       </aside>
 
-      <section className="plans-main">
+      {space === "goals" ? (
+        <section className="plans-main" key="goals">
+          <button type="button" className="icon-btn plans-burger" onClick={() => setSideOpen((v) => !v)} aria-label="Списки">≡</button>
+          <GoalsSpace userId={userId} />
+        </section>
+      ) : (
+      <section className="plans-main" key="tasks">
         <PlannerDay done={todayDone} total={todayAll.length} />
         <header className="plans-head">
           <button type="button" className="icon-btn plans-burger" onClick={() => setSideOpen((v) => !v)} aria-label="Списки">≡</button>
@@ -169,8 +186,9 @@ export function Plans({ userId }: { userId: string }) {
         {mode === "calendar" && <Calendar tasks={all.filter((t) => scope.kind === "smart" ? true : visible.includes(t))} onOpen={setOpenId} onAdd={(date, title) => addTask(title, { due_date: date })} onMove={(id, date) => update(id, { due_date: date })} />}
         </div>
       </section>
+      )}
 
-      {open && (
+      {open && space === "tasks" && (
         <TaskDetail key={open.id} t={open} lists={lists} onClose={() => setOpenId(null)}
           onToggle={() => toggle(open)} onChange={(patch) => update(open.id, patch)} onDelete={() => remove(open)} />
       )}

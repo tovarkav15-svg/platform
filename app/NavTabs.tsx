@@ -39,9 +39,9 @@ export function NavTabs({ me }: { me: Profile }) {
   const tabs = [
     { href: profileHref(me.username), label: "Профиль", active: isMyProfile },
     { href: "/workspace/", label: "Workspace", active: path.startsWith("/workspace") },
-    { href: "/goals/", label: "Цели", active: path.startsWith("/goals") },
     { href: "/people/", label: "People", active: path.startsWith("/people") },
     { href: "/community/", label: "Community", active: path.startsWith("/community"), count: requests },
+    { href: "/jobs/", label: "Биржа", active: path.startsWith("/jobs") },
     { href: "/discover/", label: "Discover", active: path.startsWith("/discover") || path.startsWith("/project") },
     { href: "/messages/", label: "Чаты", active: path.startsWith("/messages"), count: unread },
   ];

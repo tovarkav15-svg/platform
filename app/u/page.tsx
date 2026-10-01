@@ -246,7 +246,7 @@ function ProfileView({ user, earnings, friends, state, works, projects, tab, isM
             <div className="section-block" key="goals">
               <div className="section-head">
                 <div><h2 className="h-md caps">К чему <span className="it">иду</span></h2><span className="pf-sub">Открытые цели</span></div>
-                {isMe && <Link className="btn sm" href="/goals/">Все мои цели</Link>}
+                {isMe && <Link className="btn sm" href="/workspace/?tab=plans&view=goals">Все мои цели</Link>}
               </div>
               <GoalsBoard userId={user.id} editable={false} />
               {isMe && <p className="hint">Здесь видны только цели, которые ты отметил «Показать в профиле».</p>}

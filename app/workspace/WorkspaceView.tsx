@@ -18,7 +18,7 @@ type Tab = "overview" | "clients" | "plans" | "finance";
 const TABS: { id: Tab; label: string; sub: string; icon: string }[] = [
   { id: "overview", label: "Обзор", sub: "Главное на сегодня", icon: "◎" },
   { id: "clients", label: "Clients", sub: "Клиенты и сделки", icon: "◧" },
-  { id: "plans", label: "Plans", sub: "Задачи и планы", icon: "◷" },
+  { id: "plans", label: "Plans / Цели", sub: "Задачи, планы, вершины", icon: "◷" },
   { id: "finance", label: "Finance", sub: "Деньги и оплаты", icon: "◈" },
 ];
 
