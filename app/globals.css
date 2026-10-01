@@ -2987,3 +2987,4 @@ button.chat-item { width: 100%; border: 0; background: none; font: inherit; text
 .au-tiers span { display: inline-flex; align-items: center; gap: 7px; padding: 7px 12px; border-radius: 99px; background: color-mix(in srgb, var(--t) 12%, #fff); font-size: 13px; font-weight: 700; }
 .au-tiers span i { width: 10px; height: 10px; border-radius: 50%; background: var(--t); box-shadow: 0 0 8px var(--t); }
 .au-tiers em { font-style: normal; color: var(--mute); font-size: 12px; }
+.ar-team { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; color: #fff; background: conic-gradient(from 0deg, #7B61FF, #2F7BFF, #1FA67A, #E8B100, #FF6A3D, #7B61FF); }

@@ -67,6 +67,7 @@ export default function ArticlePage() {
           <h1 className="ar-title">{a.title}</h1>
           {a.summary && <p className="ar-summary">{a.summary}</p>}
           <div className="ar-by">
+            {!author && <span className="dx-author"><span className="ar-team" aria-hidden="true">✦</span><span><b>Команда платформы</b><small>редакция Обучения</small></span></span>}
             {author && <Link href={profileHref(author.username)} className="dx-author"><Avatar name={author.display_name} avatar={author.avatar} accent={author.accent} size={32} userId={author.id} /><span><b>{author.display_name}</b><small>@{author.username}</small></span></Link>}
             {isOwner(me?.role) && <Link className="btn ghost sm" href={`/learn/edit/?a=${a.slug}`}>Изменить</Link>}
           </div>
