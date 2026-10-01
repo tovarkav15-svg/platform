@@ -35,7 +35,8 @@ export async function saveSettings(userId: string, patch: Partial<WorkspaceSetti
 
 export const rub = (n: number, sign = false) => {
   const s = Math.round(Math.abs(n)).toLocaleString("ru-RU").replace(/ /g, " ");
-  return `${sign ? (n < 0 ? "−" : "+") : n < 0 ? "−" : ""}${s} ₽`;
+  const r = Math.round(n);
+  return `${r === 0 ? "" : sign ? (r < 0 ? "−" : "+") : r < 0 ? "−" : ""}${s} ₽`;
 };
 
 /** Скачать файл из браузера */

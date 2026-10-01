@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { CountUp } from "../CountUp";
 import {
@@ -37,6 +38,9 @@ export function Clients({ userId }: { userId: string }) {
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [colEditor, setColEditor] = useState(false);
   const [toast, setToast] = useState("");
+  const sp = useSearchParams();
+  const [viewMode, setViewMode] = useState<"table" | "pipeline">(sp.get("view") === "pipeline" ? "pipeline" : "table");
+  const autoAdded = useRef(false);
   const [fresh, setFresh] = useState<Set<string>>(new Set());
   const [leaving, setLeaving] = useState<Set<string>>(new Set());
   const markFresh = (ids: string[]) => { setFresh(new Set(ids)); setTimeout(() => setFresh(new Set()), 1400); };
@@ -53,6 +57,7 @@ export function Clients({ userId }: { userId: string }) {
       ]);
       setCustom(s.client_columns ?? []);
       setRows((data as Client[]) ?? []);
+      if (sp.get("new") === "1" && !autoAdded.current) { autoAdded.current = true; setTimeout(() => addRowRef.current?.(), 0); }
     })();
     try { setWidths(JSON.parse(localStorage.getItem("clients:widths") ?? "{}")); } catch {}
   }, [userId]);
@@ -111,6 +116,7 @@ export function Clients({ userId }: { userId: string }) {
     });
   }, [persist]);
 
+  const addRowRef = useRef<(() => void) | null>(null);
   async function addRow(at?: number) {
     const last = rows?.[rows.length - 1];
     const { data, error } = await supabase.from("clients").insert({ position: (last?.position ?? 0) + 1 }).select("*").single();
@@ -232,6 +238,7 @@ export function Clients({ userId }: { userId: string }) {
     window.addEventListener("pointerup", onUp);
   }
 
+  addRowRef.current = () => { setViewMode("table"); addRow(); };
   if (!rows) return <div className="skeleton profile-skeleton" />;
 
   const stats = OUTCOME.map((o) => ({ ...o, n: rows.filter((r) => r.outcome === o.v).length }));
@@ -251,6 +258,10 @@ export function Clients({ userId }: { userId: string }) {
       </div>
 
       <div className="sheet-toolbar">
+        <div className="seg small" role="tablist" aria-label="Вид">
+          <button type="button" role="tab" className="seg-item" aria-current={viewMode === "table" ? "page" : undefined} onClick={() => setViewMode("table")}>Таблица</button>
+          <button type="button" role="tab" className="seg-item" aria-current={viewMode === "pipeline" ? "page" : undefined} onClick={() => setViewMode("pipeline")}>Воронка</button>
+        </div>
         <div className="input sheet-search"><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Поиск по таблице" aria-label="Поиск по таблице" /></div>
         <select className="mini-select" value={filter.qualify ?? ""} onChange={(e) => setFilter((f) => ({ ...f, qualify: e.target.value || undefined }))} aria-label="Фильтр по квалифаю">
           <option value="">Квалифай: все</option>
@@ -265,6 +276,9 @@ export function Clients({ userId }: { userId: string }) {
         </div>
       </div>
 
+      {viewMode === "pipeline" ? (
+        <Pipeline rows={view} onMove={(id, outcome) => setCell(id, "outcome", outcome)} onOpen={(id) => { setViewMode("table"); const r = view.findIndex((x) => x.id === id); setSel({ r, c: 0 }); }} />
+      ) : (<>
       <FormulaBar
         address={sel ? `${letter(sel.c)}${sel.r + 1}` : ""}
         title={sel ? columns[sel.c]?.title : ""}
@@ -336,10 +350,13 @@ export function Clients({ userId }: { userId: string }) {
         <button type="button" className="sheet-add" onClick={() => addRow()}>+ Новая строка</button>
       </div>
 
-      <p className="hint">
+      </>)}
+
+      {viewMode === "table" && <p className="hint">
         Клик — выбрать ячейку, двойной клик или Enter — редактировать, стрелки и Tab — перемещаться, Delete — очистить.
         Можно вставить диапазон из Excel или Google Таблиц через Ctrl+V / ⌘V.
-      </p>
+      </p>}
+      {viewMode === "pipeline" && <p className="hint">Перетаскивай карточки между колонками, чтобы менять этап сделки. Двойной клик открывает клиента в таблице.</p>}
 
       {toast && <div className="toast" role="status">{toast}</div>}
       {colEditor && (
@@ -349,6 +366,43 @@ export function Clients({ userId }: { userId: string }) {
           onSave={async (next) => { setCustom(next); await saveSettings(userId, { client_columns: next }); setColEditor(false); flash("Колонки сохранены"); }}
         />
       )}
+    </div>
+  );
+}
+
+/** Воронка: клиенты по этапам сделки, карточки перетаскиваются между колонками */
+function Pipeline({ rows, onMove, onOpen }: { rows: Client[]; onMove: (id: string, outcome: string) => void; onOpen: (id: string) => void }) {
+  const [over, setOver] = useState<string | null>(null);
+  const cols = [{ v: "", c: "#C9C9C6", label: "Без статуса" }, ...OUTCOME.map((o) => ({ ...o, label: o.v }))];
+  return (
+    <div className="pipeline">
+      {cols.map((col) => {
+        const items = rows.filter((r) => (r.outcome || "") === col.v);
+        return (
+          <section key={col.label} className={`pl-col ${over === col.label ? "over" : ""}`} style={{ "--c": col.c } as React.CSSProperties}
+            onDragOver={(e) => { e.preventDefault(); setOver(col.label); }} onDragLeave={() => setOver(null)}
+            onDrop={(e) => { e.preventDefault(); setOver(null); const id = e.dataTransfer.getData("text/client"); if (id) onMove(id, col.v); }}>
+            <header><i />{col.label}<em className="mono">{items.length}</em></header>
+            <div className="pl-cards">
+              {items.map((r, i) => {
+                const q = QUALIFY.find((x) => x.v === r.qualify);
+                return (
+                  <article key={r.id} className="pl-card" draggable style={{ "--i": i } as React.CSSProperties}
+                    onDragStart={(e) => { e.dataTransfer.setData("text/client", r.id); e.currentTarget.classList.add("dragging"); }}
+                    onDragEnd={(e) => e.currentTarget.classList.remove("dragging")}
+                    onDoubleClick={() => onOpen(r.id)}>
+                    <b>{r.username ? `@${r.username}` : "Без имени"}</b>
+                    {r.sphere && <span className="pl-sphere">{r.sphere}</span>}
+                    {r.hypothesis && <p>{r.hypothesis}</p>}
+                    {q && <span className="pill" style={{ "--c": q.c } as React.CSSProperties}><i />{q.v}</span>}
+                  </article>
+                );
+              })}
+              {!items.length && <span className="pl-empty">Перетащи сюда</span>}
+            </div>
+          </section>
+        );
+      })}
     </div>
   );
 }

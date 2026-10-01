@@ -164,7 +164,7 @@ export function Plans({ userId }: { userId: string }) {
           )) : <EmptyPlans scope={scope} />}</div>
         )}
 
-        <div key={`${mode}-${JSON.stringify(scope)}`} className="plans-view">
+        <div key={`mc-${mode}-${JSON.stringify(scope)}`} className="plans-view" hidden={mode === "list"}>
         {mode === "matrix" && <Matrix tasks={visible.filter((t) => !t.done)} onToggle={toggle} onOpen={setOpenId} onMove={(id, priority) => update(id, { priority })} />}
         {mode === "calendar" && <Calendar tasks={all.filter((t) => scope.kind === "smart" ? true : visible.includes(t))} onOpen={setOpenId} onAdd={(date, title) => addTask(title, { due_date: date })} onMove={(id, date) => update(id, { due_date: date })} />}
         </div>

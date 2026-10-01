@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { loadSettings, rub, saveSettings, toCsv, download, type Client } from "@/lib/workspace";
 import { addDays, iso, today } from "@/lib/plans";
@@ -39,7 +40,7 @@ function nextDate(d: string, r: Payment["repeat"]) {
 }
 
 export function Finance({ userId }: { userId: string }) {
-  const [tab, setTab] = useState<Tab>("overview");
+  const [tab, setTab] = useState<Tab>(useSearchParams().get("ops") === "1" ? "ops" : "overview");
   const [txs, setTxs] = useState<Tx[] | null>(null);
   const [pays, setPays] = useState<Payment[]>([]);
   const [clients, setClients] = useState<Pick<Client, "id" | "username">[]>([]);
