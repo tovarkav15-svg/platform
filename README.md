@@ -7,7 +7,8 @@ Next.js 15 + Prisma (SQLite локально, Postgres на сервере).
 ```
 export PATH="$PWD/.node/bin:$PATH"
 npm install
-npm run setup   # создаёт базу и тестовый аккаунт @fedonko (данные в prisma/seed.mjs)
+cp .env.example .env   # и впиши пароли основателей
+npm run setup   # создаёт базу и аккаунты @fedonko и @awiny
 npm run dev     # http://localhost:3000
 ```
 
@@ -15,4 +16,5 @@ npm run dev     # http://localhost:3000
 
 - `/register` — регистрация (имя, юзернейм с живой проверкой, почта, пароль, ниши)
 - `/login` — вход по юзернейму или почте
-- `/u/[username]` — профиль; блок дохода видит только владелец
+- `/u/[username]` — профиль; блок дохода видит только владелец (если сам не открыл его всем)
+- `/settings` — аватар, цвет, обложка, имя, юзернейм, описание, ниши, ссылки, доход, смена пароля
