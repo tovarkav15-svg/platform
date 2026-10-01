@@ -50,7 +50,7 @@ export function MonthBars({ data, active, onPick }: { data: Month[]; active: str
         {data.map((d, i) => {
           const x0 = L + i * band + (band - bw * 2 - 2) / 2;
           return (
-            <g key={d.key} className={`mgroup ${d.key === active ? "active" : ""} ${hover !== null && hover !== i ? "dim" : ""}`}
+            <g key={d.key} style={{ "--i": i } as React.CSSProperties} className={`mgroup ${d.key === active ? "active" : ""} ${hover !== null && hover !== i ? "dim" : ""}`}
               onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)} onClick={() => onPick(d.key)}>
               <rect x={L + i * band} y={T} width={band} height={H - T - B + 20} fill="transparent" />
               {bar(x0, d.income, INCOME)}
@@ -80,7 +80,7 @@ export function HBars({ rows, color, empty }: { rows: { label: string; value: nu
   return (
     <ul className="hbars">
       {rows.map((r) => (
-        <li key={r.label} title={`${r.label}: ${rub(r.value)}`}>
+        <li key={r.label} style={{ "--i": rows.indexOf(r) } as React.CSSProperties} title={`${r.label}: ${rub(r.value)}`}>
           <span className="hb-label">{r.label}</span>
           <span className="hb-track"><i style={{ width: `${Math.max(2, (r.value / max) * 100)}%`, background: color }} /></span>
           <span className="hb-value">{rub(r.value)}<em>{Math.round((r.value / total) * 100)}%</em></span>

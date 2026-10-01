@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { CountUp } from "../CountUp";
 import {
   OUTCOME, QUALIFY, download, loadSettings, parseTable, saveSettings, toCsv,
   type Client, type ClientColumn,
@@ -20,6 +21,8 @@ const BASE: Col[] = [
 ];
 const FIXED = new Set(BASE.map((c) => c.key));
 
+const letter = (i: number) => (i < 26 ? String.fromCharCode(65 + i) : String.fromCharCode(64 + Math.floor(i / 26)) + String.fromCharCode(65 + (i % 26)));
+
 const getVal = (r: Client, key: string) => (FIXED.has(key) ? String((r as unknown as Record<string, string>)[key] ?? "") : r.extra?.[key] ?? "");
 
 export function Clients({ userId }: { userId: string }) {
@@ -34,6 +37,11 @@ export function Clients({ userId }: { userId: string }) {
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [colEditor, setColEditor] = useState(false);
   const [toast, setToast] = useState("");
+  const [fresh, setFresh] = useState<Set<string>>(new Set());
+  const [leaving, setLeaving] = useState<Set<string>>(new Set());
+  const markFresh = (ids: string[]) => { setFresh(new Set(ids)); setTimeout(() => setFresh(new Set()), 1400); };
+  // Строка сначала уезжает, потом пропадает из таблицы
+  const animateOut = (ids: string[]) => new Promise<void>((res) => { setLeaving(new Set(ids)); setTimeout(() => { setLeaving(new Set()); res(); }, 260); });
   const grid = useRef<HTMLDivElement>(null);
   const saveTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
@@ -108,6 +116,7 @@ export function Clients({ userId }: { userId: string }) {
     const { data, error } = await supabase.from("clients").insert({ position: (last?.position ?? 0) + 1 }).select("*").single();
     if (error || !data) return flash("Не получилось добавить строку");
     setRows((prev) => [...(prev ?? []), data as Client]);
+    markFresh([data.id]);
     setSort(null);
     const r = at ?? (rows?.length ?? 0);
     setSel({ r, c: 0 });
@@ -118,6 +127,7 @@ export function Clients({ userId }: { userId: string }) {
   async function removeChecked() {
     const ids = [...checked];
     if (!ids.length) return;
+    await animateOut(ids);
     await supabase.from("clients").delete().in("id", ids);
     setRows((prev) => (prev ?? []).filter((r) => !checked.has(r.id)));
     setChecked(new Set());
@@ -207,6 +217,7 @@ export function Clients({ userId }: { userId: string }) {
     const { data, error } = await supabase.from("clients").insert(payload).select("*");
     if (error) return flash("Не получилось загрузить файл");
     setRows((prev) => [...(prev ?? []), ...((data as Client[]) ?? [])]);
+    markFresh(((data as Client[]) ?? []).map((d) => d.id));
     flash(`Загружено строк: ${data?.length ?? 0}`);
   }
 
@@ -230,11 +241,11 @@ export function Clients({ userId }: { userId: string }) {
   return (
     <div className="ws-section">
       <div className="ws-stats">
-        <div className="ws-stat"><b>{rows.length}</b><span>клиентов</span></div>
+        <div className="ws-stat"><b><CountUp value={rows.length} /></b><span>клиентов</span></div>
         {stats.map((s) => (
           <button key={s.v} type="button" className={`ws-stat clickable ${filter.outcome === s.v ? "on" : ""}`}
             onClick={() => setFilter((f) => ({ ...f, outcome: f.outcome === s.v ? undefined : s.v }))}>
-            <b>{s.n}</b><span><i style={{ background: s.c }} />{s.v}</span>
+            <b><CountUp value={s.n} /></b><span><i style={{ background: s.c }} />{s.v}</span>
           </button>
         ))}
       </div>
@@ -254,6 +265,14 @@ export function Clients({ userId }: { userId: string }) {
         </div>
       </div>
 
+      <FormulaBar
+        address={sel ? `${letter(sel.c)}${sel.r + 1}` : ""}
+        title={sel ? columns[sel.c]?.title : ""}
+        value={sel && view[sel.r] ? (editing && editing.r === sel.r && editing.c === sel.c ? editing.value : getVal(view[sel.r], columns[sel.c].key)) : ""}
+        disabled={!sel || !view[sel?.r ?? -1] || columns[sel?.c ?? 0]?.type === "select"}
+        onChange={(v) => { if (sel && view[sel.r]) setCell(view[sel.r].id, columns[sel.c].key, v); }}
+      />
+
       <div
         className="sheet" ref={grid} tabIndex={0} onKeyDown={onKeyDown}
         onPaste={(e) => { if (!editing && sel) { e.preventDefault(); pasteBlock(e.clipboardData.getData("text")); } }}
@@ -264,10 +283,10 @@ export function Clients({ userId }: { userId: string }) {
             <input type="checkbox" checked={allChecked} aria-label="Выбрать все"
               onChange={() => setChecked(allChecked ? new Set() : new Set(view.map((r) => r.id)))} />
           </div>
-          {columns.map((c) => (
+          {columns.map((c, ci) => (
             <div key={c.key} className="sheet-cell th" role="columnheader" aria-sort={sort?.key === c.key ? (sort.dir === 1 ? "ascending" : "descending") : "none"}>
               <button type="button" onClick={() => setSort((s) => (s?.key !== c.key ? { key: c.key, dir: 1 } : s.dir === 1 ? { key: c.key, dir: -1 } : null))}>
-                {c.title}<span className="sort">{sort?.key === c.key ? (sort.dir === 1 ? "↑" : "↓") : ""}</span>
+                <em className="col-letter">{letter(ci)}</em>{c.title}<span className="sort">{sort?.key === c.key ? (sort.dir === 1 ? "↑" : "↓") : ""}</span>
               </button>
               <span className="resizer" onPointerDown={(e) => { e.preventDefault(); startResize(c.key, e.clientX, c.width); }} />
             </div>
@@ -276,7 +295,7 @@ export function Clients({ userId }: { userId: string }) {
         </div>
 
         {view.map((r, ri) => (
-          <div key={r.id} className={`sheet-row ${checked.has(r.id) ? "picked" : ""}`} style={{ gridTemplateColumns: template }} role="row">
+          <div key={r.id} className={`sheet-row ${checked.has(r.id) ? "picked" : ""} ${fresh.has(r.id) ? "fresh" : ""} ${leaving.has(r.id) ? "leaving" : ""}`} style={{ gridTemplateColumns: template, "--i": Math.min(ri, 20) } as React.CSSProperties} role="row">
             <div className="sheet-cell idx">
               <span className="rownum">{ri + 1}</span>
               <input type="checkbox" checked={checked.has(r.id)} aria-label={`Выбрать строку ${ri + 1}`}
@@ -309,7 +328,7 @@ export function Clients({ userId }: { userId: string }) {
             })}
             <div className="sheet-cell end">
               <button type="button" className="icon-btn sm" aria-label="Удалить строку"
-                onClick={async () => { await supabase.from("clients").delete().eq("id", r.id); setRows((p) => (p ?? []).filter((x) => x.id !== r.id)); }}>×</button>
+                onClick={async () => { await animateOut([r.id]); await supabase.from("clients").delete().eq("id", r.id); setRows((p) => (p ?? []).filter((x) => x.id !== r.id)); }}>×</button>
             </div>
           </div>
         ))}
@@ -330,6 +349,17 @@ export function Clients({ userId }: { userId: string }) {
           onSave={async (next) => { setCustom(next); await saveSettings(userId, { client_columns: next }); setColEditor(false); flash("Колонки сохранены"); }}
         />
       )}
+    </div>
+  );
+}
+
+function FormulaBar({ address, title, value, disabled, onChange }: { address: string; title?: string; value: string; disabled: boolean; onChange: (v: string) => void }) {
+  return (
+    <div className="formula-bar">
+      <span className="fb-addr mono">{address || "—"}</span>
+      <span className="fb-fx it">fx</span>
+      <input className="fb-input" value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)}
+        placeholder={address ? title : "Выбери ячейку"} aria-label="Содержимое ячейки" />
     </div>
   );
 }
@@ -362,7 +392,7 @@ function SelectCell({ value, options, onChange }: { value: string; options: { v:
   return (
     <span className="select-cell">
       {value ? (
-        <span className="pill" style={{ "--c": opt?.c ?? "#8A8A87" } as React.CSSProperties}><i />{value}</span>
+        <span key={value} className="pill" style={{ "--c": opt?.c ?? "#8A8A87" } as React.CSSProperties}><i />{value}</span>
       ) : <span className="pill empty">выбрать</span>}
       <select value={value} onChange={(e) => onChange(e.target.value)} aria-label="Выбрать значение">
         <option value="">—</option>

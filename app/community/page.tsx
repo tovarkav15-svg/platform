@@ -9,6 +9,7 @@ import { useFriendLinks } from "@/lib/useFriendLinks";
 import { TopBar } from "../TopBar";
 import { Empty, PeopleList } from "../PeopleList";
 import { ProjectCard } from "../Cards";
+import { Orbit, SpaceHero } from "../SpaceHero";
 
 type Tab = "friends" | "requests" | "teams";
 type Team = { project: Project; author: ProfileCard };
@@ -47,10 +48,12 @@ export default function CommunityPage() {
     <>
       <TopBar />
       <main className="page">
-        <div>
-          <div className="label">Community</div>
-          <h1 className="h-xl caps">С кем ты <span className="it">строишь</span></h1>
-        </div>
+        <SpaceHero
+          space="community" eyebrow="Community · твой круг"
+          title={<>С кем ты <span className="it">строишь</span></>}
+          text={fl.loaded ? `${fl.friends.length} в кругу · ${teams?.length ?? 0} команд · ${fl.incoming.length} новых заявок` : undefined}
+          art={me ? <Orbit me={me} friends={fl.friends} /> : undefined}
+        />
 
         <nav className="seg" aria-label="Вкладки">
           {tabs.map((t) => (

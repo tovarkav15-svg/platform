@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase, type Milestone, type Project, type ProfileCard, type ProjectTask } from "@/lib/supabase";
 import { Avatar } from "../Avatar";
+import { CountUp } from "../CountUp";
 
 const shortDate = (d: string) => new Date(d + "T00:00:00").toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
 
@@ -73,7 +74,7 @@ function GoalCard({ project, canEdit, onProgress }: { project: Project; canEdit:
         {target > 0 && (
           <div className="goal-hero-count">
             <div className="label">Прогресс</div>
-            <span className="goal-hero-num"><b>{current}</b> / {target}</span>
+            <span className="goal-hero-num"><b><CountUp value={current} ms={500} /></b> / {target}</span>
           </div>
         )}
       </div>
@@ -85,7 +86,7 @@ function GoalCard({ project, canEdit, onProgress }: { project: Project; canEdit:
               : <div className="bar light"><b style={{ width: `${pct}%` }} /></div>}
           </div>
           <div className="goal-hero-foot">
-            <span className="label">{pct}% готово{current >= target ? " · цель достигнута" : ""}</span>
+            <span className="label"><CountUp value={pct} />% готово{current >= target ? " · цель достигнута" : ""}</span>
             {canEdit && (
               <span className="stepper">
                 <button type="button" className="icon-btn sm" onClick={() => set(current - 1)} disabled={current <= 0} aria-label="Минус один">−</button>
@@ -137,7 +138,7 @@ function Milestones({ projectId, items, canEdit, onChange }: { projectId: string
         <ol className="milestones">
           {items.map((m, i) => (
             <li key={m.id} className={`ms ms-${m.status}`} style={{ "--i": i } as React.CSSProperties}>
-              <button type="button" className="ms-mark" disabled={!canEdit} onClick={() => cycle(m)}
+              <button key={m.status} type="button" className="ms-mark" disabled={!canEdit} onClick={() => cycle(m)}
                 aria-label={m.status === "done" ? "Готово" : m.status === "current" ? "Сейчас" : "Впереди"}
                 title={canEdit ? "Нажми, чтобы сменить статус" : undefined}>
                 {m.status === "done" ? "✓" : m.status === "current" ? "→" : ""}

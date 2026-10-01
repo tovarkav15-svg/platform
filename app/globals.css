@@ -1093,3 +1093,260 @@ button.seg-item { border: 0; background: none; cursor: pointer; font: inherit; }
   .navtabs::-webkit-scrollbar { display: none; }
   .navtab { flex: 0 0 auto; padding: 9px 12px; }
 }
+
+/* ================= Анимации проекта и Workspace ================= */
+/* Прогресс цели: деления заполняются по очереди */
+@keyframes stepFill { from { transform: scaleY(.3); opacity: .2; } to { transform: none; opacity: 1; } }
+.progress-steps > i.on { animation: stepFill .45s var(--spring) both; animation-delay: var(--d, 0ms); }
+.goal-hero { animation: fadeUp .5s var(--ease) both; }
+.goal-hero-num b { display: inline-block; min-width: 1ch; }
+.stepper .icon-btn:active { transform: scale(.85); }
+
+/* Этапы: отметка «выпрыгивает» при смене статуса, линия прорисовывается */
+@keyframes markPop { 0% { transform: scale(.6); } 60% { transform: scale(1.18); } 100% { transform: none; } }
+.ms-mark { animation: markPop .4s var(--spring); }
+.ms.ms-done:not(:last-child)::after { animation: lineDown .5s var(--ease) both; transform-origin: top; }
+@keyframes lineDown { from { transform: scaleY(0); } to { transform: none; } }
+.ms-current .ms-mark { animation: markPop .4s var(--spring), ring 2s ease-in-out .4s infinite; }
+@keyframes ring { 50% { box-shadow: 0 0 0 8px color-mix(in srgb, var(--c-edit) 0%, transparent); } }
+.ms-now { animation: fadeIn .3s ease; }
+.pcard-goal .bar b { animation: growX .9s var(--ease) both; transform-origin: left; }
+
+/* Вкладки Workspace: свечение под активной */
+.ws-tab { position: relative; overflow: hidden; }
+.ws-tab-glow { position: absolute; inset: auto -20% -60% auto; width: 140px; height: 140px; border-radius: 50%; background: radial-gradient(circle, rgba(255,106,61,.45), transparent 65%); opacity: 0; transform: scale(.6); transition: opacity .5s var(--ease), transform .6s var(--ease); pointer-events: none; }
+.ws-tab[aria-current="page"] .ws-tab-glow { opacity: 1; transform: none; }
+.ws-tab b, .ws-tab span { position: relative; z-index: 1; transition: color .3s var(--ease); }
+.ws-body { animation: wsIn .45s var(--ease) both; }
+@keyframes wsIn { from { opacity: 0; transform: translateY(10px) scale(.995); } to { opacity: 1; transform: none; } }
+.ws-stat { animation: fadeUp .45s var(--ease) both; }
+.ws-stat:nth-child(2) { animation-delay: .04s; } .ws-stat:nth-child(3) { animation-delay: .08s; }
+.ws-stat:nth-child(4) { animation-delay: .12s; } .ws-stat:nth-child(5) { animation-delay: .16s; }
+
+/* Таблица клиентов */
+.sheet-row:not(.head) { animation: rowIn .35s var(--ease) both; animation-delay: calc(var(--i, 0) * 18ms); }
+@keyframes rowIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.sheet-row.fresh { animation: rowIn .35s var(--ease) both, freshFlash 1.4s ease; }
+@keyframes freshFlash { 0%, 30% { background: color-mix(in srgb, var(--c-prod) 22%, #fff); } 100% { background: transparent; } }
+.sheet-row.leaving { animation: rowOut .26s var(--ease) forwards; pointer-events: none; }
+@keyframes rowOut { to { opacity: 0; transform: translateX(-24px); } }
+.sheet-cell.sel { transition: box-shadow .12s ease; }
+.sheet-cell.editing { animation: editIn .18s ease; }
+@keyframes editIn { from { box-shadow: inset 0 0 0 2px var(--ink); } }
+.pill { animation: pop .3s var(--spring); }
+.sheet-add { transition: color .2s, background-color .2s, padding-left .25s var(--ease); }
+.sheet-add:hover { padding-left: 22px; }
+.sheet-modal .section-order li { animation: fadeUp .3s var(--ease) both; }
+
+/* Plans */
+.plans-view { display: flex; flex-direction: column; gap: 12px; animation: wsIn .35s var(--ease) both; }
+.plan-task { position: relative; transition: border-color .2s var(--ease), background-color .2s, opacity .3s var(--ease), transform .3s var(--ease); }
+.plan-task-title { position: relative; background-image: linear-gradient(currentColor, currentColor); background-size: 0 1.5px; background-repeat: no-repeat; background-position: 0 55%; transition: background-size .3s var(--ease), color .3s; }
+.plan-task.completing .plan-task-title { background-size: 100% 1.5px; color: var(--mute); }
+.plan-task.completing { animation: taskOut .42s var(--ease) .15s forwards; }
+@keyframes taskOut { to { opacity: 0; transform: translateX(28px); } }
+.plan-task.completing .pchk::after { content: ""; width: 9px; height: 5px; border: 2px solid #fff; border-top: 0; border-right: 0; transform: rotate(-45deg) translateY(-1px); animation: pop .25s var(--spring); }
+.plan-task.completing .pchk { background: var(--p); animation: chkBurst .4s var(--spring); }
+@keyframes chkBurst { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--p) 50%, transparent); } 100% { box-shadow: 0 0 0 10px transparent; } }
+.plan-group { animation: fadeUp .35s var(--ease) both; }
+.plan-group-head em { transition: color .2s; }
+.quick-add .qa-plus { transition: transform .3s var(--spring), color .2s; }
+.quick-add:focus-within .qa-plus { transform: rotate(90deg); color: var(--ink); }
+.scope { transition: background-color .25s var(--ease), color .2s, transform .2s var(--spring); }
+.scope:active { transform: scale(.97); }
+.scope em { transition: opacity .2s; }
+.pd-flags button { transition: opacity .2s, background-color .2s, transform .25s var(--spring); }
+.pd-flags button:hover { transform: scale(1.2) rotate(-8deg); }
+.pd-sub { animation: fadeUp .25s var(--ease) both; }
+.pd-tags .meta-tag { animation: pop .25s var(--spring); }
+.quad li { transition: transform .2s var(--ease), box-shadow .2s var(--ease), opacity .2s; animation: fadeUp .3s var(--ease) both; }
+.quad li:hover { transform: translateY(-1px); box-shadow: 0 6px 16px -10px rgba(0,0,0,.3); }
+.quad li.dragging { opacity: .5; transform: rotate(-2deg) scale(1.02); }
+.cal-day { transition: background-color .2s; }
+.cal-day:hover { background: #fdfdfc; }
+.cal-task { animation: fadeUp .3s var(--ease) both; transition: transform .2s var(--ease); }
+.cal-task:hover { transform: translateX(2px); }
+.cal-day.today .cal-num { animation: pop .4s var(--spring); }
+
+/* Финансы */
+.fin-pane { display: flex; flex-direction: column; gap: 16px; animation: wsIn .4s var(--ease) both; }
+.fin-tile { animation: fadeUp .45s var(--ease) both; transition: transform .25s var(--ease), box-shadow .25s var(--ease); }
+.fin-tile:nth-child(2) { animation-delay: .05s; } .fin-tile:nth-child(3) { animation-delay: .1s; } .fin-tile:nth-child(4) { animation-delay: .15s; }
+.fin-tile:hover { transform: translateY(-2px); box-shadow: 0 14px 30px -20px rgba(0,0,0,.3); }
+.chart .mgroup path { transform-box: fill-box; transform-origin: bottom; animation: growY .7s var(--ease) both; animation-delay: calc(var(--i, 0) * 60ms); }
+@keyframes growY { from { transform: scaleY(0); } to { transform: none; } }
+.hbars li { animation: fadeUp .4s var(--ease) both; animation-delay: calc(var(--i, 0) * 50ms); }
+.hb-track i { animation-delay: calc(var(--i, 0) * 50ms + .1s); }
+.tx-day { animation-delay: calc(min(var(--i, 0), 10) * 40ms); }
+.tx, .pay { transition: transform .2s var(--ease), box-shadow .2s var(--ease), border-color .2s; animation: fadeUp .35s var(--ease) both; }
+.tx:hover, .pay:hover { transform: translateY(-1px); box-shadow: 0 8px 20px -14px rgba(0,0,0,.3); }
+.pay.paying { animation: paid .45s var(--ease) forwards; border-color: #2F7BFF; }
+@keyframes paid { 0% { background: #fff; } 40% { background: color-mix(in srgb, #2F7BFF 12%, #fff); transform: scale(1.01); } 100% { opacity: 0; transform: translateX(24px); } }
+.month-pick b { display: inline-block; animation: fadeIn .3s ease; }
+.tx-form { animation: fadeUp .4s var(--ease) both; }
+.tx-form.income, .tx-form.expense { transition: border-top-color .3s var(--ease); }
+.sync-toggle .knob, .toggle .knob { transition: background-color .3s var(--ease); }
+.toggle .knob::after { transition: transform .3s var(--spring); }
+
+/* ================= Пространства: у каждого раздела свой характер ================= */
+:root { --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+
+.space-hero {
+  position: relative; overflow: hidden; border-radius: 24px; min-height: 230px;
+  display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 20px; align-items: center;
+  padding: clamp(22px, 4vw, 40px); animation: fadeUp .6s var(--ease) both;
+}
+.sh-text { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
+.sh-text .lead { max-width: 46ch; }
+.sh-art { position: relative; height: 100%; min-height: 180px; }
+@media (max-width: 760px) {
+  .space-hero { grid-template-columns: 1fr; }
+  .sh-art { min-height: 150px; }
+}
+
+/* Discover — журнальная обложка в ночь, бегущая строка ниш */
+.sh-discover { background: radial-gradient(circle at 85% 20%, rgba(123,97,255,.35), transparent 45%), radial-gradient(circle at 10% 110%, rgba(255,106,61,.35), transparent 45%), linear-gradient(160deg, #1f1f21, var(--night) 70%); color: #fff; }
+.sh-discover .h-xl { color: #cfcfcc; }
+.sh-discover .h-xl .it { color: #fff; }
+.sh-discover .lead, .sh-discover .label { color: #a8a8a5; }
+.marquee { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; gap: 14px; overflow: hidden; mask-image: linear-gradient(90deg, transparent, #000 15%, #000 85%, transparent); }
+.marquee-track { display: flex; gap: 12px; width: max-content; animation: marquee 28s linear infinite; }
+.marquee-track.reverse { animation-direction: reverse; animation-duration: 36s; }
+.marquee-track span { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 99px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.1); font-weight: 800; text-transform: uppercase; font-size: 14px; letter-spacing: .04em; white-space: nowrap; }
+.marquee-track span i { width: 9px; height: 9px; border-radius: 50%; background: var(--c); box-shadow: 0 0 12px var(--c); }
+.marquee-track.reverse span { text-transform: none; font-size: 22px; font-weight: 400; background: none; border-color: transparent; color: color-mix(in srgb, var(--c) 70%, #fff); }
+@keyframes marquee { to { transform: translateX(-50%); } }
+.pgrid.feed > :first-child { grid-column: span 2; }
+.pgrid.feed > :first-child .pcard-media { aspect-ratio: 16 / 8; }
+.pgrid.feed > :first-child h3 { font-size: 24px; }
+@media (max-width: 640px) { .pgrid.feed > :first-child { grid-column: auto; } }
+
+/* People — картотека, парящие аватары */
+.sh-people { background: linear-gradient(135deg, #fff 0%, var(--paper-2) 60%), var(--paper); border: 1px solid var(--line); }
+.sh-people::before { content: ""; position: absolute; inset: 0; background-image: radial-gradient(#d9d9d6 1px, transparent 1px); background-size: 18px 18px; opacity: .6; mask-image: linear-gradient(90deg, transparent 30%, #000); }
+.faces { position: absolute; inset: 0; }
+.face { position: absolute; animation: float 6s ease-in-out infinite; animation-delay: var(--d); filter: drop-shadow(0 10px 18px rgba(0,0,0,.14)); }
+.face .ava { box-shadow: 0 0 0 3px #fff; }
+.face-empty { display: block; border-radius: 50%; background: linear-gradient(135deg, var(--paper-2), #e2e2df); box-shadow: 0 0 0 3px #fff; }
+@keyframes float { 50% { transform: translateY(-10px); } }
+.faces-count { position: absolute; right: 4%; bottom: 4%; display: flex; flex-direction: column; align-items: flex-end; line-height: 1; }
+.faces-count b { font-size: 54px; font-weight: 900; color: var(--ink); }
+.faces-count em { font-size: 18px; color: var(--graphite); }
+.people.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+.people.grid .person { flex-direction: column; align-items: stretch; padding: 0; overflow: hidden; gap: 0; border-radius: 18px; }
+.people.grid .person-main { flex-direction: column; align-items: flex-start; padding: 0 16px 14px; gap: 10px; flex: 1 1 auto; }
+.people.grid .person::before { content: ""; display: block; height: 64px; background: radial-gradient(circle at 80% 0%, color-mix(in srgb, var(--c) 45%, transparent), transparent 70%), linear-gradient(135deg, var(--paper-2), color-mix(in srgb, var(--c) 12%, var(--paper-2))); }
+.people.grid .avatar-wrap { margin-top: -30px; }
+.people.grid .avatar-wrap .ava { box-shadow: 0 0 0 4px #fff; }
+.people.grid .friend-actions { padding: 0 16px 16px; }
+.people.grid .friend-actions .btn { flex: 1; }
+
+/* Community — орбита друзей */
+.sh-community { background: radial-gradient(circle at 75% 50%, color-mix(in srgb, var(--c-media) 14%, #fff), #fff 60%); border: 1px solid var(--line); }
+.orbit { position: absolute; inset: 0; margin: auto; width: min(240px, 100%); aspect-ratio: 1; }
+.orbit-ring { position: absolute; inset: 8%; border-radius: 50%; border: 1px dashed #d6d6d3; }
+.orbit-ring.r2 { inset: 28%; border-style: solid; border-color: #ececea; }
+.orbit-spin { position: absolute; inset: 0; animation: spin 40s linear infinite; }
+.orbit-item { position: absolute; transform: translate(-50%, -50%); }
+.orbit-item .ava { box-shadow: 0 0 0 3px #fff; animation: spin 40s linear infinite reverse; }
+.orbit-me { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); filter: drop-shadow(0 12px 24px rgba(0,0,0,.2)); }
+.orbit-me .ava { box-shadow: 0 0 0 4px #fff; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Цели — маршрут на вершину */
+.sh-goals { background: linear-gradient(180deg, #fff 0%, color-mix(in srgb, var(--good) 8%, #fff) 100%); border: 1px solid var(--line); }
+.mountain { position: absolute; right: 0; bottom: -6px; width: 100%; height: 100%; }
+.m-back { fill: color-mix(in srgb, var(--good) 10%, #fff); }
+.m-line { fill: none; stroke: var(--graphite); stroke-width: 2; stroke-linejoin: round; stroke-dasharray: 600; stroke-dashoffset: 600; animation: draw 1.6s var(--ease) .2s forwards; }
+.m-route { fill: none; stroke: var(--good); stroke-width: 3; stroke-linecap: round; stroke-dasharray: 4 7; animation: march 1.2s linear infinite; }
+.m-flag line { stroke: var(--ink); stroke-width: 2; }
+.m-flag path { fill: var(--c-edit); transform-origin: 150px 27px; animation: flag 2s ease-in-out infinite; }
+.m-dot { fill: var(--good); stroke: #fff; stroke-width: 2; animation: pulseDot 2s ease-in-out infinite; }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+@keyframes march { to { stroke-dashoffset: -22; } }
+@keyframes flag { 50% { transform: skewY(-8deg) scaleX(.9); } }
+@keyframes pulseDot { 50% { r: 7; } }
+
+/* Workspace — рабочий стол: тёмная шапка на миллиметровке, моноширинные цифры */
+.sh-workspace {
+  color: #fff; min-height: 200px;
+  background:
+    linear-gradient(rgba(255,255,255,.04) 1px, transparent 1px) 0 0 / 24px 24px,
+    linear-gradient(90deg, rgba(255,255,255,.04) 1px, transparent 1px) 0 0 / 24px 24px,
+    radial-gradient(circle at 90% 0%, rgba(232,177,0,.25), transparent 45%),
+    linear-gradient(160deg, #262628, var(--night) 75%);
+}
+.sh-workspace .h-xl { color: #cfcfcc; }
+.sh-workspace .h-xl .it { color: #fff; }
+.sh-workspace .lead, .sh-workspace .label { color: #a8a8a5; }
+.studio-clock { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: flex-end; gap: 6px; text-align: right; }
+.studio-clock .big { font-size: clamp(52px, 8vw, 92px); font-weight: 800; line-height: 1; color: #fff; }
+.studio-clock .big small { font-size: .3em; color: var(--c-prod); margin-left: 6px; vertical-align: top; }
+.blink { font-style: normal; animation: blink 1s steps(2, start) infinite; }
+@keyframes blink { to { visibility: hidden; } }
+.studio-date { font-family: var(--serif); font-style: italic; font-size: 22px; color: #d6d6d3; }
+.studio-week { font-size: 12px; color: #8a8a87; text-transform: uppercase; }
+@media (max-width: 760px) { .studio-clock { align-items: flex-start; text-align: left; position: static; } }
+.workspace .ws-tab b { font-family: var(--display); }
+.workspace .ws-tab:nth-child(1)[aria-current="page"] .ws-tab-glow { background: radial-gradient(circle, rgba(31,166,122,.5), transparent 65%); }
+.workspace .ws-tab:nth-child(2)[aria-current="page"] .ws-tab-glow { background: radial-gradient(circle, rgba(47,123,255,.5), transparent 65%); }
+.workspace .ws-tab:nth-child(3)[aria-current="page"] .ws-tab-glow { background: radial-gradient(circle, rgba(232,177,0,.5), transparent 65%); }
+
+/* Clients — как таблица: буквы колонок, строка формул, зелёный акцент */
+.ws-clients .sheet-cell.sel { box-shadow: inset 0 0 0 2px #1FA67A; }
+.ws-clients .sheet-cell.editing { box-shadow: inset 0 0 0 2px #1FA67A; }
+.ws-clients .sheet-row.head { background: linear-gradient(180deg, #f6f7f6, #eff1ef); }
+.ws-clients .sheet { background-image: linear-gradient(#fff, #fff); }
+.ws-clients .sheet-cell, .ws-clients .rownum { font-variant-numeric: tabular-nums; }
+.ws-clients .rownum { font-family: var(--mono); }
+.col-letter { font-style: normal; font-family: var(--mono); font-size: 10px; font-weight: 600; color: #1FA67A; margin-right: 6px; padding: 1px 5px; border-radius: 4px; background: color-mix(in srgb, #1FA67A 10%, #fff); }
+.formula-bar { display: flex; align-items: center; gap: 0; border: 1px solid var(--line); border-radius: 12px; background: #fff; overflow: hidden; }
+.fb-addr { min-width: 64px; padding: 10px 12px; border-right: 1px solid var(--line); font-weight: 800; font-size: 13px; color: #1FA67A; background: var(--paper); text-align: center; }
+.fb-fx { padding: 0 12px; font-size: 18px; color: var(--mute); border-right: 1px solid var(--line); align-self: stretch; display: grid; place-items: center; }
+.fb-input { flex: 1; min-width: 0; border: 0; outline: none; padding: 10px 12px; font: inherit; background: none; }
+.fb-input:disabled { color: var(--mute); }
+.ws-clients .btn:not(.ghost):not(.danger) { background: #1FA67A; }
+.ws-clients .ws-stat b { font-family: var(--mono); }
+
+/* Plans — ежедневник: крупное число дня и кольцо */
+.planner-day {
+  display: grid; grid-template-columns: auto 1fr auto; grid-template-rows: auto auto; column-gap: 16px; align-items: center;
+  padding: 16px 18px; border-radius: 18px; background: linear-gradient(135deg, #fff, color-mix(in srgb, #2F7BFF 7%, #fff)); border: 1px solid var(--line);
+  animation: fadeUp .45s var(--ease) both;
+}
+.pd-num { grid-row: span 2; font-size: 64px; font-weight: 900; line-height: .9; color: #2F7BFF; font-variant-numeric: tabular-nums; }
+.pd-when { display: flex; flex-direction: column; }
+.pd-when b { font-size: 18px; color: var(--graphite); }
+.pd-when em { font-size: 18px; color: var(--mute); }
+.pd-ring { grid-row: span 2; position: relative; width: 64px; height: 64px; display: grid; place-items: center; }
+.pd-ring svg { position: absolute; inset: 0; transform: rotate(-90deg); }
+.pd-ring span { font-size: 12px; font-weight: 800; }
+.ring-bg { fill: none; stroke: var(--paper-2); stroke-width: 6; }
+.ring-fg { fill: none; stroke: #2F7BFF; stroke-width: 6; stroke-linecap: round; transition: stroke-dashoffset .8s var(--ease); }
+.pd-caption { font-size: 13px; color: var(--graphite); }
+.ws-plans .scope.on { background: #2F7BFF; }
+.ws-plans .quick-add:focus-within { border-color: #2F7BFF; box-shadow: 0 0 0 3px rgba(47,123,255,.12); }
+.ws-plans .plans-side { background: linear-gradient(180deg, #fff, #fafbfd); }
+.ws-plans .plan-task.active { border-color: #2F7BFF; }
+
+/* Finance — тёмная «бухгалтерская» плашка */
+.ledger {
+  display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap;
+  padding: 20px 22px; border-radius: 20px; color: #fff; animation: fadeUp .45s var(--ease) both;
+  background: repeating-linear-gradient(0deg, rgba(255,255,255,.03) 0 1px, transparent 1px 28px), radial-gradient(circle at 100% 0%, rgba(232,177,0,.25), transparent 50%), linear-gradient(160deg, #262628, var(--night));
+}
+.ledger-main { display: flex; flex-direction: column; gap: 6px; }
+.ledger .label { color: #a8a8a5; }
+.ledger-sum { font-size: clamp(32px, 5vw, 52px); font-weight: 800; line-height: 1; }
+.ledger-sum.neg { color: #ff9a8a; }
+.ledger-sub { font-size: 12px; color: #8a8a87; }
+.spark { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.spark svg { width: 220px; max-width: 100%; height: auto; overflow: visible; }
+.spark-zero { stroke: rgba(255,255,255,.18); stroke-width: 1; }
+.spark-area { fill: rgba(232,177,0,.12); }
+.spark-line { fill: none; stroke: #E8B100; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; stroke-dasharray: 500; stroke-dashoffset: 500; animation: draw 1.2s var(--ease) .2s forwards; }
+.spark-dot { fill: #E8B100; stroke: var(--night); stroke-width: 2; }
+.spark-caption { font-size: 11px; color: #a8a8a5; }
+.ws-finance .fin-tile b, .ws-finance .tx-sum, .ws-finance .hb-value, .ws-finance .pay-date b, .ws-finance .tx-day header b { font-family: var(--mono); letter-spacing: -.03em; }
+.ws-finance .tx-fields .input.amount input { font-family: var(--mono); }

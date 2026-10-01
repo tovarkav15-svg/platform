@@ -106,6 +106,9 @@ export function Plans({ userId }: { userId: string }) {
   useEffect(() => { if (!toast) return; const id = setTimeout(() => setToast(null), 5000); return () => clearTimeout(id); }, [toast]);
 
   const open = all.find((t) => t.id === openId) ?? null;
+  const td = today();
+  const todayAll = all.filter((t) => t.due_date === td || (t.done && t.done_at?.slice(0, 10) === td) || (!t.done && !!t.due_date && t.due_date < td));
+  const todayDone = todayAll.filter((t) => t.done).length;
 
   if (!tasks) return <div className="skeleton profile-skeleton" />;
 
@@ -132,6 +135,7 @@ export function Plans({ userId }: { userId: string }) {
       </aside>
 
       <section className="plans-main">
+        <PlannerDay done={todayDone} total={todayAll.length} />
         <header className="plans-head">
           <button type="button" className="icon-btn plans-burger" onClick={() => setSideOpen((v) => !v)} aria-label="Списки">≡</button>
           <h2 className="h-md caps">{title}</h2>
@@ -147,7 +151,7 @@ export function Plans({ userId }: { userId: string }) {
         {mode !== "calendar" && <QuickAdd onAdd={(raw) => addTask(raw)} />}
 
         {mode === "list" && (
-          visible.length ? groupTasks(visible).map((g) => (
+          <div key={`list-${JSON.stringify(scope)}`} className="plans-view">{visible.length ? groupTasks(visible).map((g) => (
             <div key={g.id} className={`plan-group g-${g.id}`}>
               <div className="plan-group-head"><span>{g.label}</span><em>{g.items.length}</em></div>
               <ul className="plan-tasks">
@@ -157,11 +161,13 @@ export function Plans({ userId }: { userId: string }) {
                 ))}
               </ul>
             </div>
-          )) : <EmptyPlans scope={scope} />
+          )) : <EmptyPlans scope={scope} />}</div>
         )}
 
+        <div key={`${mode}-${JSON.stringify(scope)}`} className="plans-view">
         {mode === "matrix" && <Matrix tasks={visible.filter((t) => !t.done)} onToggle={toggle} onOpen={setOpenId} onMove={(id, priority) => update(id, { priority })} />}
         {mode === "calendar" && <Calendar tasks={all.filter((t) => scope.kind === "smart" ? true : visible.includes(t))} onOpen={setOpenId} onAdd={(date, title) => addTask(title, { due_date: date })} onMove={(id, date) => update(id, { due_date: date })} />}
+        </div>
       </section>
 
       {open && (
@@ -175,6 +181,29 @@ export function Plans({ userId }: { userId: string }) {
           {toast.undo && <button type="button" onClick={() => { toast.undo?.(); setToast(null); }}>Отменить</button>}
         </div>
       )}
+    </div>
+  );
+}
+
+function PlannerDay({ done, total }: { done: number; total: number }) {
+  const now = new Date();
+  const pct = total ? done / total : 0;
+  const R = 26, C = 2 * Math.PI * R;
+  return (
+    <div className="planner-day">
+      <span className="pd-num">{now.getDate()}</span>
+      <span className="pd-when">
+        <b className="caps">{now.toLocaleDateString("ru-RU", { weekday: "long" })}</b>
+        <em className="it">{now.toLocaleDateString("ru-RU", { month: "long", year: "numeric" })}</em>
+      </span>
+      <span className="pd-ring" title={`Сегодня выполнено ${done} из ${total}`}>
+        <svg viewBox="0 0 64 64" width="64" height="64" aria-hidden="true">
+          <circle cx="32" cy="32" r={R} className="ring-bg" />
+          <circle cx="32" cy="32" r={R} className="ring-fg" strokeDasharray={C} strokeDashoffset={C * (1 - pct)} />
+        </svg>
+        <span className="mono">{done}/{total}</span>
+      </span>
+      <span className="pd-caption">{total === 0 ? "На сегодня задач нет" : done === total ? "День закрыт" : `Осталось ${total - done}`}</span>
     </div>
   );
 }
@@ -270,11 +299,17 @@ function QuickAdd({ onAdd }: { onAdd: (raw: string) => void }) {
 }
 
 function TaskRow({ t, i, active, list, onToggle, onOpen }: { t: PlanTask; i: number; active: boolean; list?: PlanList; onToggle: () => void; onOpen: () => void }) {
+  const [completing, setCompleting] = useState(false);
+  const finish = () => {
+    if (t.done) return onToggle();
+    setCompleting(true);
+    setTimeout(() => { setCompleting(false); onToggle(); }, 420);
+  };
   const overdue = !t.done && !!t.due_date && t.due_date < today();
   const subDone = t.subtasks.filter((s) => s.done).length;
   return (
-    <li className={`plan-task ${t.done ? "done" : ""} ${active ? "active" : ""}`} style={{ "--i": i, "--p": PRIORITY[t.priority].c } as React.CSSProperties}>
-      <button type="button" className={`pchk p${t.priority}`} aria-pressed={t.done} onClick={onToggle} aria-label={t.done ? "Вернуть" : "Выполнить"} />
+    <li className={`plan-task ${t.done ? "done" : ""} ${active ? "active" : ""} ${completing ? "completing" : ""}`} style={{ "--i": i, "--p": PRIORITY[t.priority].c } as React.CSSProperties}>
+      <button type="button" className={`pchk p${t.priority}`} aria-pressed={t.done || completing} onClick={finish} aria-label={t.done ? "Вернуть" : "Выполнить"} />
       <button type="button" className="plan-task-body" onClick={onOpen}>
         <span className="plan-task-title">{t.title}</span>
         <span className="plan-task-meta">
@@ -388,7 +423,7 @@ function Matrix({ tasks, onToggle, onOpen, onMove }: { tasks: PlanTask[]; onTogg
             <header><i />{q.title}<em>{items.length}</em></header>
             <ul>
               {items.map((t) => (
-                <li key={t.id} draggable onDragStart={(e) => e.dataTransfer.setData("text/task", t.id)}>
+                <li key={t.id} draggable onDragStart={(e) => { e.dataTransfer.setData("text/task", t.id); e.currentTarget.classList.add("dragging"); }} onDragEnd={(e) => e.currentTarget.classList.remove("dragging")}>
                   <button type="button" className={`pchk p${t.priority}`} aria-pressed={false} onClick={() => onToggle(t)} aria-label="Выполнить" />
                   <button type="button" className="quad-title" onClick={() => onOpen(t.id)}>{t.title}</button>
                   {t.due_date && <span className={`meta-date ${t.due_date < today() ? "overdue" : ""}`}>{dueLabel(t.due_date)}</span>}

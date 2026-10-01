@@ -2,22 +2,23 @@
 
 import Link from "next/link";
 import type { FriendState, ProfileCard } from "@/lib/supabase";
-import { parseNiches } from "@/lib/niches";
+import { NICHES, parseNiches } from "@/lib/niches";
 import { profileHref } from "@/lib/links";
 import { Avatar } from "./Avatar";
 import { RoleBadge } from "./ProfileHeader";
 import { FriendActions } from "./FriendActions";
 
-export function PeopleList({ people, stateOf, onChange, extra }: {
+export function PeopleList({ people, stateOf, onChange, extra, layout = "list" }: {
   people: ProfileCard[];
   stateOf?: (id: string) => FriendState;
   onChange?: () => void;
   extra?: (p: ProfileCard) => React.ReactNode;
+  layout?: "list" | "grid";
 }) {
   return (
-    <ul className="people">
+    <ul className={`people ${layout}`}>
       {people.map((p, i) => (
-        <li key={p.id} className="person" style={{ "--i": i } as React.CSSProperties}>
+        <li key={p.id} className="person" style={{ "--i": i, "--c": NICHES.find((n) => p.niches.split(",")[0] === n.id)?.color ?? "var(--ink)" } as React.CSSProperties}>
           <Link href={profileHref(p.username)} className="person-main">
             <span className="avatar-wrap sm">
               <Avatar name={p.display_name} avatar={p.avatar} accent={p.accent} size={52} />

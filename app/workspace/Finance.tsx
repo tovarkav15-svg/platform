@@ -5,6 +5,9 @@ import { supabase } from "@/lib/supabase";
 import { loadSettings, rub, saveSettings, toCsv, download, type Client } from "@/lib/workspace";
 import { addDays, iso, today } from "@/lib/plans";
 import { EXPENSE, HBars, INCOME, MonthBars } from "./charts";
+import { CountUp } from "../CountUp";
+
+const Money = ({ v, sign }: { v: number; sign?: boolean }) => <CountUp value={v} format={(n) => rub(n, sign)} />;
 
 type Tx = { id: string; type: "income" | "expense"; amount: number; category: string; date: string; note: string; client_id: string | null };
 type Payment = {
@@ -128,9 +131,19 @@ export function Finance({ userId }: { userId: string }) {
   if (!txs) return <div className="skeleton profile-skeleton" />;
 
   const overdue = pays.filter((p) => p.status === "planned" && p.due_date < today());
+  const balance = txs.reduce((s, t) => s + (t.type === "income" ? t.amount : -t.amount), 0);
+  const profits = stats.months.map((m) => m.income - m.expense);
 
   return (
     <div className="ws-section">
+      <section className="ledger">
+        <div className="ledger-main">
+          <span className="label">Баланс за всё время</span>
+          <b className={`mono ledger-sum ${balance < 0 ? "neg" : ""}`}><Money v={balance} sign /></b>
+          <span className="ledger-sub mono">{txs.length} операций · {pays.filter((p) => p.status === "planned").length} ожидают оплаты</span>
+        </div>
+        <Spark values={profits} labels={stats.months.map((m) => m.label)} />
+      </section>
       <div className="fin-top">
         <div className="seg small" role="tablist" aria-label="Финансы">
           {([["overview", "Обзор"], ["ops", "Доходы и расходы"], ["schedule", "График оплат"]] as [Tab, string][]).map(([k, l]) => (
@@ -141,22 +154,22 @@ export function Finance({ userId }: { userId: string }) {
         </div>
         <div className="month-pick">
           <button type="button" className="icon-btn sm" onClick={() => setMonth(shiftMonth(month, -1))} aria-label="Предыдущий месяц">‹</button>
-          <b className="caps">{monthLabel(month, true)}</b>
+          <b key={month} className="caps">{monthLabel(month, true)}</b>
           <button type="button" className="icon-btn sm" onClick={() => setMonth(shiftMonth(month, 1))} aria-label="Следующий месяц">›</button>
         </div>
       </div>
 
       {tab === "overview" && (
-        <>
+        <div key={`o-${month}`} className="fin-pane">
           <div className="fin-tiles">
-            <div className="fin-tile"><span className="label"><i style={{ background: INCOME }} />Доход</span><b>{rub(stats.income)}</b></div>
-            <div className="fin-tile"><span className="label"><i style={{ background: EXPENSE }} />Расход</span><b>{rub(stats.expense)}</b></div>
+            <div className="fin-tile"><span className="label"><i style={{ background: INCOME }} />Доход</span><b><Money v={stats.income} /></b></div>
+            <div className="fin-tile"><span className="label"><i style={{ background: EXPENSE }} />Расход</span><b><Money v={stats.expense} /></b></div>
             <div className={`fin-tile hero ${stats.profit < 0 ? "neg" : ""}`}>
               <span className="label">Прибыль</span>
-              <b>{rub(stats.profit, true)}</b>
+              <b><Money v={stats.profit} sign /></b>
               <small>{stats.prevProfit !== 0 || stats.profit !== 0 ? `${stats.profit - stats.prevProfit >= 0 ? "▲" : "▼"} ${rub(Math.abs(stats.profit - stats.prevProfit))} к прошлому месяцу` : "Нет операций"}</small>
             </div>
-            <div className="fin-tile"><span className="label">Ожидается</span><b>{rub(stats.expectedIn)}</b><small>к оплате {rub(stats.expectedOut)}</small></div>
+            <div className="fin-tile"><span className="label">Ожидается</span><b><Money v={stats.expectedIn} /></b><small>к оплате {rub(stats.expectedOut)}</small></div>
           </div>
 
           <section className="card">
@@ -179,18 +192,40 @@ export function Finance({ userId }: { userId: string }) {
             <span className="knob" />
             <span>Показывать доход этого месяца в плашке «Сколько ты заработал» в профиле</span>
           </label>
-        </>
+        </div>
       )}
 
       {tab === "ops" && (
-        <Operations txs={txs.filter((t) => monthKey(t.date) === month)} clients={clients} month={month} onAdd={addTx} onDelete={delTx} />
+        <div key={`p-${month}`} className="fin-pane"><Operations txs={txs.filter((t) => monthKey(t.date) === month)} clients={clients} month={month} onAdd={addTx} onDelete={delTx} /></div>
       )}
 
       {tab === "schedule" && (
-        <Schedule pays={pays} clients={clients} userId={userId} onPaid={markPaid} onChange={load} />
+        <div key="s" className="fin-pane"><Schedule pays={pays} clients={clients} userId={userId} onPaid={markPaid} onChange={load} /></div>
       )}
 
       {toast && <div className="toast" role="status">{toast}</div>}
+    </div>
+  );
+}
+
+/** Мини-график прибыли за 6 месяцев: одна серия, ноль отмечен */
+function Spark({ values, labels }: { values: number[]; labels: string[] }) {
+  const W = 220, H = 70, P = 6;
+  const max = Math.max(...values, 0), min = Math.min(...values, 0);
+  const span = max - min || 1;
+  const x = (i: number) => P + (i / Math.max(values.length - 1, 1)) * (W - P * 2);
+  const y = (v: number) => P + (1 - (v - min) / span) * (H - P * 2);
+  const pts = values.map((v, i) => `${x(i)},${y(v)}`).join(" ");
+  const last = values[values.length - 1] ?? 0;
+  return (
+    <div className="spark" title="Прибыль по месяцам">
+      <svg viewBox={`0 0 ${W} ${H}`} aria-label="Прибыль за 6 месяцев" role="img">
+        <line x1={P} x2={W - P} y1={y(0)} y2={y(0)} className="spark-zero" />
+        <polygon points={`${x(0)},${y(0)} ${pts} ${x(values.length - 1)},${y(0)}`} className="spark-area" />
+        <polyline points={pts} className="spark-line" />
+        <circle cx={x(values.length - 1)} cy={y(last)} r="4.5" className="spark-dot" />
+      </svg>
+      <span className="spark-caption mono">{labels[0]} → {labels[labels.length - 1]} · {rub(last, true)}</span>
     </div>
   );
 }
@@ -263,7 +298,7 @@ function Operations({ txs, clients, month, onAdd, onDelete }: {
         const items = list.filter((t) => t.date === d);
         const total = items.reduce((s, t) => s + (t.type === "income" ? t.amount : -t.amount), 0);
         return (
-          <section key={d} className="tx-day">
+          <section key={d} className="tx-day" style={{ "--i": days.indexOf(d) } as React.CSSProperties}>
             <header><span>{dayLabel(d)}</span><b className={total < 0 ? "neg" : "pos"}>{rub(total, true)}</b></header>
             <ul>
               {items.map((t) => (
@@ -300,9 +335,9 @@ function Schedule({ pays, clients, userId, onPaid, onChange }: {
   return (
     <>
       <div className="fin-tiles three">
-        <div className="fin-tile"><span className="label"><i style={{ background: INCOME }} />Должны мне</span><b>{rub(sum("in"))}</b></div>
-        <div className="fin-tile"><span className="label"><i style={{ background: EXPENSE }} />Должен я</span><b>{rub(sum("out"))}</b></div>
-        <div className="fin-tile"><span className="label">Баланс ожиданий</span><b>{rub(sum("in") - sum("out"), true)}</b></div>
+        <div className="fin-tile"><span className="label"><i style={{ background: INCOME }} />Должны мне</span><b><Money v={sum("in")} /></b></div>
+        <div className="fin-tile"><span className="label"><i style={{ background: EXPENSE }} />Должен я</span><b><Money v={sum("out")} /></b></div>
+        <div className="fin-tile"><span className="label">Баланс ожиданий</span><b><Money v={sum("in") - sum("out")} sign /></b></div>
       </div>
 
       <form className="tx-form card" onSubmit={async (e) => {
@@ -352,6 +387,7 @@ function Schedule({ pays, clients, userId, onPaid, onChange }: {
 function PaymentList({ items, clients, onPaid, onDelete, empty }: {
   items: Payment[]; clients: Pick<Client, "id" | "username">[]; onPaid: ((p: Payment) => void) | null; onDelete: ((id: string) => void) | null; empty: string;
 }) {
+  const [paying, setPaying] = useState<string | null>(null);
   if (!items.length) return empty ? <p className="lead small">{empty}</p> : null;
   const td = today();
   return (
@@ -360,14 +396,14 @@ function PaymentList({ items, clients, onPaid, onDelete, empty }: {
         const client = clients.find((c) => c.id === p.client_id);
         const late = p.status === "planned" && p.due_date < td;
         return (
-          <li key={p.id} className={`pay ${p.direction} ${p.status} ${late ? "late" : ""}`}>
+          <li key={p.id} className={`pay ${p.direction} ${p.status} ${late ? "late" : ""} ${paying === p.id ? "paying" : ""}`}>
             <span className="pay-date"><b>{new Date(p.due_date + "T00:00:00").getDate()}</b><small>{new Date(p.due_date + "T00:00:00").toLocaleDateString("ru-RU", { month: "short" }).replace(".", "")}</small></span>
             <span className="tx-main">
               <b>{p.title}</b>
               <small>{[p.direction === "in" ? "Входящий" : "Исходящий", client && "@" + client.username, p.repeat && { weekly: "каждую неделю", monthly: "каждый месяц", yearly: "каждый год" }[p.repeat], late && "просрочено"].filter(Boolean).join(" · ")}</small>
             </span>
             <span className="tx-sum" style={{ color: "var(--ink)" }}><i className="tx-dot" style={{ background: p.direction === "in" ? INCOME : EXPENSE }} />{p.direction === "in" ? "+" : "−"}{rub(p.amount)}</span>
-            {onPaid && <button type="button" className="btn sm" onClick={() => onPaid(p)}>Оплачено</button>}
+            {onPaid && <button type="button" className="btn sm" disabled={paying === p.id} onClick={() => { setPaying(p.id); setTimeout(() => onPaid(p), 450); }}>{paying === p.id ? "✓" : "Оплачено"}</button>}
             {onDelete && <button type="button" className="icon-btn sm ghosty" onClick={() => onDelete(p.id)} aria-label="Удалить платёж">×</button>}
           </li>
         );

@@ -8,6 +8,7 @@ import { useSession } from "@/lib/session";
 import { NICHES } from "@/lib/niches";
 import { TopBar } from "../TopBar";
 import { ProjectCard, WorkCard } from "../Cards";
+import { NicheMarquee, SpaceHero } from "../SpaceHero";
 
 type Kind = "all" | "projects" | "work";
 type Item = { type: "project"; at: string; project: Project; author: ProfileCard } | { type: "work"; at: string; work: Work; author: ProfileCard };
@@ -54,13 +55,13 @@ export default function DiscoverPage() {
     <>
       <TopBar />
       <main className="page wide">
-        <div className="section-head">
-          <div>
-            <div className="label">Discover</div>
-            <h1 className="h-xl caps">Что <span className="it">строят</span> другие</h1>
-          </div>
-          {me && <Link className="btn" href={`/u/?n=${me.username}&tab=projects`}>Показать своё</Link>}
-        </div>
+        <SpaceHero
+          space="discover" eyebrow="Discover · лента"
+          title={<>Что <span className="it">строят</span> другие</>}
+          text="Свежие проекты и Proof of Work людей с платформы. Смотри, вдохновляйся, откликайся."
+          aside={me && <Link className="btn light" href={`/u/?n=${me.username}&tab=projects`}>Показать своё</Link>}
+          art={<NicheMarquee />}
+        />
 
         <nav className="seg" aria-label="Что показывать">
           {([["all", "Всё"], ["projects", "Проекты"], ["work", "Proof of Work"]] as [Kind, string][]).map(([k, label]) => (

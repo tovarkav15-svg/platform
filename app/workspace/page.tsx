@@ -8,6 +8,7 @@ import { TopBar } from "../TopBar";
 import { Clients } from "./Clients";
 import { Plans } from "./Plans";
 import { Finance } from "./Finance";
+import { SpaceHero, StudioClock } from "../SpaceHero";
 
 type Tab = "clients" | "plans" | "finance";
 const TABS: { id: Tab; label: string; sub: string }[] = [
@@ -26,17 +27,17 @@ export default function WorkspacePage() {
   return (
     <>
       <TopBar />
-      <main className="page wide workspace">
-        <div className="section-head">
-          <div>
-            <div className="label">Workspace · видишь только ты</div>
-            <h1 className="h-xl caps">Рабочее <span className="it">место</span></h1>
-          </div>
-        </div>
+      <main className={`page wide workspace ws-${tab}`}>
+        <SpaceHero
+          space="workspace" eyebrow="Workspace · закрыто, видишь только ты"
+          title={<>Рабочее <span className="it">место</span></>}
+          text="Клиенты, планы и деньги в одном месте."
+          art={<StudioClock />}
+        />
         <nav className="ws-tabs" aria-label="Разделы Workspace">
           {TABS.map((t) => (
             <Link key={t.id} href={`/workspace/?tab=${t.id}`} replace scroll={false} className="ws-tab" aria-current={tab === t.id ? "page" : undefined}>
-              <b>{t.label}</b><span>{t.sub}</span>
+              <b>{t.label}</b><span>{t.sub}</span><i className="ws-tab-glow" />
             </Link>
           ))}
         </nav>

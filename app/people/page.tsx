@@ -9,6 +9,7 @@ import { NICHES } from "@/lib/niches";
 import { normalizeUsername } from "@/lib/username";
 import { TopBar } from "../TopBar";
 import { Empty, PeopleList } from "../PeopleList";
+import { FloatingFaces, SpaceHero } from "../SpaceHero";
 
 export default function PeoplePage() {
   const { me } = useRequireMe();
@@ -19,6 +20,17 @@ export default function PeoplePage() {
   const open = sp.get("open") === "1";
   const fl = useFriendLinks(me?.id);
   const [found, setFound] = useState<ProfileCard[] | null>(null);
+  const [total, setTotal] = useState(0);
+  const [faces, setFaces] = useState<ProfileCard[]>([]);
+  const [layout, setLayout] = useState<"list" | "grid">("grid");
+
+  useEffect(() => {
+    try { const v = localStorage.getItem("people:layout"); if (v === "list" || v === "grid") setLayout(v); } catch {}
+    supabase.from("profiles").select(PROFILE_CARD, { count: "exact" }).not("avatar", "is", null).limit(7)
+      .then(({ data, count }) => { setFaces((data as ProfileCard[]) ?? []); if (count !== null) setTotal((t) => Math.max(t, count)); });
+    supabase.from("profiles").select("id", { count: "exact", head: true }).then(({ count }) => setTotal(count ?? 0));
+  }, []);
+  const pickLayout = (v: "list" | "grid") => { setLayout(v); try { localStorage.setItem("people:layout", v); } catch {} };
 
   const go = (patch: Record<string, string>) => {
     const p = new URLSearchParams({ ...(q && { q }), ...(niche && { niche }), ...(open && { open: "1" }) });
@@ -46,10 +58,12 @@ export default function PeoplePage() {
     <>
       <TopBar />
       <main className="page">
-        <div>
-          <div className="label">People</div>
-          <h1 className="h-xl caps">Кого ты <span className="it">можешь</span> найти</h1>
-        </div>
+        <SpaceHero
+          space="people" eyebrow="People · картотека"
+          title={<>Кого ты <span className="it">можешь</span> найти</>}
+          text="Монтажёры, продюсеры, дизайнеры, кодеры. Ищи по навыку, нише или тем, кто открыт к работе."
+          art={<FloatingFaces people={faces.length ? faces : (found ?? []).slice(0, 7)} total={total} />}
+        />
 
         <form className="search" role="search" onSubmit={(e) => { e.preventDefault(); go({ q: String(new FormData(e.currentTarget).get("q") ?? "").trim() }); }}>
           <div className="input"><input id="q" name="q" defaultValue={q} placeholder="Имя, @юзернейм, навык: Premiere, Figma…" autoComplete="off" /></div>
@@ -65,8 +79,16 @@ export default function PeoplePage() {
           <button type="button" className={`fchip otw-filter ${open ? "on" : ""}`} onClick={() => go({ open: open ? "" : "1" })}>Открыт к работе</button>
         </div>
 
+        <div className="section-head">
+          <span className="label">{found ? `Найдено: ${found.length}` : "Ищу…"}</span>
+          <div className="seg small">
+            <button type="button" className="seg-item" aria-current={layout === "grid" ? "page" : undefined} onClick={() => pickLayout("grid")}>Карточки</button>
+            <button type="button" className="seg-item" aria-current={layout === "list" ? "page" : undefined} onClick={() => pickLayout("list")}>Список</button>
+          </div>
+        </div>
+
         {found === null || !fl.loaded ? <div className="skeleton list-skeleton" /> : found.length
-          ? <PeopleList people={found} stateOf={fl.stateOf} onChange={fl.reload} />
+          ? <PeopleList people={found} stateOf={fl.stateOf} onChange={fl.reload} layout={layout} />
           : <Empty title="Никого не нашли" text="Попробуй другое имя, навык или убери фильтры." />}
       </main>
     </>
