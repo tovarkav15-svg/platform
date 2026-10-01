@@ -17,7 +17,7 @@ git worktree add -f --detach "$tmp" >/dev/null
   cp -R "$OLDPWD/out/." .
   git add -A
   git commit -qm "Выкладка сайта $(date '+%Y-%m-%d %H:%M')"
-  git push -qf origin HEAD:gh-pages
+  for i in 1 2 3 4 5 6; do GIT_HTTP_LOW_SPEED_LIMIT=1000 GIT_HTTP_LOW_SPEED_TIME=20 git push -qf origin HEAD:gh-pages && break; sleep 5; done
 )
 git worktree remove -f "$tmp"
 git branch -D gh-pages-new >/dev/null 2>&1 || true
