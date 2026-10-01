@@ -1,12 +1,17 @@
+"use client";
+
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/auth";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { useSession } from "@/lib/session";
+import { profileHref } from "@/lib/links";
 import { AuthSide } from "./AuthSide";
 
 // Временная стартовая страница, позже здесь будет лендинг
-export default async function Home() {
-  const user = await getCurrentUser();
-  if (user) redirect(`/u/${user.username}`);
+export default function Home() {
+  const { me } = useSession();
+  const router = useRouter();
+  useEffect(() => { if (me) router.replace(profileHref(me.username)); }, [me, router]);
 
   return (
     <div className="auth">

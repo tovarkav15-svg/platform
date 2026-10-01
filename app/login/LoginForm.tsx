@@ -1,23 +1,39 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
-import { login, type FormState } from "../actions";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { signIn } from "@/lib/api";
 
 export function LoginForm() {
-  const [state, action, pending] = useActionState<FormState, FormData>(login, {});
+  const router = useRouter();
+  const [error, setError] = useState("");
+  const [pending, setPending] = useState(false);
+
+  async function onSubmit(ev: React.FormEvent<HTMLFormElement>) {
+    ev.preventDefault();
+    const form = new FormData(ev.currentTarget);
+    setPending(true);
+    setError("");
+    const { error } = await signIn(String(form.get("login") ?? ""), String(form.get("password") ?? ""));
+    if (error) {
+      setPending(false);
+      return setError(error);
+    }
+    router.replace("/");
+  }
 
   return (
-    <form action={action} className="auth-form">
+    <form onSubmit={onSubmit} className="auth-form">
       <div className="label">Вход</div>
       <h1 className="caps">Войти <span className="it">в</span> аккаунт</h1>
 
-      {state.errors?.form && <div className="form-error">{state.errors.form}</div>}
+      {error && <div className="form-error">{error}</div>}
 
       <label className="field">
         <span>Юзернейм или почта</span>
         <div className="input">
-          <input name="login" id="login" defaultValue={state.values?.login} placeholder="@fedonko" autoComplete="username" autoCapitalize="none" required />
+          <input name="login" id="login" placeholder="@fedonko" autoComplete="username" autoCapitalize="none" required />
         </div>
       </label>
 

@@ -1,61 +1,67 @@
-import type { Metadata } from "next";
+"use client";
+
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { db } from "@/lib/db";
-import { getCurrentUser } from "@/lib/auth";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
+import { supabase, PROFILE_CARD, type FriendState } from "@/lib/supabase";
+import { useRequireMe } from "@/lib/session";
 import { parseNiches } from "@/lib/niches";
+import { profileHref } from "@/lib/links";
 import { normalizeUsername } from "@/lib/username";
-import type { FriendState } from "@/lib/social";
 import { TopBar } from "../TopBar";
 import { Avatar } from "../Avatar";
-import { FriendActions } from "./FriendActions";
-
-export const metadata: Metadata = { title: "Друзья" };
+import { FriendActions } from "../FriendActions";
 
 type Tab = "all" | "requests" | "find";
-type Props = { searchParams: Promise<{ tab?: string; q?: string }> };
+type Person = { id: string; username: string; display_name: string; avatar: string | null; accent: string; niches: string; role: string };
+type Link_ = { requester: string; addressee: string; status: string; r: Person; a: Person };
 
-const person = {
-  select: { id: true, username: true, role: true, profile: { select: { displayName: true, avatar: true, accent: true, niches: true } } },
-} as const;
+export default function FriendsPage() {
+  const { me } = useRequireMe();
+  const sp = useSearchParams();
+  const router = useRouter();
+  const tab: Tab = sp.get("tab") === "requests" || sp.get("tab") === "find" ? (sp.get("tab") as Tab) : "all";
+  const q = (sp.get("q") ?? "").trim().slice(0, 40);
 
-export default async function FriendsPage({ searchParams }: Props) {
-  const me = await getCurrentUser();
-  if (!me) redirect("/login");
-  const sp = await searchParams;
-  const tab: Tab = sp.tab === "requests" || sp.tab === "find" ? sp.tab : "all";
-  const q = (sp.q ?? "").trim().slice(0, 40);
+  const [links, setLinks] = useState<Link_[] | null>(null);
+  const [found, setFound] = useState<Person[] | null>(null);
 
-  const links = await db.friendship.findMany({
-    where: { OR: [{ requesterId: me.id }, { addresseeId: me.id }] },
-    include: { requester: person, addressee: person },
-    orderBy: { createdAt: "desc" },
-  });
+  const load = useCallback(async () => {
+    if (!me) return;
+    const { data } = await supabase
+      .from("friendships")
+      .select(`requester, addressee, status, r:profiles!friendships_requester_fkey(${PROFILE_CARD}), a:profiles!friendships_addressee_fkey(${PROFILE_CARD})`)
+      .order("created_at", { ascending: false });
+    setLinks((data as unknown as Link_[]) ?? []);
+  }, [me]);
 
-  const friends = links.filter((l) => l.status === "accepted").map((l) => (l.requesterId === me.id ? l.addressee : l.requester));
-  const incoming = links.filter((l) => l.status === "pending" && l.addresseeId === me.id).map((l) => l.requester);
-  const outgoing = links.filter((l) => l.status === "pending" && l.requesterId === me.id).map((l) => l.addressee);
+  useEffect(() => { document.title = "Друзья"; load(); }, [load]);
+
+  useEffect(() => {
+    if (!me || tab !== "find") return;
+    setFound(null);
+    let query = supabase.from("profiles").select(PROFILE_CARD).neq("id", me.id).order("created_at", { ascending: false }).limit(30);
+    if (q) {
+      const safe = q.replace(/[%,()]/g, "");
+      query = query.or(`username.ilike.%${normalizeUsername(safe)}%,display_name.ilike.%${safe}%`);
+    }
+    query.then(({ data }) => setFound((data as Person[]) ?? []));
+  }, [me, tab, q]);
+
+  if (!me || !links) {
+    return (<><TopBar /><main className="page"><div className="skeleton profile-skeleton" /></main></>);
+  }
+
+  const friends = links.filter((l) => l.status === "accepted").map((l) => (l.requester === me.id ? l.a : l.r));
+  const incoming = links.filter((l) => l.status === "pending" && l.addressee === me.id).map((l) => l.r);
+  const outgoing = links.filter((l) => l.status === "pending" && l.requester === me.id).map((l) => l.a);
 
   const stateOf = (id: string): FriendState => {
-    const l = links.find((x) => x.requesterId === id || x.addresseeId === id);
+    const l = links.find((x) => x.requester === id || x.addressee === id);
     if (!l) return "none";
     if (l.status === "accepted") return "friends";
-    return l.requesterId === me.id ? "outgoing" : "incoming";
+    return l.requester === me.id ? "outgoing" : "incoming";
   };
-
-  let found: typeof friends = [];
-  if (tab === "find") {
-    const uq = normalizeUsername(q);
-    found = await db.user.findMany({
-      where: {
-        id: { not: me.id },
-        ...(q ? { OR: [{ username: { contains: uq } }, { profile: { displayName: { contains: q } } }] } : {}),
-      },
-      ...person,
-      orderBy: { createdAt: "desc" },
-      take: 30,
-    });
-  }
 
   const tabs: { id: Tab; label: string; count?: number }[] = [
     { id: "all", label: "Друзья", count: friends.length },
@@ -74,28 +80,26 @@ export default async function FriendsPage({ searchParams }: Props) {
 
         <nav className="seg" aria-label="Вкладки друзей">
           {tabs.map((t) => (
-            <Link key={t.id} href={`/friends${t.id === "all" ? "" : `?tab=${t.id}`}`} className="seg-item" aria-current={tab === t.id ? "page" : undefined}>
+            <Link key={t.id} href={`/friends/${t.id === "all" ? "" : `?tab=${t.id}`}`} className="seg-item" aria-current={tab === t.id ? "page" : undefined}>
               {t.label}
               {!!t.count && <span className={t.id === "requests" ? "count-badge" : "count-plain"}>{t.count}</span>}
             </Link>
           ))}
         </nav>
 
-        {tab === "all" && (
-          friends.length
-            ? <PeopleList people={friends} stateOf={stateOf} />
-            : <Empty title="Пока никого" text="Найди людей по нише или юзернейму и добавь в друзья." cta={{ href: "/friends?tab=find", label: "Найти людей" }} />
-        )}
+        {tab === "all" && (friends.length
+          ? <PeopleList people={friends} stateOf={stateOf} onChange={load} />
+          : <Empty title="Пока никого" text="Найди людей по нише или юзернейму и добавь в друзья." cta={{ href: "/friends/?tab=find", label: "Найти людей" }} />)}
 
         {tab === "requests" && (
           <>
             {incoming.length
-              ? <PeopleList people={incoming} stateOf={stateOf} />
+              ? <PeopleList people={incoming} stateOf={stateOf} onChange={load} />
               : <Empty title="Новых заявок нет" text="Когда кто-то захочет дружить, заявка появится здесь." />}
             {outgoing.length > 0 && (
               <>
                 <div className="label" style={{ marginTop: 8 }}>Ты отправил</div>
-                <PeopleList people={outgoing} stateOf={stateOf} />
+                <PeopleList people={outgoing} stateOf={stateOf} onChange={load} />
               </>
             )}
           </>
@@ -103,15 +107,19 @@ export default async function FriendsPage({ searchParams }: Props) {
 
         {tab === "find" && (
           <>
-            <form className="search" role="search">
-              <input type="hidden" name="tab" value="find" />
-              <div className="input">
-                <input id="q" name="q" defaultValue={q} placeholder="Имя или @юзернейм" autoComplete="off" />
-              </div>
+            <form
+              className="search" role="search"
+              onSubmit={(e) => {
+                e.preventDefault();
+                const v = String(new FormData(e.currentTarget).get("q") ?? "").trim();
+                router.replace(`/friends/?tab=find${v ? `&q=${encodeURIComponent(v)}` : ""}`);
+              }}
+            >
+              <div className="input"><input id="q" name="q" defaultValue={q} placeholder="Имя или @юзернейм" autoComplete="off" /></div>
               <button className="btn" type="submit">Найти</button>
             </form>
-            {found.length
-              ? <PeopleList people={found} stateOf={stateOf} />
+            {found === null ? <div className="skeleton list-skeleton" /> : found.length
+              ? <PeopleList people={found} stateOf={stateOf} onChange={load} />
               : <Empty title="Никого не нашли" text="Попробуй другое имя или юзернейм." />}
           </>
         )}
@@ -120,26 +128,24 @@ export default async function FriendsPage({ searchParams }: Props) {
   );
 }
 
-type Person = { id: string; username: string; role: string; profile: { displayName: string; avatar: string | null; accent: string; niches: string } | null };
-
-function PeopleList({ people, stateOf }: { people: Person[]; stateOf: (id: string) => FriendState }) {
+function PeopleList({ people, stateOf, onChange }: { people: Person[]; stateOf: (id: string) => FriendState; onChange: () => void }) {
   return (
     <ul className="people">
       {people.map((p, i) => (
         <li key={p.id} className="person" style={{ "--i": i } as React.CSSProperties}>
-          <Link href={`/u/${p.username}`} className="person-main">
-            <Avatar name={p.profile?.displayName ?? p.username} avatar={p.profile?.avatar} accent={p.profile?.accent} size={52} />
+          <Link href={profileHref(p.username)} className="person-main">
+            <Avatar name={p.display_name} avatar={p.avatar} accent={p.accent} size={52} />
             <span className="person-text">
-              <b>{p.profile?.displayName ?? p.username}{p.role === "founder" && <span className="badge sm">Основатель</span>}</b>
+              <b>{p.display_name}{p.role === "founder" && <span className="badge sm">Основатель</span>}</b>
               <small>@{p.username}</small>
               <span className="person-niches">
-                {parseNiches(p.profile?.niches ?? "").slice(0, 3).map((n) => (
+                {parseNiches(p.niches).slice(0, 3).map((n) => (
                   <span key={n.id} className="tag" style={{ "--c": n.color } as React.CSSProperties}>{n.title}</span>
                 ))}
               </span>
             </span>
           </Link>
-          <FriendActions userId={p.id} state={stateOf(p.id)} compact />
+          <FriendActions userId={p.id} state={stateOf(p.id)} compact onChange={onChange} />
         </li>
       ))}
     </ul>

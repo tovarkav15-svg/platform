@@ -480,3 +480,13 @@ a, button { -webkit-tap-highlight-color: transparent; }
 @media (max-width: 760px) {
   .topbar { backdrop-filter: none; background: var(--paper); }
 }
+
+/* Заглушки загрузки */
+@keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+.skeleton {
+  border-radius: 20px;
+  background: linear-gradient(90deg, var(--paper-2) 0%, #fff 50%, var(--paper-2) 100%);
+  background-size: 200% 100%; animation: shimmer 1.4s linear infinite;
+}
+.profile-skeleton { height: 180px; }
+.list-skeleton { height: 90px; border-radius: var(--r); }

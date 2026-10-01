@@ -1,16 +1,26 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
-import { changePassword, type SettingsState } from "./actions";
+import { useState } from "react";
+import { changePassword, type SettingsState } from "./save";
 
-export function PasswordForm() {
-  const [state, action, pending] = useActionState<SettingsState, FormData>(changePassword, {});
-  const ref = useRef<HTMLFormElement>(null);
-  useEffect(() => { if (state.ok) ref.current?.reset(); }, [state]);
+export function PasswordForm({ authEmail }: { authEmail: string }) {
+  const [state, setState] = useState<SettingsState>({});
+  const [pending, setPending] = useState(false);
   const e = state.errors ?? {};
 
+  async function onSubmit(ev: React.FormEvent<HTMLFormElement>) {
+    ev.preventDefault();
+    const formEl = ev.currentTarget;
+    const form = new FormData(formEl);
+    setPending(true);
+    const result = await changePassword(String(form.get("current") ?? ""), String(form.get("next") ?? ""), authEmail);
+    if (result.ok) formEl.reset();
+    setState(result);
+    setPending(false);
+  }
+
   return (
-    <form ref={ref} action={action} className="card">
+    <form onSubmit={onSubmit} className="card">
       <h2 className="h-md caps">Смена <span className="it">пароля</span></h2>
       <div className="row2">
         <label className="field">
@@ -26,7 +36,7 @@ export function PasswordForm() {
       </div>
       <div className="save-row">
         <button className="btn" type="submit" disabled={pending}>{pending ? "Меняю…" : "Сменить пароль"}</button>
-        {state.ok && <span className="hint good">{state.message}</span>}
+        {state.message && <span className={`hint ${state.ok ? "good" : "bad"}`}>{state.message}</span>}
       </div>
     </form>
   );

@@ -1,42 +1,35 @@
+"use client";
+
 import Link from "next/link";
-import { db } from "@/lib/db";
-import { getCurrentUser } from "@/lib/auth";
-import { listChats } from "@/lib/social";
-import { logout } from "./actions";
+import { useRouter } from "next/navigation";
+import { signOut, useSession } from "@/lib/session";
+import { profileHref } from "@/lib/links";
 import { NavTabs } from "./NavTabs";
 import { Avatar } from "./Avatar";
 
-export async function TopBar() {
-  const me = await getCurrentUser();
-
-  if (!me) {
-    return (
-      <header className="topbar">
-        <Link href="/" className="logo caps">Название</Link>
-        <nav style={{ display: "flex", gap: 8 }}>
-          <Link className="btn ghost" href="/login">Войти</Link>
-          <Link className="btn" href="/register">Регистрация</Link>
-        </nav>
-      </header>
-    );
-  }
-
-  const [chats, requests] = await Promise.all([
-    listChats(me.id),
-    db.friendship.count({ where: { addresseeId: me.id, status: "pending" } }),
-  ]);
-  const unread = chats.reduce((s, c) => s + c.unread, 0);
+export function TopBar() {
+  const { ready, me } = useSession();
+  const router = useRouter();
 
   return (
     <header className="topbar">
       <Link href="/" className="logo caps">Название</Link>
-      <NavTabs username={me.username} unread={unread} requests={requests} />
-      <div className="topbar-me">
-        <Link href={`/u/${me.username}`} className="me-link" aria-label="Мой профиль">
-          <Avatar name={me.profile?.displayName ?? me.username} avatar={me.profile?.avatar} accent={me.profile?.accent} size={32} />
-        </Link>
-        <form action={logout}><button className="btn ghost sm" type="submit">Выйти</button></form>
-      </div>
+      {me ? (
+        <>
+          <NavTabs me={me} />
+          <div className="topbar-me">
+            <Link href={profileHref(me.username)} className="me-link" aria-label="Мой профиль">
+              <Avatar name={me.display_name} avatar={me.avatar} accent={me.accent} size={32} />
+            </Link>
+            <button className="btn ghost sm" type="button" onClick={async () => { await signOut(); router.replace("/login"); }}>Выйти</button>
+          </div>
+        </>
+      ) : ready ? (
+        <nav style={{ display: "flex", gap: 8 }}>
+          <Link className="btn ghost" href="/login">Войти</Link>
+          <Link className="btn" href="/register">Регистрация</Link>
+        </nav>
+      ) : null}
     </header>
   );
 }

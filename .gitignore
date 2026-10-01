@@ -4,3 +4,7 @@ node_modules/
 *.db
 *.db-journal
 .env
+out/
+*.tsbuildinfo
+.supabase-db-password
+supabase/.temp/

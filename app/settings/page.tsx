@@ -1,16 +1,23 @@
-import type { Metadata } from "next";
-import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/auth";
+"use client";
+
+import { useEffect, useState } from "react";
+import { supabase, type Earnings } from "@/lib/supabase";
+import { useRequireMe } from "@/lib/session";
 import { TopBar } from "../TopBar";
 import { ProfileForm } from "./ProfileForm";
 import { PasswordForm } from "./PasswordForm";
 
-export const metadata: Metadata = { title: "Настройки профиля" };
+export default function SettingsPage() {
+  const { me, session, refreshMe } = useRequireMe();
+  const [earnings, setEarnings] = useState<Earnings | null>(null);
 
-export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ saved?: string }> }) {
-  const me = await getCurrentUser();
-  if (!me || !me.profile) redirect("/login");
-  const p = me.profile;
+  useEffect(() => {
+    document.title = "Настройки профиля";
+    if (!me) return;
+    supabase.from("earnings").select("*").eq("user_id", me.id).maybeSingle().then(({ data }) => {
+      setEarnings((data as Earnings) ?? { user_id: me.id, amount: 0, goal: 0, is_public: false });
+    });
+  }, [me]);
 
   return (
     <>
@@ -20,16 +27,24 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           <div className="label">Настройки</div>
           <h1 className="h-xl caps">Профиль <span className="it">под</span> себя</h1>
         </div>
-        <ProfileForm
-          justSaved={(await searchParams).saved === "1"}
-          founder={me.role === "founder"}
-          initial={{
-            displayName: p.displayName, username: me.username, bio: p.bio, accent: p.accent, cover: p.cover,
-            avatar: p.avatar ?? "", telegram: p.telegram, website: p.website, niches: p.niches,
-            earnings: p.earnings, earningsGoal: p.earningsGoal, showEarnings: p.showEarnings,
-          }}
-        />
-        <PasswordForm />
+        {me && earnings && session ? (
+          <>
+            <ProfileForm
+              key={me.id}
+              userId={me.id}
+              founder={me.role === "founder"}
+              onSaved={refreshMe}
+              initial={{
+                displayName: me.display_name, username: me.username, bio: me.bio, accent: me.accent, cover: me.cover,
+                avatar: me.avatar ?? "", telegram: me.telegram, website: me.website, niches: me.niches,
+                earnings: earnings.amount, earningsGoal: earnings.goal, showEarnings: earnings.is_public,
+              }}
+            />
+            <PasswordForm authEmail={session.user.email ?? ""} />
+          </>
+        ) : (
+          <div className="skeleton profile-skeleton" />
+        )}
       </main>
     </>
   );

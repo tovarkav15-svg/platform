@@ -1,14 +1,16 @@
-import type { Metadata } from "next";
-import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/auth";
+"use client";
+
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { useSession } from "@/lib/session";
+import { profileHref } from "@/lib/links";
 import { AuthSide } from "../AuthSide";
 import { LoginForm } from "./LoginForm";
 
-export const metadata: Metadata = { title: "Вход" };
-
-export default async function LoginPage() {
-  const user = await getCurrentUser();
-  if (user) redirect(`/u/${user.username}`);
+export default function LoginPage() {
+  const { me } = useSession();
+  const router = useRouter();
+  useEffect(() => { if (me) router.replace(profileHref(me.username)); }, [me, router]);
 
   return (
     <div className="auth">

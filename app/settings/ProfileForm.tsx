@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
-import { updateProfile, type SettingsState } from "./actions";
+import { useEffect, useState } from "react";
+import { saveProfile, type SettingsState } from "./save";
+import { isUsernameTaken } from "@/lib/api";
 import { ProfileHeader } from "../ProfileHeader";
 import { NICHES } from "@/lib/niches";
 import { ACCENTS, COVERS } from "@/lib/style";
@@ -33,11 +34,21 @@ function resizeImage(file: File): Promise<string> {
   });
 }
 
-export function ProfileForm({ initial, founder, justSaved }: { initial: Initial; founder: boolean; justSaved: boolean }) {
-  const [state, action, pending] = useActionState<SettingsState, FormData>(
-    updateProfile, justSaved ? { ok: true, message: "Сохранено" } : {},
-  );
+type Props = { userId: string; initial: Initial; founder: boolean; onSaved: () => Promise<void> };
+
+export function ProfileForm({ userId, initial, founder, onSaved }: Props) {
+  const [state, setState] = useState<SettingsState>({});
+  const [pending, setPending] = useState(false);
   const e = state.errors ?? {};
+
+  async function onSubmit(ev: React.FormEvent<HTMLFormElement>) {
+    ev.preventDefault();
+    setPending(true);
+    const result = await saveProfile(userId, initial.username, new FormData(ev.currentTarget));
+    if (result.ok) await onSaved();
+    setState(result);
+    setPending(false);
+  }
 
   const [f, setF] = useState({ ...initial, earnings: fmt(initial.earnings), earningsGoal: fmt(initial.earningsGoal) });
   const set = <K extends keyof typeof f>(k: K, v: (typeof f)[K]) => setF((s) => ({ ...s, [k]: v }));
@@ -50,14 +61,12 @@ export function ProfileForm({ initial, founder, justSaved }: { initial: Initial;
     const local = validateUsername(u);
     if (local) return setUCheck({ cls: "bad", msg: local });
     setUCheck({ cls: "", msg: "Проверяю…" });
-    const ctrl = new AbortController();
+    let alive = true;
     const t = setTimeout(async () => {
-      try {
-        const d = await (await fetch(`/api/username?u=${encodeURIComponent(u)}`, { signal: ctrl.signal })).json();
-        setUCheck({ cls: d.ok ? "good" : "bad", msg: d.ok ? `@${u} свободен` : d.message });
-      } catch {}
+      const taken = await isUsernameTaken(u);
+      if (alive) setUCheck(taken ? { cls: "bad", msg: "Уже занят" } : { cls: "good", msg: `@${u} свободен` });
     }, 350);
-    return () => { clearTimeout(t); ctrl.abort(); };
+    return () => { alive = false; clearTimeout(t); };
   }, [f.username, initial.username]);
 
   const [avatarError, setAvatarError] = useState("");
@@ -72,7 +81,7 @@ export function ProfileForm({ initial, founder, justSaved }: { initial: Initial;
   const pct = goal ? Math.min(100, Math.round((earnings / goal) * 100)) : 0;
 
   return (
-    <form action={action} className="settings">
+    <form onSubmit={onSubmit} className="settings">
       <div className="settings-preview">
         <div className="label">Так тебя видят другие</div>
         <ProfileHeader

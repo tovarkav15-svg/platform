@@ -1,42 +1,52 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { supabase, type Profile } from "@/lib/supabase";
+import { profileHref } from "@/lib/links";
 
-type Props = { username: string; unread: number; requests: number };
-
-export function NavTabs({ username, unread: initialUnread, requests }: Props) {
+export function NavTabs({ me }: { me: Profile }) {
   const path = usePathname();
-  const [unread, setUnread] = useState(initialUnread);
+  const params = useSearchParams();
+  const [unread, setUnread] = useState(0);
+  const [requests, setRequests] = useState(0);
 
-  // Счётчик непрочитанных обновляется сам
+  // Счётчики непрочитанных и заявок обновляются сами
   useEffect(() => {
     let alive = true;
     const tick = async () => {
-      try {
-        const r = await fetch("/api/chats", { cache: "no-store" });
-        if (!r.ok) return;
-        const { chats } = await r.json();
-        if (alive) setUnread(chats.reduce((s: number, c: { unread: number }) => s + c.unread, 0));
-      } catch {}
+      const [chats, reqs] = await Promise.all([
+        supabase.rpc("list_chats"),
+        supabase.from("friendships").select("id", { count: "exact", head: true }).eq("addressee", me.id).eq("status", "pending"),
+      ]);
+      if (!alive) return;
+      if (chats.data) setUnread(chats.data.reduce((s: number, c: { unread: number }) => s + c.unread, 0));
+      setRequests(reqs.count ?? 0);
     };
-    const t = setInterval(tick, 6000);
+    tick();
+    const t = setInterval(tick, 8000);
     window.addEventListener("chats:refresh", tick);
-    return () => { alive = false; clearInterval(t); window.removeEventListener("chats:refresh", tick); };
-  }, []);
+    window.addEventListener("friends:refresh", tick);
+    return () => {
+      alive = false; clearInterval(t);
+      window.removeEventListener("chats:refresh", tick);
+      window.removeEventListener("friends:refresh", tick);
+    };
+  }, [me.id]);
 
+  const isMyProfile = path.startsWith("/u") && params.get("n") === me.username;
   const tabs = [
-    { href: `/u/${username}`, label: "Профиль", active: path === `/u/${username}` },
-    { href: "/messages", label: "Мессенджер", active: path.startsWith("/messages"), count: unread },
-    { href: "/friends", label: "Друзья", active: path.startsWith("/friends"), count: requests },
-    { href: "/settings", label: "Настройки", active: path.startsWith("/settings") },
+    { href: profileHref(me.username), label: "Профиль", active: isMyProfile },
+    { href: "/messages/", label: "Мессенджер", active: path.startsWith("/messages"), count: unread },
+    { href: "/friends/", label: "Друзья", active: path.startsWith("/friends"), count: requests },
+    { href: "/settings/", label: "Настройки", active: path.startsWith("/settings") },
   ];
 
   return (
     <nav className="navtabs" aria-label="Разделы">
       {tabs.map((t) => (
-        <Link key={t.href} href={t.href} className="navtab" aria-current={t.active ? "page" : undefined}>
+        <Link key={t.label} href={t.href} className="navtab" aria-current={t.active ? "page" : undefined}>
           {t.label}
           {!!t.count && <span className="count-badge">{t.count > 99 ? "99+" : t.count}</span>}
         </Link>
