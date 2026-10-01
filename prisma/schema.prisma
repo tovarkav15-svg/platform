@@ -1,0 +1,45 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Локально SQLite, на сервере поменяем на postgresql
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(cuid())
+  username     String    @unique // без @, только строчные
+  email        String    @unique
+  passwordHash String
+  role         String    @default("user") // user | founder
+  createdAt    DateTime  @default(now())
+  profile      Profile?
+  sessions     Session[]
+}
+
+model Profile {
+  userId      String  @id
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  displayName String
+  bio         String  @default("")
+  niches      String  @default("") // через запятую: "montazh,ai"
+  accent      String  @default("edit")
+  cover       String  @default("light") // light | accent | night
+  avatar      String? // data:image/jpeg;base64,… (256×256)
+  telegram    String  @default("")
+  website     String  @default("")
+
+  // Личное: видит только владелец, если сам не включил showEarnings
+  earnings     Int     @default(0)
+  earningsGoal Int     @default(0)
+  showEarnings Boolean @default(false)
+}
+
+model Session {
+  id        String   @id // хэш токена из cookie
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+}
