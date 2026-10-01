@@ -39,6 +39,7 @@ export function NavTabs({ me }: { me: Profile }) {
   const tabs = [
     { href: profileHref(me.username), label: "Профиль", active: isMyProfile },
     { href: "/workspace/", label: "Workspace", active: path.startsWith("/workspace") },
+    { href: "/learn/", label: "Обучение", active: path.startsWith("/learn") },
     { href: "/people/", label: "People", active: path.startsWith("/people") },
     { href: "/community/", label: "Community", active: path.startsWith("/community"), count: requests },
     { href: "/jobs/", label: "Биржа", active: path.startsWith("/jobs") },
@@ -46,9 +47,13 @@ export function NavTabs({ me }: { me: Profile }) {
     { href: "/messages/", label: "Чаты", active: path.startsWith("/messages"), count: unread },
   ];
 
+  // В фокусе виден только Workspace
+  const inFocus = !!me.focus_until && new Date(me.focus_until) > new Date();
+  const visible = inFocus ? tabs.filter((t) => t.href === "/workspace/") : tabs;
+
   return (
-    <nav className="navtabs" aria-label="Разделы">
-      {tabs.map((t) => (
+    <nav className={`navtabs ${inFocus ? "focus" : ""}`} aria-label="Разделы">
+      {visible.map((t) => (
         <Link key={t.label} href={t.href} className="navtab" aria-current={t.active ? "page" : undefined}>
           {t.label}
           {!!t.count && <span className="count-badge">{t.count > 99 ? "99+" : t.count}</span>}

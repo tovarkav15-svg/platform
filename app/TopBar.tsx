@@ -2,14 +2,27 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import { signOut, useSession } from "@/lib/session";
-import { profileHref } from "@/lib/links";
+import { supabase } from "@/lib/supabase";
+import { profileHref, chatHref } from "@/lib/links";
 import { NavTabs } from "./NavTabs";
-import { Avatar } from "./Avatar";
+import { Avatar, PresenceLabel } from "./Avatar";
+import { FocusButton } from "./focus/Focus";
 
 export function TopBar() {
   const { ready, me } = useSession();
   const router = useRouter();
+  const [menu, setMenu] = useState(false);
+  const [confirmOut, setConfirmOut] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menu) return;
+    const close = (e: MouseEvent) => { if (!box.current?.contains(e.target as Node)) { setMenu(false); setConfirmOut(false); } };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [menu]);
 
   return (
     <header className="topbar">
@@ -18,13 +31,33 @@ export function TopBar() {
         <>
           <NavTabs me={me} />
           <div className="topbar-me">
-            <Link href="/settings/" className="icon-link" aria-label="Настройки" title="Настройки">
-              <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M19.4 13a7.6 7.6 0 0 0 0-2l2-1.6-2-3.4-2.4 1a7.4 7.4 0 0 0-1.7-1L15 3.5h-4l-.4 2.5a7.4 7.4 0 0 0-1.7 1l-2.4-1-2 3.4L6.6 11a7.6 7.6 0 0 0 0 2l-2 1.6 2 3.4 2.4-1c.5.4 1.1.7 1.7 1l.3 2.5h4l.4-2.5c.6-.3 1.2-.6 1.7-1l2.4 1 2-3.4-2.1-1.6zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg>
-            </Link>
-            <Link href={profileHref(me.username)} className="me-link" aria-label="Мой профиль">
-              <Avatar name={me.display_name} avatar={me.avatar} accent={me.accent} size={32} userId={me.id} />
-            </Link>
-            <button className="btn ghost sm" type="button" onClick={async () => { await signOut(); router.replace("/login"); }}>Выйти</button>
+            <FocusButton />
+            <div className="me-menu" ref={box}>
+              <button type="button" className="me-link" aria-label="Меню аккаунта" aria-expanded={menu} onClick={() => setMenu((v) => !v)}>
+                <Avatar name={me.display_name} avatar={me.avatar} accent={me.accent} size={34} userId={me.id} />
+              </button>
+              {menu && (
+                <div className="me-pop" role="menu">
+                  <div className="me-pop-head">
+                    <Avatar name={me.display_name} avatar={me.avatar} accent={me.accent} size={40} userId={me.id} />
+                    <span><b>{me.display_name}</b><small>@{me.username}</small><PresenceLabel userId={me.id} /></span>
+                  </div>
+                  <Link role="menuitem" href={profileHref(me.username)} onClick={() => setMenu(false)}><i>◉</i>Мой профиль</Link>
+                  <Link role="menuitem" href="/settings/" onClick={() => setMenu(false)}><i>✎</i>Настройки и оформление</Link>
+                  <button role="menuitem" type="button" onClick={async () => {
+                    setMenu(false);
+                    const { data } = await supabase.rpc("open_support");
+                    if (data) router.push(chatHref(data as string));
+                  }}><i>✚</i>Поддержка</button>
+                  <span className="me-pop-sep" />
+                  {confirmOut ? (
+                    <button role="menuitem" type="button" className="danger" onClick={async () => { await signOut(); router.replace("/login"); }}><i>⏻</i>Точно выйти</button>
+                  ) : (
+                    <button role="menuitem" type="button" className="danger" onClick={() => setConfirmOut(true)}><i>⏻</i>Выйти из аккаунта</button>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </>
       ) : ready ? (

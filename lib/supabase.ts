@@ -28,22 +28,38 @@ export type Profile = {
   banner_path: string | null;
   banner_preset: string;
   about: string;
+  focus_until: string | null;
+  avatar_ring: "spin" | "neon" | "solid" | "none";
+  name_style: "plain" | "gradient" | "outline";
+  emoji: string;
+  page_bg: "aurora" | "plain" | "dots";
 };
 
 export type Earnings = { user_id: string; amount: number; goal: number; is_public: boolean };
 
 export type FriendState = "none" | "friends" | "outgoing" | "incoming" | "self";
 
+export type ChatKind = "dm" | "group" | "channel" | "support";
 export type ChatListItem = {
   chat_id: string;
-  other_id: string;
-  other_username: string;
-  other_name: string;
+  kind: ChatKind;
+  title: string;
+  avatar: string | null;
+  accent: string;
+  emoji: string;
+  is_public: boolean;
+  support_for: string | null;
+  other_id: string | null;
+  other_username: string | null;
+  other_name: string | null;
   other_avatar: string | null;
-  other_accent: string;
+  other_accent: string | null;
+  member_count: number;
+  my_role: "owner" | "admin" | "member";
   last_text: string | null;
   last_kind: string | null;
   last_mine: boolean | null;
+  last_sender: string | null;
   last_at: string | null;
   unread: number;
 };

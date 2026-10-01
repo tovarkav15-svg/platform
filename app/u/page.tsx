@@ -66,8 +66,8 @@ export default function ProfilePage() {
   return (
     <>
       <TopBar />
-      {data && data !== "missing" && (
-        <div className="pf-aurora" aria-hidden="true" style={{ "--c": accentColor(data.user.accent) } as React.CSSProperties}><i /><i /></div>
+      {data && data !== "missing" && data.user.page_bg !== "plain" && (
+        <div className={`pf-aurora bg-${data.user.page_bg}`} aria-hidden="true" style={{ "--c": accentColor(data.user.accent) } as React.CSSProperties}><i /><i /></div>
       )}
       <main className="page wide pf">
         {data === null && <><div className="skeleton pf-skeleton" /><div className="skeleton list-skeleton" /></>}
@@ -125,7 +125,7 @@ function ProfileView({ user, earnings, friends, state, works, projects, tab, isM
       <ProfileHeader
         displayName={user.display_name} username={user.username} headline={user.headline} bio={user.bio}
         status={user.status} openToWork={user.open_to_work} accent={user.accent} avatar={user.avatar} role={user.role}
-        banner={publicMedia(user.banner_path)} bannerPreset={user.banner_preset} userId={user.id}
+        banner={publicMedia(user.banner_path)} bannerPreset={user.banner_preset} userId={user.id} ring={user.avatar_ring} nameStyle={user.name_style} emoji={user.emoji}
         actions={isMe
           ? <Link className="btn" href="/settings/">Редактировать</Link>
           : loggedIn && state

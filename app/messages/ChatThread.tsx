@@ -2,14 +2,16 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { supabase, type ChatListItem } from "@/lib/supabase";
 import { profileHref } from "@/lib/links";
 import { CHAT_MAX_BYTES, compressImage, kindOf, uploadChatFile } from "@/lib/upload";
 import { Avatar, PresenceLabel } from "../Avatar";
+import { ChatAvatar, chatTitle, SupportMark } from "./ChatAvatar";
+import type { Member } from "./ChatSettings";
 import { clock, dayLabel } from "./time";
 import { FileMedia, ImageMedia, imageSize, VideoMedia, VoiceMedia, useVoiceRecorder, type MediaMeta } from "./ChatMedia";
 
-type Kind = "text" | "image" | "video" | "voice" | "file";
+type Kind = "text" | "image" | "video" | "voice" | "file" | "system";
 type Msg = {
   id: string; text: string; sender_id: string; created_at: string;
   kind: Kind; media_path: string | null; media_meta: MediaMeta;
@@ -21,7 +23,16 @@ const FIELDS = "id, text, sender_id, created_at, kind, media_path, media_meta";
 const POLL_MS = 5000; // запасной опрос, основная доставка — Realtime
 const MAX_LEN = 2000;
 
-export function ChatThread({ chatId, meId, other }: { chatId: string; meId: string; other: Other }) {
+export function ChatThread({ chatId, meId, chat, onSettings, onCall }: { chatId: string; meId: string; chat: ChatListItem; onSettings: () => void; onCall: (video: boolean) => void }) {
+  const other: Other = { id: chat.other_id ?? "", username: chat.other_username ?? "", displayName: chat.other_name ?? "", avatar: chat.other_avatar, accent: chat.other_accent ?? "edit" };
+  const isDm = chat.kind === "dm";
+  const multi = chat.kind === "group" || chat.kind === "support" || chat.kind === "channel";
+  const canWrite = chat.kind !== "channel" || chat.my_role === "owner" || chat.my_role === "admin";
+  const [people, setPeople] = useState<Map<string, Member>>(new Map());
+  useEffect(() => {
+    if (!multi) return;
+    supabase.rpc("chat_people", { p_chat: chatId }).then(({ data }) => setPeople(new Map(((data as Member[]) ?? []).map((m) => [m.user_id, m]))));
+  }, [chatId, multi, chat.member_count]);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [otherReadAt, setOtherReadAt] = useState<string | null>(null);
@@ -50,8 +61,8 @@ export function ChatThread({ chatId, meId, other }: { chatId: string; meId: stri
   }, [chatId, meId]);
 
   const loadReadState = useCallback(async () => {
-    const { data } = await supabase.from("chat_members").select("last_read_at").eq("chat_id", chatId).neq("user_id", meId).maybeSingle();
-    setOtherReadAt(data?.last_read_at ?? null);
+    const { data } = await supabase.from("chat_members").select("last_read_at").eq("chat_id", chatId).neq("user_id", meId).order("last_read_at", { ascending: false }).limit(1);
+    setOtherReadAt(data?.[0]?.last_read_at ?? null);
   }, [chatId, meId]);
 
   useEffect(() => {
@@ -129,6 +140,11 @@ export function ChatThread({ chatId, meId, other }: { chatId: string; meId: stri
         window.dispatchEvent(new Event("chats:refresh"));
       } catch {
         setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...m, pending: false, failed: true, retry: attempt } : m)));
+        if (isDm && other.id) {
+          const { data: p } = await supabase.from("profiles").select("focus_until").eq("id", other.id).maybeSingle();
+          if (p?.focus_until && new Date(p.focus_until) > new Date())
+            setNotice(`${other.displayName} в режиме фокуса до ${new Date(p.focus_until).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}. Сообщение можно будет отправить после.`);
+        }
       }
     };
     stick.current = true;
@@ -205,21 +221,58 @@ export function ChatThread({ chatId, meId, other }: { chatId: string; meId: stri
       onDragLeave={(e) => { if (e.currentTarget === e.target) setDragging(false); }}
       onDrop={(e) => { e.preventDefault(); setDragging(false); pickFiles(e.dataTransfer.files); }}
     >
-      <header className="thread-head">
+      <header className={`thread-head k-${chat.kind}`}>
         <Link href="/messages/" className="back" aria-label="Назад к чатам">←</Link>
-        <Link href={profileHref(other.username)} className="thread-who">
-          <Avatar name={other.displayName} avatar={other.avatar} accent={other.accent} size={40} userId={other.id} />
-          <span><b>{other.displayName}</b><PresenceLabel userId={other.id} /></span>
-        </Link>
+        {isDm ? (
+          <Link href={profileHref(other.username)} className="thread-who">
+            <Avatar name={other.displayName} avatar={other.avatar} accent={other.accent} size={40} userId={other.id} />
+            <span><b>{other.displayName}</b><PresenceLabel userId={other.id} /></span>
+          </Link>
+        ) : (
+          <button type="button" className="thread-who as-btn" onClick={onSettings}>
+            <ChatAvatar c={chat} size={40} />
+            <span>
+              <b>{chatTitle(chat)}</b>
+              <small className="thread-sub">
+                {chat.kind === "support" ? "Команда платформы: @fedonko, @awiny" : chat.kind === "channel" ? `Канал · ${chat.member_count} подписчиков` : `Группа · ${chat.member_count} участников`}
+              </small>
+            </span>
+          </button>
+        )}
+        <span className="thread-tools">
+          {isDm && (
+            <>
+              <button type="button" className="icon-btn" onClick={() => onCall(false)} aria-label="Аудиозвонок" title="Аудиозвонок">
+                <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z" /></svg>
+              </button>
+              <button type="button" className="icon-btn" onClick={() => onCall(true)} aria-label="Видеозвонок" title="Видеозвонок">
+                <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M17 10.5V7a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3.5l4 4v-11z" /></svg>
+              </button>
+            </>
+          )}
+          {!isDm && <button type="button" className="icon-btn" onClick={onSettings} aria-label="Настройки чата" title="Настройки">⋯</button>}
+        </span>
       </header>
 
       <div className="msgs" ref={scroller} onScroll={onScroll}>
         {!loaded && <div className="msgs-loading"><span /><span /><span /></div>}
-        {loaded && !messages.length && (
+        {loaded && chat.kind === "support" && !messages.some((m) => m.kind !== "system") && (
+          <div className="support-hello">
+            <span className="support-hello-mark"><SupportMark /></span>
+            <b>Чем помочь?</b>
+            <p className="lead">Опиши ситуацию, команда ответит здесь. Можно приложить скриншот.</p>
+            <div className="support-topics">
+              {["Что-то не работает", "Предложить идею", "Вопрос по профилю", "Пожаловаться на пользователя"].map((t) => (
+                <button key={t} type="button" className="chip-btn" onClick={() => { setText(t + ": "); input.current?.focus(); }}>{t}</button>
+              ))}
+            </div>
+          </div>
+        )}
+        {loaded && !messages.length && chat.kind !== "support" && (
           <div className="msgs-empty">
-            <Avatar name={other.displayName} avatar={other.avatar} accent={other.accent} size={72} />
-            <b>Начни разговор с {other.displayName}</b>
-            <p className="lead">Напиши, запиши голосовое или пришли фото.</p>
+            {isDm ? <Avatar name={other.displayName} avatar={other.avatar} accent={other.accent} size={72} /> : <ChatAvatar c={chat} size={72} />}
+            <b>{isDm ? `Начни разговор с ${other.displayName}` : chatTitle(chat)}</b>
+            <p className="lead">{canWrite ? "Напиши, запиши голосовое или пришли фото." : "Здесь пока нет постов."}</p>
           </div>
         )}
         {messages.map((m, i) => {
@@ -230,9 +283,25 @@ export function ChatThread({ chatId, meId, other }: { chatId: string; meId: stri
           const groupEnd = !next || next.sender_id !== m.sender_id || dayLabel(next.created_at) !== dayLabel(m.created_at);
           const read = mine && !m.pending && !m.failed && !!otherReadAt && new Date(otherReadAt).getTime() >= new Date(m.created_at).getTime();
           const visual = m.kind === "image" || m.kind === "video";
-          return (
+          if (m.kind === "system") return (
             <div key={m.id} className="msg-wrap">
               {newDay && <div className="day-sep"><span>{dayLabel(m.created_at)}</span></div>}
+              <div className="msg-system">{m.text}</div>
+            </div>
+          );
+          const author = multi && !mine ? people.get(m.sender_id) : undefined;
+          const groupStart = !prev || prev.sender_id !== m.sender_id || prev.kind === "system" || newDay;
+          return (
+            <div key={m.id} className={`msg-wrap ${author ? "with-author" : ""}`}>
+              {newDay && <div className="day-sep"><span>{dayLabel(m.created_at)}</span></div>}
+              {author && groupStart && (
+                <Link href={profileHref(author.username)} className="msg-author">
+                  <Avatar name={author.display_name} avatar={author.avatar} accent={author.accent} size={22} userId={author.user_id} />
+                  <b>{author.display_name}</b>
+                  {chat.kind === "support" && author.role === "admin" && <em>команда</em>}
+                  {chat.kind !== "support" && author.role !== "member" && <em>{author.role === "owner" ? "владелец" : "админ"}</em>}
+                </Link>
+              )}
               <div className={`msg kind-${m.kind} ${visual && !m.text ? "bare" : ""} ${mine ? "mine" : ""} ${groupEnd ? "end" : ""} ${m.pending ? "pending" : ""} ${m.failed ? "failed" : ""}`}>
                 {m.kind === "image" && <ImageMedia path={m.media_path} meta={m.media_meta} />}
                 {m.kind === "video" && <VideoMedia path={m.media_path} meta={m.media_meta} />}
@@ -258,7 +327,12 @@ export function ChatThread({ chatId, meId, other }: { chatId: string; meId: stri
         </div>
       )}
 
-      {voice.state === "recording" ? (
+      {!canWrite ? (
+        <div className="composer readonly">
+          <span>Ты подписан на канал. Писать здесь могут только админы.</span>
+          <button type="button" className="chip-btn" onClick={onSettings}>О канале</button>
+        </div>
+      ) : voice.state === "recording" ? (
         <div className="composer recording">
           <button type="button" className="icon-btn" onClick={voice.cancel} aria-label="Отменить запись">×</button>
           <span className="rec-dot" />

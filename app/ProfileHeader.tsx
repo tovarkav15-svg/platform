@@ -18,6 +18,9 @@ type Props = {
   actions?: React.ReactNode;
   compact?: boolean;
   userId?: string;
+  ring?: string;
+  nameStyle?: string;
+  emoji?: string;
 };
 
 export function RoleBadge({ role, small }: { role?: string; small?: boolean }) {
@@ -34,12 +37,12 @@ export function Banner({ image, preset = "aurora", className = "" }: { image?: s
 }
 
 // Шапка профиля: баннер, аватар с кольцом, имя. Используется в профиле и как живое превью в настройках
-export function ProfileHeader({ displayName, username, headline, bio, status, openToWork, accent, avatar, role, banner, bannerPreset, meta, actions, compact, userId }: Props) {
+export function ProfileHeader({ displayName, username, headline, bio, status, openToWork, accent, avatar, role, banner, bannerPreset, meta, actions, compact, userId, ring = "spin", nameStyle = "plain", emoji }: Props) {
   return (
     <section className={`ph2 ${compact ? "compact" : ""}`} style={{ "--c": accentColor(accent) } as React.CSSProperties}>
       <Banner image={banner} preset={bannerPreset} />
       <div className="ph2-body">
-        <div className={`ph2-avatar ${openToWork ? "otw-on" : ""}`}>
+        <div className={`ph2-avatar ring-${ring} ${openToWork ? "otw-on" : ""}`}>
           <span className="ph2-ring" />
           <div className="avatar">
             {avatar ? <img src={avatar} alt="" /> : (displayName || username || "?").slice(0, 1).toUpperCase()}
@@ -49,7 +52,8 @@ export function ProfileHeader({ displayName, username, headline, bio, status, op
         </div>
         <div className="ph2-id">
           <div className="ph2-name">
-            <h1 className="caps">{displayName || "Имя"}</h1>
+            <h1 className={`caps name-${nameStyle}`}>{displayName || "Имя"}</h1>
+            {emoji && <span className="name-emoji" aria-hidden="true">{emoji}</span>}
             <RoleBadge role={role} />
           </div>
           <span className="handle">@{username || "username"}{headline && <span className="headline"> · {headline}</span>}</span>

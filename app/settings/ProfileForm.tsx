@@ -15,6 +15,7 @@ import { normalizeUsername, validateUsername, USERNAME_MAX } from "@/lib/usernam
 
 type Initial = {
   displayName: string; username: string; bio: string; accent: string; avatar: string; bannerPath: string; bannerPreset: string; about: string;
+  ring: string; nameStyle: string; emoji: string; pageBg: string;
   telegram: string; website: string; niches: string; earnings: number; earningsGoal: number; showEarnings: boolean;
   headline: string; status: string; city: string; skills: string; openToWork: boolean; sections: string; pinnedProject: string;
 };
@@ -122,7 +123,7 @@ export function ProfileForm({ userId, initial, role, projects, onSaved }: Props)
           displayName={f.displayName} username={normalizeUsername(f.username)} bio={f.bio}
           headline={f.headline} status={f.status} openToWork={f.openToWork}
           accent={f.accent} avatar={f.avatar} role={role}
-          banner={bannerPreview} bannerPreset={f.bannerPreset}
+          banner={bannerPreview} bannerPreset={f.bannerPreset} ring={f.ring} nameStyle={f.nameStyle} emoji={f.emoji}
         />
       </div>
 
@@ -155,6 +156,52 @@ export function ProfileForm({ userId, initial, role, projects, onSaved }: Props)
             ))}
           </div>
         </fieldset>
+
+        <div className="look-grid">
+          <fieldset className="field plain">
+            <span>Рамка аватара</span>
+            <div className="look-opts">
+              {[["spin", "Кольцо"], ["neon", "Неон"], ["solid", "Обводка"], ["none", "Без рамки"]].map(([v, l]) => (
+                <label key={v} className={`look-opt ${f.ring === v ? "on" : ""}`}>
+                  <input type="radio" name="ring" value={v} checked={f.ring === v} onChange={() => set("ring", v)} />
+                  <span className={`look-ava ring-${v}`} style={{ "--c": ACCENTS[f.accent as keyof typeof ACCENTS]?.color } as React.CSSProperties}><i /></span>{l}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+          <fieldset className="field plain">
+            <span>Стиль имени</span>
+            <div className="look-opts">
+              {[["plain", "Обычный"], ["gradient", "Градиент"], ["outline", "Контур"]].map(([v, l]) => (
+                <label key={v} className={`look-opt ${f.nameStyle === v ? "on" : ""}`}>
+                  <input type="radio" name="nameStyle" value={v} checked={f.nameStyle === v} onChange={() => set("nameStyle", v)} />
+                  <b className={`caps name-${v}`}>Аа</b>{l}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+          <fieldset className="field plain">
+            <span>Эмодзи у имени</span>
+            <div className="emoji-pick">
+              <button type="button" className={!f.emoji ? "on" : ""} onClick={() => set("emoji", "")}>—</button>
+              {["🎬", "🚀", "🔥", "💡", "🧠", "💸", "🎧", "📈", "👕", "🎯", "✨", "🛠", "🌙", "☕", "⚡", "🏆"].map((e) => (
+                <button key={e} type="button" className={f.emoji === e ? "on" : ""} onClick={() => set("emoji", e)}>{e}</button>
+              ))}
+            </div>
+            <input type="hidden" name="emoji" value={f.emoji} />
+          </fieldset>
+          <fieldset className="field plain">
+            <span>Фон страницы профиля</span>
+            <div className="look-opts">
+              {[["aurora", "Переливы"], ["dots", "Точки"], ["plain", "Чистый"]].map(([v, l]) => (
+                <label key={v} className={`look-opt ${f.pageBg === v ? "on" : ""}`}>
+                  <input type="radio" name="pageBg" value={v} checked={f.pageBg === v} onChange={() => set("pageBg", v)} />
+                  <span className={`look-bg bg-${v}`} style={{ "--c": ACCENTS[f.accent as keyof typeof ACCENTS]?.color } as React.CSSProperties} />{l}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        </div>
 
         <fieldset className="field plain">
           <span>Баннер</span>
