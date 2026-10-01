@@ -14,29 +14,20 @@ type Item =
   | { type: "project"; at: string; project: Project; author: ProfileCard }
   | { type: "work"; at: string; work: Work; author: ProfileCard };
 
-const plural = (n: number, one: string, few: string, many: string) => {
-  const m10 = n % 10, m100 = n % 100;
-  if (m10 === 1 && m100 !== 11) return one;
-  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
-  return many;
+const SLIDE_MS = 6000;
+
+const meta = (it: Item) => {
+  const niche = NICHES.find((n) => n.id === (it.type === "project" ? it.project.niche : it.work.niche));
+  return it.type === "project"
+    ? { id: it.project.id, title: it.project.name, text: it.project.tagline || it.project.description, img: publicMedia(it.project.image_path), niche, href: projectHref(it.project.id), external: false, extra: STAGES[it.project.stage], result: "" }
+    : { id: it.work.id, title: it.work.title, text: it.work.description, img: publicMedia(it.work.image_path), niche, href: it.work.link || profileHref(it.author.username, "work"), external: !!it.work.link, extra: "Proof of Work", result: it.work.result };
 };
-
-function weekNo(d: Date) {
-  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-  const day = t.getUTCDay() || 7;
-  t.setUTCDate(t.getUTCDate() + 4 - day);
-  return Math.ceil(((t.getTime() - Date.UTC(t.getUTCFullYear(), 0, 1)) / 86400000 + 1) / 7);
-}
-
-// Размер плитки в мозаике: первая крупная, дальше ритм из широких и высоких
-const sizeOf = (i: number, hasImage: boolean) => (i === 0 ? "xl" : i % 7 === 3 ? "wide" : hasImage && i % 5 === 1 ? "tall" : "");
 
 export default function DiscoverPage() {
   const { ready, me } = useSession();
   const [items, setItems] = useState<Item[] | null>(null);
   const [kind, setKind] = useState<Kind>("all");
   const [niche, setNiche] = useState("");
-  const [author, setAuthor] = useState<string | null>(null);
   const [looking, setLooking] = useState(false);
 
   useEffect(() => { document.title = "Discover"; }, []);
@@ -48,156 +39,162 @@ export default function DiscoverPage() {
         supabase.from("projects").select(`*, author:profiles!projects_user_id_fkey(${PROFILE_CARD})`).order("updated_at", { ascending: false }).limit(60),
         supabase.from("works").select(`*, author:profiles!works_user_id_fkey(${PROFILE_CARD})`).order("created_at", { ascending: false }).limit(60),
       ]);
-      const list: Item[] = [
+      setItems([
         ...((p.data as unknown as (Project & { author: ProfileCard })[]) ?? []).map(({ author, ...project }) => ({ type: "project" as const, at: project.updated_at, project, author })),
         ...((w.data as unknown as (Work & { author: ProfileCard })[]) ?? []).map(({ author, ...work }) => ({ type: "work" as const, at: work.created_at, work, author })),
-      ].sort((a, b) => b.at.localeCompare(a.at));
-      setItems(list);
+      ].sort((a, b) => b.at.localeCompare(a.at)));
     })();
   }, [ready]);
 
   const view = useMemo(() => (items ?? []).filter((it) => {
     if (kind === "projects" && it.type !== "project") return false;
     if (kind === "work" && it.type !== "work") return false;
-    if (author && it.author.id !== author) return false;
-    const n = it.type === "project" ? it.project.niche : it.work.niche;
-    if (niche && n !== niche) return false;
+    if (niche && (it.type === "project" ? it.project.niche : it.work.niche) !== niche) return false;
     if (looking && !(it.type === "project" && it.project.looking_for)) return false;
     return true;
-  }), [items, kind, niche, author, looking]);
+  }), [items, kind, niche, looking]);
 
-  // Авторы со свежими публикациями — лента «историй»
-  const authors = useMemo(() => {
-    const map = new Map<string, { a: ProfileCard; n: number }>();
-    (items ?? []).forEach((it) => { const e = map.get(it.author.id); map.set(it.author.id, { a: it.author, n: (e?.n ?? 0) + 1 }); });
-    return [...map.values()].slice(0, 14);
+  // В прожектор — свежие публикации с картинкой, если есть
+  const spotlight = useMemo(() => {
+    const list = items ?? [];
+    const withImg = list.filter((it) => meta(it).img);
+    return [...withImg, ...list.filter((it) => !meta(it).img)].slice(0, 5);
   }, [items]);
-
-  const now = new Date();
-  const projects = (items ?? []).filter((i) => i.type === "project").length;
-  const works = (items ?? []).filter((i) => i.type === "work").length;
-  const nicheCounts = (id: string) => (items ?? []).filter((it) => (it.type === "project" ? it.project.niche : it.work.niche) === id).length;
 
   return (
     <>
       <TopBar />
-      <main className="page wide dsc">
-        <header className="dsc-mast">
-          <div className="dsc-issue">
-            <span className="mono">Выпуск №{weekNo(now)}</span>
-            <span>{now.toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" })}</span>
-            <span className="mono">{projects} {plural(projects, "проект", "проекта", "проектов")} · {works} {plural(works, "работа", "работы", "работ")}</span>
+      <div className="dv-bg" aria-hidden="true"><i /><i /></div>
+      <main className="page wide dv">
+        <header className="dv-head">
+          <div>
+            <span className="label">Discover</span>
+            <h1 className="h-xl caps">Что <span className="it">строят</span> другие</h1>
           </div>
-          <h1 className="dsc-title" aria-label="Discover">
-            {"DISCOVER".split("").map((ch, i) => <span key={i} style={{ "--i": i } as React.CSSProperties}>{ch}</span>)}
-          </h1>
-          <div className="dsc-sub">
-            <p className="it">что строят другие, пока ты читаешь это</p>
-            {me && <Link className="btn" href={profileHref(me.username, "projects")}>Показать своё</Link>}
-          </div>
+          {me && <Link className="btn" href={profileHref(me.username, "projects")}>+ Показать своё</Link>}
         </header>
 
-        {authors.length > 0 && (
-          <div className="dsc-stories" role="list" aria-label="Авторы">
-            <button type="button" role="listitem" className={`story all ${!author ? "on" : ""}`} onClick={() => setAuthor(null)}>
-              <span className="story-ring"><span className="story-all">✦</span></span><small>Все</small>
-            </button>
-            {authors.map(({ a, n }, i) => (
-              <button key={a.id} type="button" role="listitem" className={`story ${author === a.id ? "on" : ""}`} style={{ "--i": i } as React.CSSProperties} onClick={() => setAuthor(author === a.id ? null : a.id)}>
-                <span className="story-ring"><Avatar name={a.display_name} avatar={a.avatar} accent={a.accent} size={58} /></span>
-                <small>{a.display_name}</small>
-                {n > 1 && <em className="mono">{n}</em>}
-              </button>
-            ))}
-          </div>
-        )}
+        {items === null ? <div className="skeleton dv-spot-ph" /> : spotlight.length > 0 && <Spotlight items={spotlight} />}
 
-        <nav className="dsc-niches" aria-label="Ниши">
-          <button type="button" className={!niche ? "on" : ""} onClick={() => setNiche("")}>Всё<sup className="mono">{items?.length ?? 0}</sup></button>
-          {NICHES.map((n) => (
-            <button key={n.id} type="button" className={niche === n.id ? "on" : ""} style={{ "--c": n.color } as React.CSSProperties} onClick={() => setNiche(niche === n.id ? "" : n.id)}>
-              {n.title}<sup className="mono">{nicheCounts(n.id)}</sup>
-            </button>
-          ))}
-        </nav>
-
-        <div className="dsc-bar">
-          <div className="seg small">
-            {([["all", "Всё"], ["projects", "Проекты"], ["work", "Proof of Work"]] as [Kind, string][]).map(([k, l]) => (
-              <button key={k} type="button" className="seg-item" aria-current={kind === k ? "page" : undefined} onClick={() => setKind(k)}>{l}</button>
-            ))}
-          </div>
-          <label className="mini-toggle"><input type="checkbox" checked={looking} onChange={(e) => setLooking(e.target.checked)} /> Только где ищут людей</label>
-        </div>
-
-        {items === null ? <div className="dsc-grid">{[0, 1, 2, 3].map((k) => <div key={k} className={`skeleton dsc-ph ${k === 0 ? "xl" : ""}`} />)}</div> : view.length ? (
-          <div className="dsc-grid" key={`${kind}-${niche}-${author}-${looking}`}>
-            {view.map((it, i) => it.type === "project"
-              ? <DProject key={`p-${it.project.id}`} p={it.project} a={it.author} i={i} />
-              : <DWork key={`w-${it.work.id}`} w={it.work} a={it.author} i={i} />)}
+        {items === null ? (
+          <div className="dv-wall">{[0, 1, 2, 3, 4, 5].map((k) => <div key={k} className="skeleton dv-pol-ph" style={{ height: 220 + (k % 3) * 60 }} />)}</div>
+        ) : view.length ? (
+          <div className="dv-wall" key={`${kind}-${niche}-${looking}`}>
+            {view.map((it, i) => <Polaroid key={`${it.type}-${meta(it).id}`} it={it} i={i} />)}
           </div>
         ) : (
           <div className="pf-empty">
             <span className="pf-empty-art" aria-hidden="true"><i /><i /><i /></span>
-            <p className="lead">{items.length ? "По этим фильтрам пусто. Сними часть фильтров." : "Выпуск пока пустой. Добавь проект или работу в профиль, и они попадут на обложку."}</p>
+            <p className="lead">{items.length ? "По этим фильтрам пусто. Сними часть фильтров внизу." : "Стена пока пустая. Добавь проект или работу в профиль, и они появятся здесь."}</p>
             {me && <Link className="btn" href={profileHref(me.username, "projects")}>Добавить</Link>}
           </div>
         )}
       </main>
+
+      <nav className="dv-dock" aria-label="Фильтры">
+        <div className="dv-dock-kinds">
+          {([["all", "Всё"], ["projects", "Проекты"], ["work", "Работы"]] as [Kind, string][]).map(([k, l]) => (
+            <button key={k} type="button" aria-pressed={kind === k} onClick={() => setKind(k)}>{l}</button>
+          ))}
+        </div>
+        <span className="dv-dock-sep" />
+        <div className="dv-dock-niches">
+          {NICHES.map((n) => (
+            <button key={n.id} type="button" aria-pressed={niche === n.id} title={n.title} style={{ "--c": n.color } as React.CSSProperties} onClick={() => setNiche(niche === n.id ? "" : n.id)}>
+              <i />{niche === n.id && <span>{n.title}</span>}
+            </button>
+          ))}
+        </div>
+        <span className="dv-dock-sep" />
+        <button type="button" className="dv-dock-look" aria-pressed={looking} onClick={() => setLooking((v) => !v)}>Ищут людей</button>
+      </nav>
     </>
   );
 }
 
-function AuthorLine({ a }: { a: ProfileCard }) {
+/** Прожектор: слайды листаются сами, полоски сверху показывают время, клик по краям — назад/вперёд */
+function Spotlight({ items }: { items: Item[] }) {
+  const [idx, setIdx] = useState(0);
+  const [paused, setPaused] = useState(false);
+
+  useEffect(() => {
+    if (paused || items.length < 2) return;
+    const t = setTimeout(() => setIdx((i) => (i + 1) % items.length), SLIDE_MS);
+    return () => clearTimeout(t);
+  }, [idx, paused, items.length]);
+
+  const it = items[idx];
+  const m = meta(it);
+
   return (
-    <Link href={profileHref(a.username)} className="dc-author" onClick={(e) => e.stopPropagation()}>
-      <Avatar name={a.display_name} avatar={a.avatar} accent={a.accent} size={22} /><span>{a.display_name}</span>
-    </Link>
+    <section className="dv-spot" style={{ "--c": m.niche?.color ?? "#7B61FF" } as React.CSSProperties}
+      onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} aria-roledescription="карусель">
+      <div className="dv-bars">
+        {items.map((_, i) => (
+          <button key={i} type="button" onClick={() => setIdx(i)} aria-label={`Слайд ${i + 1}`}
+            className={i < idx ? "done" : i === idx ? `now ${paused ? "paused" : ""}` : ""}>
+            <i key={i === idx ? `run-${idx}` : "x"} style={{ animationDuration: `${SLIDE_MS}ms` }} />
+          </button>
+        ))}
+      </div>
+      <div className="dv-slide" key={m.id}>
+        <div className="dv-slide-media">
+          {m.img ? <img src={m.img} alt="" /> : <span className="dv-slide-glyph caps">{m.title.slice(0, 1)}</span>}
+        </div>
+        <div className="dv-slide-text">
+          <span className="dv-slide-kind">{m.extra}{m.niche && <> · {m.niche.title}</>}</span>
+          <h2 className="caps">{m.title}</h2>
+          {m.result && <b className="dv-slide-result">{m.result}</b>}
+          {m.text && <p>{m.text}</p>}
+          <div className="dv-slide-foot">
+            <Link href={profileHref(it.author.username)} className="dv-who">
+              <Avatar name={it.author.display_name} avatar={it.author.avatar} accent={it.author.accent} size={30} />
+              <span><b>{it.author.display_name}</b><small>@{it.author.username}</small></span>
+            </Link>
+            {m.external
+              ? <a className="btn" href={m.href} target="_blank" rel="noopener noreferrer nofollow">Открыть ↗</a>
+              : <Link className="btn" href={m.href}>Открыть</Link>}
+          </div>
+        </div>
+      </div>
+      {items.length > 1 && (
+        <>
+          <button type="button" className="dv-nav prev" onClick={() => setIdx((idx - 1 + items.length) % items.length)} aria-label="Назад">‹</button>
+          <button type="button" className="dv-nav next" onClick={() => setIdx((idx + 1) % items.length)} aria-label="Вперёд">›</button>
+        </>
+      )}
+    </section>
   );
 }
 
-function DProject({ p, a, i }: { p: Project; a: ProfileCard; i: number }) {
-  const n = NICHES.find((x) => x.id === p.niche);
-  const img = publicMedia(p.image_path);
-  const pct = p.goal_target ? Math.min(100, Math.round((p.goal_current / p.goal_target) * 100)) : null;
-  return (
-    <article className={`dc ${sizeOf(i, !!img)} ${img ? "has-img" : "no-img"}`} style={{ "--i": Math.min(i, 14), "--c": n?.color ?? "#7B61FF" } as React.CSSProperties}>
-      <Link href={projectHref(p.id)} className="dc-link" aria-label={p.name} />
-      <div className="dc-media">{img ? <img src={img} alt="" loading="lazy" /> : <span className="dc-glyph">{p.name.slice(0, 1)}</span>}</div>
-      <div className="dc-top">
-        <span className="dc-kind">Проект</span>
-        <span className={`stage stage-${p.stage}`}>{STAGES[p.stage]}</span>
+/** Полароид на скотче: чуть повёрнут, при наведении выпрямляется и приподнимается */
+function Polaroid({ it, i }: { it: Item; i: number }) {
+  const m = meta(it);
+  const tilt = ((i * 37) % 7) - 3; // от −3° до 3°, стабильно для каждой позиции
+  const p = it.type === "project" ? it.project : null;
+  const pct = p && p.goal_target ? Math.min(100, Math.round((p.goal_current / p.goal_target) * 100)) : null;
+  const inner = (
+    <>
+      <span className="dv-tape" aria-hidden="true" />
+      <div className={`dv-photo ${m.img ? "" : "no-img"}`}>
+        {m.img ? <img src={m.img} alt="" loading="lazy" /> : <span className="dv-photo-glyph caps">{m.title.slice(0, 1)}</span>}
+        <span className="dv-pin">{m.extra}</span>
       </div>
-      <div className="dc-panel">
-        <AuthorLine a={a} />
-        <h3>{p.name}</h3>
-        {p.tagline && <p>{p.tagline}</p>}
-        {pct !== null && (
-          <div className="dc-goal"><span>{p.goal_label || "Цель"}</span><b className="mono">{p.goal_current}/{p.goal_target}</b><i style={{ width: `${pct}%` }} /></div>
-        )}
-        {p.looking_for && <span className="dc-looking">Ищут: {p.looking_for}</span>}
+      <div className="dv-cap">
+        {m.result && <b className="dv-result">{m.result}</b>}
+        <h3>{m.title}</h3>
+        {m.text && <p>{m.text}</p>}
+        {pct !== null && <span className="dv-prog"><i style={{ width: `${pct}%` }} /><em className="mono">{p!.goal_current}/{p!.goal_target}</em></span>}
+        {p?.looking_for && <span className="dv-looking">Ищут: {p.looking_for}</span>}
+        <span className="dv-sign it">
+          <Avatar name={it.author.display_name} avatar={it.author.avatar} accent={it.author.accent} size={20} />
+          {it.author.display_name}{m.niche && <em style={{ "--c": m.niche.color } as React.CSSProperties}>{m.niche.title}</em>}
+        </span>
       </div>
-    </article>
+    </>
   );
-}
-
-function DWork({ w, a, i }: { w: Work; a: ProfileCard; i: number }) {
-  const n = NICHES.find((x) => x.id === w.niche);
-  const img = publicMedia(w.image_path);
-  return (
-    <article className={`dc work ${sizeOf(i, !!img)} ${img ? "has-img" : "no-img"}`} style={{ "--i": Math.min(i, 14), "--c": n?.color ?? "#FF6A3D" } as React.CSSProperties}>
-      {w.link && <a href={w.link} target="_blank" rel="noopener noreferrer nofollow" className="dc-link" aria-label={w.title} />}
-      <div className="dc-media">{img ? <img src={img} alt="" loading="lazy" /> : <span className="dc-glyph">{w.title.slice(0, 1)}</span>}</div>
-      <div className="dc-top">
-        <span className="dc-kind">Proof of Work</span>
-        {n && <span className="dc-niche">{n.title}</span>}
-      </div>
-      <div className="dc-panel">
-        <AuthorLine a={a} />
-        {w.result && <b className="dc-result">{w.result}</b>}
-        <h3>{w.title}</h3>
-        {w.description && <p>{w.description}</p>}
-      </div>
-    </article>
-  );
+  const style = { "--r": `${tilt}deg`, "--i": Math.min(i, 16), "--c": m.niche?.color ?? "#7B61FF" } as React.CSSProperties;
+  return m.external
+    ? <a className="dv-pol" style={style} href={m.href} target="_blank" rel="noopener noreferrer nofollow">{inner}</a>
+    : <Link className="dv-pol" style={style} href={m.href}>{inner}</Link>;
 }

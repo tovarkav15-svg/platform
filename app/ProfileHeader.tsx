@@ -1,3 +1,6 @@
+"use client";
+
+import { useRef } from "react";
 import { accentColor } from "@/lib/style";
 import { isOwner } from "@/lib/supabase";
 
@@ -31,33 +34,48 @@ export function Banner({ image, preset = "aurora", className = "" }: { image?: s
   );
 }
 
-// Шапка профиля: баннер, аватар с кольцом, имя. Используется в профиле и как живое превью в настройках
+/**
+ * Карточка-удостоверение: баннер, квадратный аватар, имя.
+ * Главная плитка профиля и живое превью в настройках.
+ */
 export function ProfileHeader({ displayName, username, headline, bio, status, openToWork, accent, avatar, role, banner, bannerPreset, meta, actions, compact }: Props) {
+  const ref = useRef<HTMLElement>(null);
+
+  // Аватар чуть поворачивается за курсором
+  const tilt = (e: React.PointerEvent) => {
+    const el = ref.current;
+    if (!el || e.pointerType !== "mouse") return;
+    const r = el.getBoundingClientRect();
+    el.style.setProperty("--tx", `${(((e.clientX - r.left) / r.width) - 0.5) * 14}deg`);
+    el.style.setProperty("--ty", `${(((e.clientY - r.top) / r.height) - 0.5) * -14}deg`);
+  };
+
   return (
-    <section className={`ph2 ${compact ? "compact" : ""}`} style={{ "--c": accentColor(accent) } as React.CSSProperties}>
-      <Banner image={banner} preset={bannerPreset} />
-      <div className="ph2-body">
-        <div className={`ph2-avatar ${openToWork ? "otw-on" : ""}`}>
-          <span className="ph2-ring" />
+    <section ref={ref} className={`idt ${compact ? "compact" : ""}`} style={{ "--c": accentColor(accent) } as React.CSSProperties}
+      onPointerMove={tilt} onPointerLeave={() => { ref.current?.style.setProperty("--tx", "0deg"); ref.current?.style.setProperty("--ty", "0deg"); }}>
+      <Banner image={banner} preset={bannerPreset} className="idt-banner" />
+      <div className="idt-body">
+        <div className={`idt-avatar ${openToWork ? "otw-on" : ""}`}>
           <div className="avatar">
             {avatar ? <img src={avatar} alt="" /> : (displayName || username || "?").slice(0, 1).toUpperCase()}
           </div>
-          {openToWork && <span className="otw">Открыт к работе</span>}
+          {openToWork && <span className="idt-otw"><i />Открыт к работе</span>}
         </div>
-        <div className="ph2-id">
-          <div className="ph2-name">
+        <div className="idt-id">
+          <span className="idt-serial mono">ID · @{username || "username"}</span>
+          <div className="idt-name">
             <h1 className="caps">{displayName || "Имя"}</h1>
             <RoleBadge role={role} />
           </div>
-          <span className="handle">@{username || "username"}{headline && <span className="headline"> · {headline}</span>}</span>
+          {headline && <span className="idt-headline">{headline}</span>}
           {status && <span className="status-line"><i />{status}</span>}
         </div>
-        {actions && <div className="ph2-actions">{actions}</div>}
       </div>
-      {(bio || meta) && (
-        <div className="ph2-foot">
-          {bio && <p className="ph2-bio">{bio}</p>}
+      {bio && <p className="idt-bio it">«{bio}»</p>}
+      {(meta || actions) && (
+        <div className="idt-foot">
           {meta}
+          {actions && <div className="idt-actions">{actions}</div>}
         </div>
       )}
     </section>
