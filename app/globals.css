@@ -2988,3 +2988,65 @@ button.chat-item { width: 100%; border: 0; background: none; font: inherit; text
 .au-tiers span i { width: 10px; height: 10px; border-radius: 50%; background: var(--t); box-shadow: 0 0 8px var(--t); }
 .au-tiers em { font-style: normal; color: var(--mute); font-size: 12px; }
 .ar-team { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; color: #fff; background: conic-gradient(from 0deg, #7B61FF, #2F7BFF, #1FA67A, #E8B100, #FF6A3D, #7B61FF); }
+
+/* ===== AURA v2: тонкий заголовок с сиянием, цветной пьедестал, задания ===== */
+.au-title { position: relative; isolation: isolate; gap: .06em; font-weight: 200; font-stretch: 125%; font-variation-settings: "wdth" 125; letter-spacing: .14em; color: var(--ink); width: max-content; padding-right: .1em; }
+.au-title .au-letter { display: inline-block; background: none; color: var(--ink); filter: none; -webkit-background-clip: border-box; background-clip: border-box;
+  animation: auLetter 1.1s var(--ease) both; animation-delay: calc(var(--i) * 110ms); }
+@keyframes auLetter { from { opacity: 0; transform: translateY(.18em); filter: blur(10px); letter-spacing: .4em; } }
+.au-halo { position: absolute; inset: -18% -12%; z-index: -1; pointer-events: none; }
+.au-halo i { position: absolute; border-radius: 50%; filter: blur(38px); opacity: .55; mix-blend-mode: multiply; }
+.au-halo i:nth-child(1) { width: 46%; height: 90%; left: 0; top: 5%; background: #b9a8ff; animation: auDrift1 9s ease-in-out infinite; }
+.au-halo i:nth-child(2) { width: 42%; height: 80%; left: 32%; top: 15%; background: #ffb3cf; animation: auDrift2 11s ease-in-out infinite; }
+.au-halo i:nth-child(3) { width: 40%; height: 85%; right: 0; top: 0; background: #ffe08a; animation: auDrift3 10s ease-in-out infinite; }
+@keyframes auDrift1 { 50% { transform: translate(18%, 10%) scale(1.15); } }
+@keyframes auDrift2 { 50% { transform: translate(-14%, -8%) scale(.9); } }
+@keyframes auDrift3 { 50% { transform: translate(-20%, 12%) scale(1.1); } }
+
+/* Пьедестал: золото, серебро, бронза */
+.pod.gold   { --m1: #FFE27A; --m2: #F2B400; --m3: #C98A00; --mt: #7a5200; }
+.pod.silver { --m1: #F4F6FA; --m2: #C9CFDA; --m3: #8E97A8; --mt: #4a5262; }
+.pod.bronze { --m1: #FFD2B0; --m2: #E08B52; --m3: #A9572A; --mt: #5e2c10; }
+.pod .pod-ava { background: conic-gradient(var(--m2), var(--m1), var(--m3), var(--m1), var(--m2)); box-shadow: 0 10px 30px -10px var(--m2); }
+.pod .pod-tier { color: var(--t); }
+.pod-step { position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: var(--mt);
+  background: linear-gradient(160deg, var(--m1), var(--m2) 55%, var(--m3)); border: 0; box-shadow: inset 0 1px 0 rgba(255,255,255,.8), 0 24px 40px -24px var(--m3); }
+.pod-step b { font-size: 40px; font-weight: 900; line-height: 1; text-shadow: 0 1px 0 rgba(255,255,255,.55); }
+.pod-step small { font-size: 10px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; opacity: .7; }
+.pod-shine { position: absolute; inset: -40% auto -40% -60%; width: 40%; background: linear-gradient(90deg, transparent, rgba(255,255,255,.75), transparent); transform: skewX(-20deg); animation: podShine 3.6s ease-in-out infinite; animation-delay: calc(var(--i) * .5s + 1.2s); }
+@keyframes podShine { 0%, 60% { left: -60%; } 100% { left: 140%; } }
+
+/* Строки лидерборда в цвете уровня */
+.au-list li { background: linear-gradient(90deg, color-mix(in srgb, var(--t) 9%, #fff), #fff 45%); border-left: 4px solid var(--t); }
+.au-list li.top-1 { background: linear-gradient(90deg, #FFF3C4, #fff 55%); border-left-color: #F2B400; }
+.au-list li.top-2 { background: linear-gradient(90deg, #EEF1F6, #fff 55%); border-left-color: #A3ACBC; }
+.au-list li.top-3 { background: linear-gradient(90deg, #FFE6D4, #fff 55%); border-left-color: #E08B52; }
+.au-list li.top-1 .au-rank { color: #C98A00; } .au-list li.top-2 .au-rank { color: #6f788a; } .au-list li.top-3 .au-rank { color: #A9572A; }
+.au-tier { padding: 4px 10px; border-radius: 99px; background: color-mix(in srgb, var(--t) 14%, #fff); color: color-mix(in srgb, var(--t) 70%, #141414); justify-self: start; }
+.au-score { color: color-mix(in srgb, var(--t) 65%, #141414); }
+.au-list li:hover { box-shadow: 0 16px 30px -24px var(--t); }
+
+/* Задания */
+.au-quests { display: flex; flex-direction: column; gap: 18px; padding: 24px; border-radius: 28px; background: rgba(255,255,255,.92); border: 1px solid rgba(20,20,20,.06); }
+.au-quests-head { display: flex; justify-content: space-between; align-items: end; gap: 16px; flex-wrap: wrap; }
+.au-quests-head .lead { max-width: 380px; margin: 0; }
+.au-quest-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+.quest { position: relative; display: flex; flex-direction: column; gap: 6px; padding: 16px; border-radius: 22px; overflow: hidden;
+  background: radial-gradient(120% 80% at 100% 0%, color-mix(in srgb, var(--q) 16%, transparent), transparent 60%), #fff; border: 1px solid color-mix(in srgb, var(--q) 18%, transparent);
+  animation: cardIn .6s var(--spring) both; animation-delay: calc(var(--i) * 60ms); transition: transform .3s var(--spring), box-shadow .3s; }
+.quest:hover { transform: translateY(-3px); box-shadow: 0 24px 40px -28px var(--q); }
+.quest header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.quest-icon { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 12px; font-size: 17px; color: #fff; background: var(--q); box-shadow: 0 8px 16px -8px var(--q); }
+.quest-pts { font-size: 13px; font-weight: 800; padding: 4px 10px; border-radius: 99px; color: color-mix(in srgb, var(--q) 75%, #141414); background: color-mix(in srgb, var(--q) 12%, #fff); }
+.quest-title { font-size: 15px; line-height: 1.25; }
+.quest > small { font-size: 12px; color: var(--mute); }
+.quest-progress { display: flex; align-items: center; gap: 10px; margin-top: 6px; font-size: 12px; color: var(--graphite); }
+.quest-bar { flex: 1; height: 6px; border-radius: 3px; background: rgba(20,20,20,.06); position: relative; overflow: hidden; }
+.quest-bar i { position: absolute; inset: 0 auto 0 0; border-radius: 3px; background: var(--q); animation: growX 1.1s var(--ease) both; transform-origin: left; }
+.quest-earned { font-size: 12px; font-weight: 600; color: var(--mute); }
+.quest-go { margin-top: 6px; align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 99px; font-size: 13px; font-weight: 700; text-decoration: none; color: #fff; background: var(--q); transition: gap .25s var(--ease), box-shadow .25s; }
+.quest-go:hover { gap: 10px; box-shadow: 0 10px 20px -10px var(--q); }
+.quest-go em { font-style: normal; }
+.quest.done { background: color-mix(in srgb, var(--q) 8%, #fff); }
+.quest.done .quest-earned { color: color-mix(in srgb, var(--q) 70%, #141414); }
+@media (prefers-reduced-motion: reduce) { .au-halo i, .pod-shine, .au-title .au-letter { animation: none; } }

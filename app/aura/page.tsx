@@ -42,7 +42,10 @@ export default function AuraPage() {
         <header className="au-hero">
           <div>
             <span className="label">Лидерборд</span>
-            <h1 className="au-title" aria-label="AURA">{"AURA".split("").map((c, i) => <span key={i} style={{ "--i": i } as React.CSSProperties}>{c}</span>)}</h1>
+            <h1 className="au-title" aria-label="AURA">
+              <span className="au-halo" aria-hidden="true"><i /><i /><i /></span>
+              {"AURA".split("").map((c, i) => <span key={i} className="au-letter" style={{ "--i": i } as React.CSSProperties}>{c}</span>)}
+            </h1>
             <p className="lead">В CS это MMR, в Доте PTS, у нас AURA. Её нельзя купить: она растёт, когда ты делаешь. Работы, проекты, покорённые цели, друзья, подписчики и активные дни.</p>
           </div>
           {mine && <MyCard r={mine} total={rows?.length ?? 0} />}
@@ -61,13 +64,13 @@ export default function AuraPage() {
           <>
             <section className="podium" key={niche}>
               {podium.map((r, i) => r && (
-                <Link key={r.user_id} href={profileHref(r.username)} className={`pod pod-${r.rank}`} style={{ "--i": i, "--t": tierOf(r.aura).color } as React.CSSProperties}>
+                <Link key={r.user_id} href={profileHref(r.username)} className={`pod pod-${r.rank} ${r.rank === 1 ? "gold" : r.rank === 2 ? "silver" : "bronze"}`} style={{ "--i": i, "--t": tierOf(r.aura).color } as React.CSSProperties}>
                   {r.rank === 1 && <span className="pod-crown" aria-hidden="true">♛</span>}
                   <span className="pod-ava"><Avatar name={r.display_name} avatar={r.avatar} accent={r.accent} size={r.rank === 1 ? 96 : 76} userId={r.user_id} /></span>
                   <b className="pod-name">{r.display_name}</b>
                   <span className="pod-aura mono"><CountUp value={r.aura} /></span>
                   <span className="pod-tier">{tierOf(r.aura).name}</span>
-                  <span className="pod-step mono">{r.rank}</span>
+                  <span className="pod-step"><i className="pod-shine" aria-hidden="true" /><b className="mono">{r.rank}</b><small>{r.rank === 1 ? "золото" : r.rank === 2 ? "серебро" : "бронза"}</small></span>
                 </Link>
               ))}
             </section>
@@ -77,7 +80,7 @@ export default function AuraPage() {
                 const t = tierOf(r.aura);
                 const isMe = r.user_id === me?.id;
                 return (
-                  <li key={r.user_id} className={`${isMe ? "me" : ""} ${open === r.user_id ? "open" : ""}`} style={{ "--i": Math.min(i, 20), "--t": t.color } as React.CSSProperties}>
+                  <li key={r.user_id} className={`${isMe ? "me" : ""} ${open === r.user_id ? "open" : ""} ${r.rank <= 3 ? `top top-${r.rank}` : ""}`} style={{ "--i": Math.min(i, 20), "--t": t.color } as React.CSSProperties}>
                     <button type="button" className="au-row" onClick={() => setOpen(open === r.user_id ? null : r.user_id)} aria-expanded={open === r.user_id}>
                       <span className="au-rank mono">{r.rank}</span>
                       <Avatar name={r.display_name} avatar={r.avatar} accent={r.accent} size={40} userId={r.user_id} />
@@ -102,27 +105,7 @@ export default function AuraPage() {
           </>
         )}
 
-        <section className="au-rules">
-          <div>
-            <span className="label">Как получить AURA</span>
-            <h2 className="h-md caps">Делай, <span className="it">и аура</span> растёт</h2>
-            <p className="lead small">У каждого источника есть потолок, поэтому накрутить нельзя: побеждает тот, кто делает много разного.</p>
-          </div>
-          <ul className="au-rule-list">
-            {RULES.map((r, i) => (
-              <li key={r.key} style={{ "--i": i } as React.CSSProperties}><b className="mono">+{r.pts}</b><span>{r.label}<small>{r.cap}</small></span></li>
-            ))}
-          </ul>
-          <div className="au-tiers">
-            <span className="label">Уровни</span>
-            <div>
-              {TIERS.map((t) => (
-                <span key={t.name} style={{ "--t": t.color } as React.CSSProperties}><i />{t.name}<em className="mono">{t.min}+</em></span>
-              ))}
-            </div>
-            <p className="hint">С уровня «Сияние» открываются премиум-стикеры в чатах.</p>
-          </div>
-        </section>
+        <Quests mine={mine ?? null} username={me?.username ?? null} canWrite={me?.role === "owner"} />
       </main>
     </>
   );
@@ -138,5 +121,66 @@ function MyCard({ r, total }: { r: Row; total: number }) {
       {t.next && <span className="au-me-next"><i style={{ width: `${Math.round(t.progress * 100)}%` }} /></span>}
       {t.next && <small>Ещё {t.next.min - r.aura} до «{t.next.name}»</small>}
     </div>
+  );
+}
+
+// Задания: каждое правило AURA — с прогрессом и кнопкой туда, где это делается
+const QUESTS: { key: keyof Row; label: string; pts: number; cap: number | null; hint: string; color: string; icon: string; href: (u: string | null) => string | null; cta: string }[] = [
+  { key: "works", label: "Добавь работу в Proof of Work", pts: 30, cap: 20, hint: "Ролик, сайт, запуск — с результатом в цифрах", color: "#FF6A3D", icon: "◆", href: (u) => (u ? `/u/?n=${u}&tab=work` : null), cta: "К моим работам" },
+  { key: "projects", label: "Расскажи о проекте", pts: 40, cap: 10, hint: "Что строишь сейчас и кого ищешь", color: "#2F7BFF", icon: "▲", href: (u) => (u ? `/u/?n=${u}&tab=projects` : null), cta: "К проектам" },
+  { key: "milestones", label: "Закрой этап проекта", pts: 10, cap: 50, hint: "Отметь этап готовым на странице проекта", color: "#0EA5B7", icon: "✓", href: (u) => (u ? `/u/?n=${u}&tab=projects` : null), cta: "Открыть проекты" },
+  { key: "goals", label: "Покори цель", pts: 50, cap: 20, hint: "Поставь вершину и дойди до неё", color: "#7B61FF", icon: "⚑", href: () => "/workspace/?tab=plans&view=goals", cta: "К целям" },
+  { key: "tasks", label: "Выполняй задачи", pts: 2, cap: 150, hint: "Задачи в Plans и шаги целей", color: "#1FA67A", icon: "☑", href: () => "/workspace/?tab=plans", cta: "К задачам" },
+  { key: "friends", label: "Находи своих людей", pts: 5, cap: 100, hint: "Каждый принятый друг", color: "#FF4F8B", icon: "♥", href: () => "/people/", cta: "Найти людей" },
+  { key: "subs", label: "Собери подписчиков канала", pts: 2, cap: 500, hint: "Создай открытый канал и веди его", color: "#E8B100", icon: "◈", href: () => "/messages/", cta: "К каналам" },
+  { key: "days", label: "Заходи каждый день", pts: 3, cap: 60, hint: "Активные дни за последние 60 дней", color: "#C2410C", icon: "☀", href: () => "/workspace/", cta: "В Workspace" },
+  { key: "articles", label: "Напиши статью в Обучение", pts: 80, cap: null, hint: "Для команды платформы", color: "#141414", icon: "✎", href: () => "/learn/", cta: "К Обучению" },
+];
+
+function Quests({ mine, username, canWrite }: { mine: Row | null; username: string | null; canWrite: boolean }) {
+  const list = QUESTS.filter((q) => q.key !== "articles" || canWrite);
+  return (
+    <section className="au-quests">
+      <div className="au-quests-head">
+        <div>
+          <span className="label">Задания</span>
+          <h2 className="h-md caps">Как <span className="it">получить</span> AURA</h2>
+        </div>
+        <p className="lead small">У каждого задания есть потолок, поэтому накрутить нельзя. Нажми «Перейти» и сделай.</p>
+      </div>
+      <div className="au-quest-grid">
+        {list.map((q, i) => {
+          const n = mine ? (mine[q.key] as number) : 0;
+          const done = q.cap !== null && n >= q.cap;
+          const pct = q.cap ? Math.min(100, (n / q.cap) * 100) : Math.min(100, n * 10);
+          const href = q.href(username);
+          return (
+            <article key={q.key} className={`quest ${done ? "done" : ""}`} style={{ "--q": q.color, "--i": i } as React.CSSProperties}>
+              <header>
+                <span className="quest-icon">{q.icon}</span>
+                <span className="quest-pts mono">+{q.pts}</span>
+              </header>
+              <b className="quest-title">{q.label}</b>
+              <small>{q.hint}</small>
+              <div className="quest-progress">
+                <span className="quest-bar"><i style={{ width: `${pct}%` }} /></span>
+                <span className="mono">{q.cap ? `${Math.min(n, q.cap)} / ${q.cap}` : n}</span>
+              </div>
+              <span className="quest-earned">{done ? "Максимум набран ✓" : mine ? `Уже +${Math.min(n, q.cap ?? n) * q.pts} AURA` : "Войди, чтобы видеть прогресс"}</span>
+              {href && !done && <Link href={href} className="quest-go">{q.cta} <em>→</em></Link>}
+            </article>
+          );
+        })}
+      </div>
+      <div className="au-tiers">
+        <span className="label">Уровни</span>
+        <div>
+          {TIERS.map((t, i) => (
+            <span key={t.name} style={{ "--t": t.color, "--i": i } as React.CSSProperties}><i />{t.name}<em className="mono">{t.min}+</em></span>
+          ))}
+        </div>
+        <p className="hint">С уровня «Сияние» открываются премиум-стикеры в чатах.</p>
+      </div>
+    </section>
   );
 }
