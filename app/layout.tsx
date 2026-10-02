@@ -9,8 +9,8 @@ import { PREFS_BOOT } from "@/lib/prefs-boot";
 import { PrefsSync } from "./PrefsSync";
 
 export const metadata: Metadata = {
-  title: "Платформа",
-  description: "Платформа для фрилансеров и тех, кто растёт",
+  title: "Relic",
+  description: "Relic — платформа для фрилансеров и тех, кто растёт",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

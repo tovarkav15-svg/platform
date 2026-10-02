@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { publicMedia, type ProfileCard } from "@/lib/supabase";
 import { NICHES } from "@/lib/niches";
 import { profileHref } from "@/lib/links";
@@ -49,7 +49,7 @@ function useSwing(amp: number) {
 }
 
 /** Бейдж на ленточке: висит, раскачивается при наведении. onChat — сразу написать автору */
-export function JobBadge({ job, i, onOpen, onChat, photo: photoOverride }: { job: JobRow; i: number; onOpen: () => void; onChat?: () => void; photo?: string | null }) {
+export function JobBadge({ job, i, onOpen, onChat, photo: photoOverride, rating }: { job: JobRow; i: number; onOpen: () => void; onChat?: () => void; photo?: string | null; rating?: { avg: number; n: number } }) {
   const n = nicheOf(job.niche);
   const photo = photoOverride ?? photoOf(job);
   const swing = useSwing(2.5 + (i % 3));
@@ -68,6 +68,7 @@ export function JobBadge({ job, i, onOpen, onChat, photo: photoOverride }: { job
         </span>
         <span className="bd-name"><b>{job.author.display_name}</b><RoleBadge role={job.author.role} small support={job.author.is_support} /></span>
         <span className="bd-handle it">@{job.author.username}</span>
+        {rating && <span className="bd-rating"><b>★ {rating.avg.toFixed(1)}</b><small>{rating.n} {rating.n === 1 ? "отзыв" : rating.n < 5 ? "отзыва" : "отзывов"}</small></span>}
         <span className="bd-service">{job.service}</span>
         <span className="bd-check"><small>средний чек</small><b className="mono">{rub(job.avg_check)}</b></span>
         <span className="bd-foot">
@@ -85,39 +86,22 @@ export function JobBadge({ job, i, onOpen, onChat, photo: photoOverride }: { job
   );
 }
 
-/** Лента лучших карточек: листается вбок сама, стрелками и свайпом; под курсором стоит */
+/** Живая лента лучших карточек: едет сама без остановки, под курсором замедляется и стоит */
 export function Coverflow({ jobs, onOpen }: { jobs: JobRow[]; onOpen: (j: JobRow) => void }) {
-  const [idx, setIdx] = useState(0);
-  const [paused, setPaused] = useState(false);
-  const drag = useRef<{ x: number; moved: boolean } | null>(null);
-  const [dx, setDx] = useState(0);
-  const n = jobs.length;
-  const go = (step: number) => setIdx((v) => (v + step + n) % n);
-  useEffect(() => {
-    if (paused || n < 2) return;
-    const t = setTimeout(() => go(1), 4200);
-    return () => clearTimeout(t);
-  }, [idx, paused, n]); // eslint-disable-line react-hooks/exhaustive-deps
-  if (!n) return null;
-
+  if (!jobs.length) return null;
+  // Повторяем карточки, чтобы лента была длиннее экрана, и удваиваем её для бесшовного круга
+  const reps = Math.max(1, Math.ceil(8 / jobs.length));
+  const loop = Array.from({ length: reps }, () => jobs).flat();
+  const track = [...loop, ...loop];
   return (
-    <div className={`cf cf-side ${drag.current ? "dragging" : ""}`} onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}
-      onKeyDown={(e) => { if (e.key === "ArrowLeft") go(-1); if (e.key === "ArrowRight") go(1); }}>
-      <div className="cf-stage" style={{ "--dx": `${dx}px` } as React.CSSProperties}
-        onPointerDown={(e) => { drag.current = { x: e.clientX, moved: false }; }}
-        onPointerMove={(e) => { if (!drag.current) return; const d = e.clientX - drag.current.x; if (Math.abs(d) > 6) drag.current.moved = true; setDx(d); }}
-        onPointerUp={() => { if (!drag.current) return; if (dx < -60) go(1); else if (dx > 60) go(-1); setDx(0); setTimeout(() => { drag.current = null; }, 0); }}
-        onPointerLeave={() => { if (drag.current) { setDx(0); drag.current = null; } }}>
-        {jobs.map((j, k) => {
-          let d = k - idx;
-          if (d > n / 2) d -= n;
-          if (d < -n / 2) d += n;
+    <div className="mq" style={{ "--n": loop.length } as React.CSSProperties}>
+      <div className="mq-track">
+        {track.map((j, k) => {
           const nn = nicheOf(j.niche);
           const photo = photoOf(j);
           return (
-            <button key={j.id} type="button" className={`cf-card ${d === 0 ? "on" : ""}`} hidden={Math.abs(d) > 3} tabIndex={d === 0 ? 0 : -1}
-              style={{ "--d": d, "--ad": Math.abs(d), "--c": nn?.color ?? "#141414" } as React.CSSProperties}
-              onClick={() => { if (drag.current?.moved) return; if (d === 0) onOpen(j); else setIdx(k); }} aria-label={j.service}>
+            <button key={`${j.id}-${k}`} type="button" className="mq-card" style={{ "--c": nn?.color ?? "#141414", "--k": k % loop.length } as React.CSSProperties}
+              onClick={() => onOpen(j)} aria-label={j.service} tabIndex={k < loop.length ? 0 : -1} aria-hidden={k >= loop.length || undefined}>
               <span className="cf-photo">{photo ? <img src={photo} alt="" draggable={false} /> : <span className="caps">{j.author.display_name.slice(0, 1)}</span>}</span>
               <span className="cf-info">
                 <span className="cf-niche">{nn?.title ?? "Услуга"}</span>
@@ -128,15 +112,6 @@ export function Coverflow({ jobs, onOpen }: { jobs: JobRow[]; onOpen: (j: JobRow
           );
         })}
       </div>
-      {n > 1 && (
-        <>
-          <button type="button" className="cf-arrow prev" aria-label="Назад" onClick={() => go(-1)}>‹</button>
-          <button type="button" className="cf-arrow next" aria-label="Дальше" onClick={() => go(1)}>›</button>
-          <div className="cf-dots">
-            {jobs.map((_, k) => <button key={k} type="button" aria-label={`Карточка ${k + 1}`} aria-pressed={k === idx} onClick={() => setIdx(k)}>{k === idx && !paused && <i key={idx} />}</button>)}
-          </div>
-        </>
-      )}
     </div>
   );
 }

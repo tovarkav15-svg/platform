@@ -4,7 +4,7 @@ import { NICHES } from "@/lib/niches";
 export function AuthSide({ title, text }: { title: React.ReactNode; text: string }) {
   return (
     <aside className="auth-side">
-      <Link href="/" className="logo caps">Название</Link>
+      <Link href="/" className="logo relic-logo"><i aria-hidden="true" />Relic</Link>
       <div style={{ display: "flex", flexDirection: "column", gap: 16, position: "relative", zIndex: 1 }}>
         <h2 className="h-xl caps">{title}</h2>
         <p>{text}</p>

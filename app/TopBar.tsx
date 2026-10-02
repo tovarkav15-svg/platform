@@ -26,7 +26,7 @@ export function TopBar() {
 
   return (
     <header className="topbar">
-      <Link href="/" className="logo caps">Название</Link>
+      <Link href="/" className="logo relic-logo"><i aria-hidden="true" />Relic</Link>
       {me ? (
         <>
           <NavTabs me={me} />

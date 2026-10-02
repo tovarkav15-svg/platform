@@ -40,7 +40,11 @@ export function RoleBadge({ role, small, support }: { role?: string; small?: boo
 export function Banner({ image, preset = "aurora", className = "", scene, overlay }: { image?: string | null; preset?: string; className?: string; scene?: string | null; overlay?: string | null }) {
   return (
     <div className={`ph2-banner bn-${image ? "image" : preset} ${className}`}>
-      {image ? <img src={image} alt="" /> : <><i className="bn-l1" /><i className="bn-l2" /><i className="bn-l3" /></>}
+      {image
+        ? /\.(mp4|webm)(\?|$)/i.test(image) || image.startsWith("blob:video")
+          ? <video src={image.replace(/^blob:video/, "blob:")} autoPlay muted loop playsInline preload="metadata" />
+          : <img src={image} alt="" />
+        : <><i className="bn-l1" /><i className="bn-l2" /><i className="bn-l3" /></>}
       <SceneFx id={scene} />
       <OverlayFx id={overlay} />
     </div>

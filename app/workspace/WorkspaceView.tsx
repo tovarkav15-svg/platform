@@ -13,13 +13,15 @@ import { Overview } from "./Overview";
 import { Clients } from "./Clients";
 import { Plans } from "./Plans";
 import { Finance } from "./Finance";
+import { Billing } from "./Billing";
 
-type Tab = "overview" | "clients" | "plans" | "finance";
+type Tab = "overview" | "clients" | "plans" | "finance" | "billing";
 const TABS: { id: Tab; label: string; sub: string; icon: string }[] = [
   { id: "overview", label: "Обзор", sub: "Главное на сегодня", icon: "◎" },
   { id: "clients", label: "Clients", sub: "Клиенты и сделки", icon: "◧" },
   { id: "plans", label: "Plans / Цели", sub: "Задачи, планы, вершины", icon: "◷" },
   { id: "finance", label: "Finance", sub: "Деньги и оплаты", icon: "◈" },
+  { id: "billing", label: "Время и счета", sub: "Таймер, счета, ставка", icon: "◴" },
 ];
 
 type Counters = { inWork: number; today: number; profit: number };
@@ -103,6 +105,7 @@ export function WorkspaceView({ me }: { me: Profile | null }) {
             <button type="button" onClick={() => router.replace("/workspace/?tab=clients&new=1")}>+ Клиент</button>
             <button type="button" onClick={() => router.replace("/workspace/?tab=plans")}>+ Задача</button>
             <button type="button" onClick={() => router.replace("/workspace/?tab=finance&ops=1")}>+ Операция</button>
+            <button type="button" onClick={() => router.replace("/workspace/?tab=billing")}>◴ Таймер</button>
           </div>
 
           {counters && (
@@ -122,6 +125,7 @@ export function WorkspaceView({ me }: { me: Profile | null }) {
               {tab === "clients" && <Clients userId={me.id} />}
               {tab === "plans" && <Plans userId={me.id} />}
               {tab === "finance" && <Finance userId={me.id} />}
+              {tab === "billing" && <Billing userId={me.id} name={me.display_name} />}
             </div>
           )}
         </section>

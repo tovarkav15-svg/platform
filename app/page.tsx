@@ -17,7 +17,7 @@ export default function Home() {
     <div className="auth">
       <AuthSide
         title={<>Расти <span className="it">каждый</span> день, а не по понедельникам</>}
-        text="Платформа для фрилансеров и тех, кто растёт."
+        text="Relic — платформа для фрилансеров и тех, кто растёт."
       />
       <main className="auth-main">
         <div className="auth-form">

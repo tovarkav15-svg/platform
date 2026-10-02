@@ -32,8 +32,10 @@ export function SceneFx({ id }: { id?: string | null }) {
         {id === "s-fjord" && <Fjord />}
         {id === "s-sea" && <Sea />}
         {id === "s-aurora" && <Aurora />}
+        {id === "s-vinland" && <Vinland />}
       </svg>
       {(id === "s-winter" || id === "s-fjord") && <span className="sc-snow">{Array.from({ length: 24 }, (_, i) => <i key={i} />)}</span>}
+      {id === "s-vinland" && <span className="sc-petals">{Array.from({ length: 22 }, (_, i) => <i key={i} />)}</span>}
       {id === "s-aurora" && <span className="sc-stars">{Array.from({ length: 24 }, (_, i) => <i key={i} />)}</span>}
     </div>
   );
@@ -140,6 +142,50 @@ function Aurora() {
       <path d="M0 230 L120 170 L210 210 L330 140 L470 220 L600 160 L760 225 L900 150 L1040 215 L1200 170 L1200 300 L0 300Z" fill="#141B33" />
       <rect y="250" width="1200" height="50" fill="#18223F" />
       <path className="sc-reflect" d="M200 262 H520 M640 272 H980 M120 284 H400" stroke="#5BF0B5" strokeOpacity=".25" strokeWidth="2" />
+    </>
+  );
+}
+
+/** Винланд: мирная земля за морем — поле, длинный дом, драккар у берега и цветущее дерево */
+function Vinland() {
+  const blossoms = [[1000, 70, 46], [1050, 52, 40], [950, 60, 38], [1095, 86, 36], [1012, 104, 40], [930, 98, 32], [1070, 118, 30], [980, 34, 30]];
+  return (
+    <>
+      <defs>
+        <linearGradient id="vSky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#BFD8F2" /><stop offset=".6" stopColor="#F6E3EA" /><stop offset="1" stopColor="#FFF4EC" /></linearGradient>
+        <linearGradient id="vSea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#7FB0CF" /><stop offset="1" stopColor="#4F86A8" /></linearGradient>
+        <radialGradient id="vBloom"><stop offset="0" stopColor="#FFE3EE" /><stop offset=".7" stopColor="#FFB7CF" /><stop offset="1" stopColor="#F59AB9" /></radialGradient>
+      </defs>
+      <rect width="1200" height="300" fill="url(#vSky)" />
+      <g className="sc-clouds" opacity=".8">
+        <ellipse cx="260" cy="60" rx="110" ry="16" fill="#fff" />
+        <ellipse cx="620" cy="40" rx="150" ry="18" fill="#fff" />
+      </g>
+      <path d="M0 175 L0 300 L420 300 Q380 240 300 210 Q200 180 0 175Z" fill="url(#vSea)" />
+      <g className="sc-waves" opacity=".8">
+        {Array.from({ length: 4 }, (_, i) => <path key={i} d={`M-100 ${222 + i * 18} q 30 -5 60 0 t 60 0 t 60 0 t 60 0 t 60 0 t 60 0 t 60 0 t 60 0`} stroke="#fff" strokeOpacity=".4" strokeWidth="2" fill="none" />)}
+      </g>
+      <Ship x={170} y={226} s={0.7} sail="#F3EAD8" stripe="#3E6E9C" />
+      <path d="M250 300 Q340 200 520 190 Q700 180 860 200 Q1050 215 1200 190 L1200 300Z" fill="#9CC48A" />
+      <path d="M380 300 Q470 230 640 226 Q820 222 1000 246 Q1100 258 1200 250 L1200 300Z" fill="#7DB26E" />
+      <path d="M470 300 Q560 258 720 258 Q860 258 960 300Z" fill="#E6C66E" />
+      <g className="sc-wheat">
+        {Array.from({ length: 34 }, (_, i) => {
+          const x = 520 + i * 13;
+          return <path key={i} className="sc-stalk" style={{ animationDelay: `${-(i % 7) * 0.35}s` }} d={`M${x} 300 Q${x + 2} 284 ${x + 4} ${270 + (i % 4) * 3}`} stroke="#B98A2E" strokeWidth="2" fill="none" />;
+        })}
+      </g>
+      <g transform="translate(660 196)">
+        <path className="sc-smoke" d="M78 -20 q-6 -14 4 -26 q8 -10 0 -24" stroke="#fff" strokeOpacity=".7" strokeWidth="6" strokeLinecap="round" fill="none" />
+        <rect x="0" y="0" width="120" height="34" rx="4" fill="#8A5A3B" />
+        <path d="M-10 4 Q60 -40 130 4 Z" fill="#6E9A54" />
+        <rect x="50" y="12" width="18" height="22" rx="2" fill="#4B2E1E" />
+      </g>
+      <path d="M1010 300 Q1004 220 1000 150 M1000 170 Q970 140 950 120 M1002 160 Q1040 130 1070 112" stroke="#6B4A3A" strokeWidth="9" strokeLinecap="round" fill="none" />
+      <g className="sc-bloom">{blossoms.map(([cx, cy, r], i) => <circle key={i} cx={cx} cy={cy} r={r} fill="url(#vBloom)" opacity=".95" />)}</g>
+      <g className="sc-birds">
+        {[[0, 0], [28, 10], [52, -4]].map(([dx, dy], i) => <path key={i} d={`M${dx} ${dy} q7 -7 14 0 q7 -7 14 0`} stroke="#5B5470" strokeWidth="2" fill="none" />)}
+      </g>
     </>
   );
 }

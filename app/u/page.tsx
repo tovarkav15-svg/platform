@@ -25,6 +25,7 @@ import { chatHref } from "@/lib/links";
 import { useRouter } from "next/navigation";
 import type { Deco } from "@/lib/shop";
 import { PageFx } from "../Deco";
+import { Reviews } from "../Reviews";
 
 const fmt = (n: number) => Math.round(n).toLocaleString("ru-RU").replace(/ /g, " ");
 const plural = (n: number, one: string, few: string, many: string) => {
@@ -93,14 +94,14 @@ export default function ProfilePage() {
           </div>
         )}
         {data && data !== "missing" && (
-          <ProfileView {...data} tab={sp.get("tab")} isMe={me?.id === data.user.id} loggedIn={!!me} reload={load} />
+          <ProfileView {...data} tab={sp.get("tab")} isMe={me?.id === data.user.id} loggedIn={!!me} meId={me?.id ?? null} reload={load} />
         )}
       </main>
     </>
   );
 }
 
-function ProfileView({ user, earnings, friends, state, works, projects, aura, channels, jobs, deco, tab, isMe, loggedIn, reload }: Data & { tab: string | null; isMe: boolean; loggedIn: boolean; reload: () => void }) {
+function ProfileView({ user, earnings, friends, state, works, projects, aura, channels, jobs, deco, tab, isMe, loggedIn, meId, reload }: Data & { tab: string | null; isMe: boolean; loggedIn: boolean; meId: string | null; reload: () => void }) {
   const niches = parseNiches(user.niches);
   const skills = user.skills.split(",").map((s) => s.trim()).filter(Boolean);
   const since = new Date(user.created_at);
@@ -168,6 +169,7 @@ function ProfileView({ user, earnings, friends, state, works, projects, aura, ch
       </section>
 
       <div className="pv-bricks">
+        <Reviews userId={user.id} meId={meId} name={user.display_name} />
         <section className="pf-card pf-about">
           <header><span className="pf-dot" /><b>О себе</b>{isMe && <Link href="/settings/#about" className="link-btn">Изменить</Link>}</header>
           {user.about ? (

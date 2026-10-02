@@ -13,6 +13,7 @@ import { CountUp } from "../CountUp";
 import { Coverflow, JobBadge, JobDetail, type Job, type JobRow } from "./JobCard";
 import { JobEditor } from "./JobEditor";
 import { BadgeGuide } from "./BadgeGuide";
+import { useRatings } from "../Reviews";
 
 type Sort = "new" | "cheap" | "pricey";
 
@@ -48,6 +49,7 @@ export default function JobsPage() {
   const featured = useMemo(() => [...active].sort((a, b) => Number(!!b.photo_path) - Number(!!a.photo_path) || b.cases.length - a.cases.length).slice(0, 7), [active]);
   const mine = active.filter((r) => r.user_id === me?.id);
   const specialists = new Set(active.map((r) => r.user_id)).size;
+  const ratings = useRatings(active.map((r) => r.user_id));
 
   return (
     <>
@@ -92,7 +94,7 @@ export default function JobsPage() {
         ) : view.length ? (
           <div className="bx-board" key={`${niche}-${sort}`}>
             {view.map((r, i) => (
-              <JobBadge key={r.id} job={r} i={i} onOpen={() => setOpen(r)}
+              <JobBadge key={r.id} job={r} i={i} onOpen={() => setOpen(r)} rating={ratings[r.user_id]}
                 onChat={r.user_id === me?.id ? undefined : async () => {
                   if (!me) return router.push("/login");
                   try { router.push(chatHref(await openDm(r.user_id))); } catch { window.alert("Этот человек принимает сообщения только от друзей. Открой бейдж и отправь заявку в друзья через профиль."); }

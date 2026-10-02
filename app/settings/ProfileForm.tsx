@@ -9,7 +9,7 @@ import { NICHES } from "@/lib/niches";
 import { ACCENTS } from "@/lib/style";
 import { BANNERS } from "@/lib/banners";
 import { publicMedia } from "@/lib/supabase";
-import { uploadPublicImage } from "@/lib/upload";
+import { uploadPublicImage, uploadPublicVideo, BANNER_VIDEO_MAX } from "@/lib/upload";
 import { Banner } from "../ProfileHeader";
 import { normalizeUsername, validateUsername, USERNAME_MAX } from "@/lib/username";
 
@@ -104,11 +104,14 @@ export function ProfileForm({ userId, initial, role, projects, onSaved }: Props)
   const bannerPreview = bannerLocal ?? (f.bannerPath ? publicMedia(f.bannerPath) : null);
   async function onBanner(file?: File) {
     if (!file) return;
-    if (!file.type.startsWith("image/")) return setBannerError("Нужна картинка: JPG, PNG или WEBP");
+    const video = file.type === "video/mp4" || file.type === "video/webm";
+    if (!file.type.startsWith("image/") && !video) return setBannerError("Нужна картинка (JPG, PNG, WEBP) или видео (MP4, WEBM)");
+    if (video && file.size > BANNER_VIDEO_MAX) return setBannerError("Видео до 15 МБ. Обрежь ролик до 5–10 секунд");
     setBannerError(""); setBannerBusy(true);
-    setBannerLocal(URL.createObjectURL(file));
-    try { set("bannerPath", await uploadPublicImage(userId, file)); }
-    catch { setBannerError("Не получилось загрузить. Попробуй другую картинку."); setBannerLocal(null); }
+    // для превью помечаем локальное видео, чтобы шапка показала его как ролик
+    setBannerLocal(video ? URL.createObjectURL(file).replace(/^blob:/, "blob:video") : URL.createObjectURL(file));
+    try { set("bannerPath", video ? await uploadPublicVideo(userId, file) : await uploadPublicImage(userId, file)); }
+    catch { setBannerError("Не получилось загрузить. Попробуй другой файл."); setBannerLocal(null); }
     setBannerBusy(false);
   }
 
@@ -215,9 +218,9 @@ export function ProfileForm({ userId, initial, role, projects, onSaved }: Props)
               </label>
             ))}
             <label className={`banner-pick upload ${f.bannerPath || bannerLocal ? "on" : ""}`}>
-              <input type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={(ev) => { onBanner(ev.target.files?.[0]); ev.target.value = ""; }} />
+              <input type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm" hidden onChange={(ev) => { onBanner(ev.target.files?.[0]); ev.target.value = ""; }} />
               {bannerPreview ? <Banner image={bannerPreview} className="mini" /> : <span className="banner-upload-art">+</span>}
-              <b>{bannerBusy ? "Загружаю…" : bannerPreview ? "Своё фото · заменить" : "Своё фото"}</b>
+              <b>{bannerBusy ? "Загружаю…" : bannerPreview ? "Своё фото или видео · заменить" : "Своё фото или видео"}</b>
             </label>
           </div>
           <input type="hidden" name="bannerPreset" value={f.bannerPreset} />

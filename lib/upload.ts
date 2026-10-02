@@ -34,6 +34,16 @@ export async function uploadPublicImage(userId: string, file: File) {
   return path;
 }
 
+/** Видео для баннера: mp4/webm до 15 МБ, лежит в public-media/<user_id>/ */
+export const BANNER_VIDEO_MAX = 15 * 1024 * 1024;
+export async function uploadPublicVideo(userId: string, file: File) {
+  const extension = file.type === "video/webm" ? "webm" : "mp4";
+  const path = `${userId}/${crypto.randomUUID()}.${extension}`;
+  const { error } = await supabase.storage.from("public-media").upload(path, file, { contentType: file.type, upsert: false });
+  if (error) throw error;
+  return path;
+}
+
 export const CHAT_MAX_BYTES = 50 * 1024 * 1024;
 
 /** Файл в чат: chat-media/<chat_id>/… — видят только участники чата */
