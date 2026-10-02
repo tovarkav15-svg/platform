@@ -33,18 +33,20 @@ export function UserPanel({ username, onClose }: { username: string | null; onCl
     const { data: prof } = await supabase.from("profiles").select("*").eq("username", username).maybeSingle();
     setP(prof as Profile | null);
     if (!prof) return;
-    const [w, pr, j, rv, ch] = await Promise.all([
+    const [w, pr, j, rv, ch, od] = await Promise.all([
       supabase.from("works").select("id, title, result").eq("user_id", prof.id),
       supabase.from("projects").select("id, name, tagline").eq("user_id", prof.id),
       supabase.from("jobs").select("id, service, mod_status").eq("user_id", prof.id),
       supabase.from("reviews").select("id, rating, text").eq("author_id", prof.id),
       supabase.rpc("user_channels", { p_user: prof.id }),
+      supabase.from("orders").select("id, title, status").eq("client_id", prof.id),
     ]);
     setLists({
       work: (w.data ?? []).map((x) => ({ id: x.id, title: x.title, sub: x.result })),
       project: (pr.data ?? []).map((x) => ({ id: x.id, title: x.name, sub: x.tagline })),
       job: (j.data ?? []).map((x) => ({ id: x.id, title: x.service, sub: x.mod_status })),
       review: (rv.data ?? []).map((x) => ({ id: x.id, title: "★".repeat(x.rating), sub: x.text })),
+      order: (od.data ?? []).map((x) => ({ id: x.id, title: x.title, sub: x.status })),
       chat: ((ch.data as { chat_id: string; title: string; member_count: number }[]) ?? []).map((x) => ({ id: x.chat_id, title: x.title, sub: `${x.member_count} подписчиков` })),
     });
   }, [username]);
@@ -58,7 +60,7 @@ export function UserPanel({ username, onClose }: { username: string | null; onCl
     if (error) window.alert(error.message); else load();
   }
 
-  const SECTIONS: [string, string][] = [["work", "Proof of Work"], ["project", "Проекты"], ["job", "Бейджи биржи"], ["review", "Отзывы, которые он написал"], ["chat", "Его каналы"]];
+  const SECTIONS: [string, string][] = [["work", "Proof of Work"], ["project", "Проекты"], ["job", "Бейджи биржи"], ["order", "Заказы"], ["review", "Отзывы, которые он написал"], ["chat", "Его каналы"]];
 
   return (
     <Modal open={!!username} onClose={onClose} title={<>Управление пользователем</>}>

@@ -10,6 +10,8 @@ import { TopBar } from "../TopBar";
 import { Avatar } from "../Avatar";
 import { JobBadge, rub, type JobRow } from "../jobs/JobCard";
 import { UserPanel } from "./UserPanel";
+import { budgetText, type Order } from "../jobs/Orders";
+import { NICHES } from "@/lib/niches";
 
 type Report = { id: string; reporter: string; target_user: string; message_id: string | null; reason: string; details: string; status: string; created_at: string; r: ProfileCard; t: ProfileCard & { banned_until: string | null } };
 type Banned = ProfileCard & { banned_until: string; ban_reason: string };
@@ -17,13 +19,14 @@ type Log = { id: number; action: string; note: string; created_at: string; m: Pr
 
 const TABS = [
   { id: "badges", label: "Бейджи", sub: "На проверке" },
+  { id: "orders", label: "Заказы", sub: "От заказчиков" },
   { id: "reports", label: "Жалобы", sub: "От пользователей" },
   { id: "users", label: "Пользователи", sub: "Поиск и баны" },
   { id: "log", label: "Журнал", sub: "Кто что сделал" },
 ] as const;
 type Tab = (typeof TABS)[number]["id"];
 
-const ACTION: Record<string, string> = { ban: "забанил", unban: "разбанил", approve_job: "одобрил бейдж", reject_job: "отклонил бейдж", clear_profile: "очистил в профиле", wipe: "стёр весь контент", delete_work: "удалил работу", delete_project: "удалил проект", delete_job: "удалил бейдж", delete_review: "удалил отзыв", delete_chat: "удалил канал", delete_message: "удалил сообщение" };
+const ACTION: Record<string, string> = { ban: "забанил", unban: "разбанил", approve_job: "одобрил бейдж", reject_job: "отклонил бейдж", approve_order: "одобрил заказ", reject_order: "отклонил заказ", delete_order: "удалил заказ", clear_profile: "очистил в профиле", wipe: "стёр весь контент", delete_work: "удалил работу", delete_project: "удалил проект", delete_job: "удалил бейдж", delete_review: "удалил отзыв", delete_chat: "удалил канал", delete_message: "удалил сообщение" };
 
 /** Модерация: только для @fedonko и @awiny (роль owner). Права проверяет база, страница лишь показывает */
 export default function ModerationPage() {
@@ -31,15 +34,16 @@ export default function ModerationPage() {
   const sp = useSearchParams();
   const router = useRouter();
   const tab: Tab = TABS.find((t) => t.id === sp.get("tab"))?.id ?? "badges";
-  const [counts, setCounts] = useState({ badges: 0, reports: 0 });
+  const [counts, setCounts] = useState({ badges: 0, reports: 0, orders: 0 });
   const allowed = isOwner(me?.role);
 
   const loadCounts = useCallback(async () => {
-    const [b, r] = await Promise.all([
+    const [b, r, o] = await Promise.all([
       supabase.from("jobs").select("id", { count: "exact", head: true }).eq("mod_status", "pending"),
       supabase.from("reports").select("id", { count: "exact", head: true }).eq("status", "open"),
+      supabase.from("orders").select("id", { count: "exact", head: true }).eq("mod_status", "pending"),
     ]);
-    setCounts({ badges: b.count ?? 0, reports: r.count ?? 0 });
+    setCounts({ badges: b.count ?? 0, reports: r.count ?? 0, orders: o.count ?? 0 });
   }, []);
   useEffect(() => { document.title = "Модерация"; if (allowed) loadCounts(); }, [allowed, loadCounts]);
 
@@ -54,7 +58,7 @@ export default function ModerationPage() {
           <nav className="md-tabs">
             {TABS.map((t) => (
               <button key={t.id} type="button" className="md-tab" aria-current={tab === t.id ? "page" : undefined} onClick={() => router.replace(`/moderation/?tab=${t.id}`, { scroll: false })}>
-                <b>{t.label}{t.id === "badges" && counts.badges > 0 && <em>{counts.badges}</em>}{t.id === "reports" && counts.reports > 0 && <em>{counts.reports}</em>}</b><small>{t.sub}</small>
+                <b>{t.label}{t.id === "badges" && counts.badges > 0 && <em>{counts.badges}</em>}{t.id === "reports" && counts.reports > 0 && <em>{counts.reports}</em>}{t.id === "orders" && counts.orders > 0 && <em>{counts.orders}</em>}</b><small>{t.sub}</small>
               </button>
             ))}
           </nav>
@@ -63,6 +67,7 @@ export default function ModerationPage() {
           <div key={tab} className="md-body">
             {tab === "badges" && <Badges onChange={loadCounts} />}
             {tab === "reports" && <Reports onChange={loadCounts} />}
+            {tab === "orders" && <OrdersQueue onChange={loadCounts} />}
             {tab === "users" && <Users initial={sp.get("u")} />}
             {tab === "log" && <LogView />}
           </div>
@@ -258,6 +263,53 @@ function LogView() {
               <b>{r.m.display_name}</b> {ACTION[r.action] ?? r.action}{r.u ? <> <Link href={profileHref(r.u.username)}>@{r.u.username}</Link></> : ""}
               {r.note && <span className="md-note"> · {r.note}</span>}
               <small>{new Date(r.created_at).toLocaleString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</small>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function OrdersQueue({ onChange }: { onChange: () => void }) {
+  const [rows, setRows] = useState<Order[] | null>(null);
+  const [filter, setFilter] = useState<"pending" | "rejected" | "approved">("pending");
+  const [notes, setNotes] = useState<Record<string, string>>({});
+  const load = useCallback(async () => {
+    const { data } = await supabase.from("orders").select(`*, client:profiles!orders_client_id_fkey(${PROFILE_CARD})`).eq("mod_status", filter).order("updated_at", { ascending: false }).limit(100);
+    setRows((data as unknown as Order[]) ?? []);
+  }, [filter]);
+  useEffect(() => { load(); }, [load]);
+  async function decide(o: Order, approve: boolean) {
+    const note = notes[o.id]?.trim() ?? "";
+    if (!approve && !note && !window.confirm("Отклонить без причины?")) return;
+    const { error } = await supabase.rpc("moderate_order", { p_order: o.id, p_approve: approve, p_note: note });
+    if (error) return window.alert(error.message);
+    setRows((r) => (r ?? []).filter((x) => x.id !== o.id));
+    onChange();
+  }
+  return (
+    <section className="md-section">
+      <div className="seg small">
+        {([["pending", "Ждут проверки"], ["rejected", "Отклонённые"], ["approved", "Одобренные"]] as const).map(([k, l]) => (
+          <button key={k} type="button" className="seg-item" aria-current={filter === k ? "page" : undefined} onClick={() => setFilter(k)}>{l}</button>
+        ))}
+      </div>
+      {rows === null ? <div className="skeleton list-skeleton" /> : rows.length === 0 ? <p className="md-empty">{filter === "pending" ? "Все заказы проверены ✓" : "Здесь пусто."}</p> : (
+        <ul className="md-list">
+          {rows.map((o) => (
+            <li key={o.id} className="md-report">
+              <div className="md-report-top"><span className="md-reason" style={{ background: "#EEF3FF", color: "#2B4FB0" }}>{NICHES.find((n) => n.id === o.niche)?.title}</span><small>{new Date(o.updated_at).toLocaleString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</small></div>
+              <b style={{ fontSize: 17 }}>{o.title}</b>
+              <small className="mono">{budgetText(o)}{o.deadline ? ` · до ${new Date(o.deadline).toLocaleDateString("ru-RU")}` : ""}</small>
+              {o.description && <p className="md-details">{o.description}</p>}
+              {o.client && <Link href={profileHref(o.client.username)} className="md-who"><Avatar name={o.client.display_name} avatar={o.client.avatar} accent={o.client.accent} size={30} /><span><b>{o.client.display_name}</b><small>@{o.client.username} · заказчик</small></span></Link>}
+              <textarea className="bl-in" rows={2} maxLength={300} placeholder="Причина или подсказка автору" value={notes[o.id] ?? o.mod_note ?? ""} onChange={(e) => setNotes((n) => ({ ...n, [o.id]: e.target.value }))} />
+              <div className="md-actions">
+                {filter !== "approved" && <button type="button" className="btn md-ok" onClick={() => decide(o, true)}>✓ Одобрить</button>}
+                {filter !== "rejected" && <button type="button" className="btn danger" onClick={() => decide(o, false)}>✕ Отклонить</button>}
+                <button type="button" className="chip-btn md-danger" onClick={async () => { if (window.confirm("Удалить заказ?")) { await supabase.rpc("mod_delete", { p_kind: "order", p_id: o.id }); load(); onChange(); } }}>Удалить</button>
+              </div>
             </li>
           ))}
         </ul>

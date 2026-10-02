@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase, PROFILE_CARD } from "@/lib/supabase";
 import { useSession } from "@/lib/session";
@@ -14,8 +14,16 @@ import { Coverflow, JobBadge, JobDetail, type Job, type JobRow } from "./JobCard
 import { JobEditor } from "./JobEditor";
 import { BadgeGuide } from "./BadgeGuide";
 import { useRatings } from "../Reviews";
+import { MyOrders, MyResponses, OrderEditor, OrdersBoard, type Order } from "./Orders";
 
 type Sort = "new" | "cheap" | "pricey";
+const SIDES = [
+  { id: "pros", label: "Специалисты", sub: "Бейджи фрилансеров" },
+  { id: "orders", label: "Заказы", sub: "Задачи от заказчиков" },
+  { id: "my-orders", label: "Мои заказы", sub: "Я заказчик" },
+  { id: "my-responses", label: "Мои отклики", sub: "Я исполнитель" },
+] as const;
+type Side = (typeof SIDES)[number]["id"];
 
 export default function JobsPage() {
   const { ready, me } = useSession();
@@ -27,6 +35,11 @@ export default function JobsPage() {
   const [edit, setEdit] = useState<Job | null | "new">(null);
   const [open, setOpen] = useState<JobRow | null>(null);
   const [notice, setNotice] = useState("");
+  const sp = useSearchParams();
+  const side: Side = SIDES.find((s) => s.id === sp.get("tab"))?.id ?? "pros";
+  const [orderEdit, setOrderEdit] = useState<Order | null | "new">(null);
+  const [ordersKey, setOrdersKey] = useState(0);
+  const newOrder = () => (me ? setOrderEdit("new") : router.push("/login"));
 
   const load = useCallback(async () => {
     const { data } = await supabase.from("jobs").select(`*, author:profiles!jobs_user_id_fkey(${PROFILE_CARD})`).order("updated_at", { ascending: false }).limit(120);
@@ -60,8 +73,8 @@ export default function JobsPage() {
         <header className="bx-head">
           <div className="bx-head-text">
             <span className="label">Биржа вакансий</span>
-            <h1 className="h-xl caps">Кто <span className="it">что</span> умеет</h1>
-            <p className="lead">Бейдж на каждого специалиста: ниша, услуга, средний чек и кейсы. Нажми на бейдж, чтобы открыть подробности и написать в чат.</p>
+            <h1 className="h-xl caps">{side === "pros" ? <>Кто <span className="it">что</span> умеет</> : <>Работа <span className="it">и</span> заказы</>}</h1>
+            <p className="lead">{side === "pros" ? "Бейдж на каждого специалиста: ниша, услуга, средний чек и кейсы. Нажми на бейдж, чтобы открыть подробности и написать в чат." : "Заказчики размещают задачи с бюджетом и сроком, специалисты откликаются. Выбрал исполнителя — и сразу общаетесь в чате."}</p>
           </div>
           <div className="bx-counter">
             <span><b className="mono"><CountUp value={active.length} /></b>бейджей</span>
@@ -69,13 +82,26 @@ export default function JobsPage() {
             {me
               ? <button type="button" className="btn" onClick={() => setEdit("new")}>+ Мой бейдж</button>
               : <Link className="btn" href="/register">Разместить себя</Link>}
+            <button type="button" className="btn ghost" onClick={newOrder}>+ Заказ</button>
             {mine.length > 0 && <small className="hint">Твоих на бирже: {mine.length}</small>}
           </div>
         </header>
 
-        {rows === null ? <div className="skeleton bx-cf-ph" /> : featured.length > 0 && <Coverflow jobs={featured} onOpen={setOpen} />}
+        <nav className="bx-sides" aria-label="Разделы биржи">
+          {SIDES.filter((s) => me || (s.id !== "my-orders" && s.id !== "my-responses")).map((s) => (
+            <Link key={s.id} href={s.id === "pros" ? "/jobs/" : `/jobs/?tab=${s.id}`} replace scroll={false} className="bx-side" aria-current={side === s.id ? "page" : undefined}>
+              <b>{s.label}</b><small>{s.sub}</small>
+            </Link>
+          ))}
+        </nav>
 
         {notice && <div className="bx-notice" role="status">✓ {notice}</div>}
+        {side === "orders" && <OrdersBoard key={ordersKey} me={me} onNew={newOrder} />}
+        {side === "my-orders" && me && <MyOrders key={ordersKey} me={me} onNew={newOrder} onEdit={(o) => setOrderEdit(o)} />}
+        {side === "my-responses" && me && <MyResponses me={me} />}
+        {side === "pros" && (<>
+        {rows === null ? <div className="skeleton bx-cf-ph" /> : featured.length > 0 && <Coverflow jobs={featured} onOpen={setOpen} />}
+
         {mine.some((r) => r.mod_status === "rejected") && <div className="bx-notice bad" role="status">Один из твоих бейджей отклонён модерацией — открой его, исправь и сохрани заново.</div>}
         <BadgeGuide onCreate={me ? () => setEdit("new") : undefined} />
 
@@ -111,7 +137,10 @@ export default function JobsPage() {
             {me && <button type="button" className="btn" onClick={() => setEdit("new")}>+ Мой бейдж</button>}
           </div>
         )}
+        </>)}
       </main>
+      <OrderEditor open={orderEdit !== null} order={orderEdit === "new" ? null : orderEdit} onClose={() => setOrderEdit(null)}
+        onSaved={() => { setOrderEdit(null); setOrdersKey((k) => k + 1); setNotice("Заказ отправлен на проверку. После одобрения его увидят специалисты."); setTimeout(() => setNotice(""), 6000); if (side !== "my-orders") router.replace("/jobs/?tab=my-orders", { scroll: false }); }} />
 
       <JobDetail job={open} onClose={() => setOpen(null)} canWrite={!!me && open?.user_id !== me.id}
         onEdit={open && open.user_id === me?.id ? () => { setEdit(open); setOpen(null); } : undefined}

@@ -12,13 +12,23 @@ export function NavTabs({ me }: { me: Profile }) {
   const [unread, setUnread] = useState(0);
   const [requests, setRequests] = useState(0);
   const [modCount, setModCount] = useState(0);
+  const [jobCount, setJobCount] = useState(0);
+  // Заказчику — сколько новых откликов ждут ответа
+  useEffect(() => {
+    const tick = () => supabase.from("order_responses").select("id, orders!inner(client_id, status)", { count: "exact", head: true })
+      .eq("orders.client_id", me.id).eq("orders.status", "open").eq("status", "sent").then(({ count }) => setJobCount(count ?? 0));
+    tick();
+    const t = setInterval(tick, 30000);
+    return () => clearInterval(t);
+  }, [me.id]);
   // Модераторам — сколько бейджей и жалоб ждут
   useEffect(() => {
     if (me.role !== "owner" && me.role !== "founder") return;
     const tick = () => Promise.all([
       supabase.from("jobs").select("id", { count: "exact", head: true }).eq("mod_status", "pending"),
       supabase.from("reports").select("id", { count: "exact", head: true }).eq("status", "open"),
-    ]).then(([b, r]) => setModCount((b.count ?? 0) + (r.count ?? 0)));
+      supabase.from("orders").select("id", { count: "exact", head: true }).eq("mod_status", "pending"),
+    ]).then(([b, r, o]) => setModCount((b.count ?? 0) + (r.count ?? 0) + (o.count ?? 0)));
     tick();
     const t = setInterval(tick, 30000);
     return () => clearInterval(t);
@@ -53,7 +63,7 @@ export function NavTabs({ me }: { me: Profile }) {
     { href: "/workspace/", label: "Workspace", active: path.startsWith("/workspace") },
     { href: "/learn/", label: "Обучение", active: path.startsWith("/learn") },
     { href: "/community/", label: "Community", active: ["/community", "/people", "/discover", "/project"].some((p) => path.startsWith(p)), count: requests },
-    { href: "/jobs/", label: "Биржа", active: path.startsWith("/jobs") },
+    { href: "/jobs/", label: "Биржа", active: path.startsWith("/jobs"), count: jobCount },
     { href: "/aura/", label: "AURA", active: path.startsWith("/aura") },
     { href: "/messages/", label: "Чаты", active: path.startsWith("/messages"), count: unread },
     { href: "/settings/", label: "Settings", active: path.startsWith("/settings") },
