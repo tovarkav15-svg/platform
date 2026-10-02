@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/lib/session";
 import { NICHES } from "@/lib/niches";
@@ -72,12 +72,7 @@ export default function AuraPage() {
 
         {view === "top" && (
           <>
-            <div className="filters">
-              <button type="button" className={`fchip ${!niche ? "on" : ""}`} onClick={() => setNiche("")}>Вся платформа</button>
-              {NICHES.map((n) => (
-                <button key={n.id} type="button" className={`fchip ${niche === n.id ? "on" : ""}`} style={{ "--c": n.color } as React.CSSProperties} onClick={() => setNiche(niche === n.id ? "" : n.id)}>{n.title}</button>
-              ))}
-            </div>
+            <BoardPicker niche={niche} onPick={setNiche} />
 
             {rows === null ? <div className="skeleton profile-skeleton" /> : rows.length === 0 ? (
               <div className="pf-empty"><p className="lead">В этой нише пока никого. Выбери нишу в настройках профиля, и ты окажешься здесь.</p></div>
@@ -208,5 +203,44 @@ function Quests({ mine, username, canWrite, loggedIn }: { mine: Row | null; user
       </div>
       <p className="hint">С уровня «Сияние» открываются премиум-стикеры в чатах.</p>
     </section>
+  );
+}
+
+/** LiderBoard: общий или по нише — ниши в выпадающем списке */
+function BoardPicker({ niche, onPick }: { niche: string; onPick: (id: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const off = (e: MouseEvent) => { if (!box.current?.contains(e.target as Node)) setOpen(false); };
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", off);
+    document.addEventListener("keydown", esc);
+    return () => { document.removeEventListener("mousedown", off); document.removeEventListener("keydown", esc); };
+  }, [open]);
+  const cur = NICHES.find((n) => n.id === niche);
+  return (
+    <div className="lb-pick" ref={box}>
+      <span className="lb-label">LiderBoard</span>
+      <div className="lb-seg">
+        <span className="lb-pill" style={{ transform: cur ? "translateX(100%)" : "none" }} aria-hidden="true" />
+        <button type="button" className="lb-opt" aria-pressed={!cur} onClick={() => { onPick(""); setOpen(false); }}>Общий</button>
+        <button type="button" className="lb-opt" aria-pressed={!!cur} aria-expanded={open} aria-haspopup="listbox" onClick={() => setOpen((v) => !v)}>
+          {cur ? <><i style={{ background: cur.color }} />{cur.title}</> : "По нишам"}
+          <svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true" style={{ transform: open ? "rotate(180deg)" : "none" }}><path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
+        </button>
+      </div>
+      {open && (
+        <ul className="lb-menu" role="listbox" aria-label="Ниши">
+          {NICHES.map((n, i) => (
+            <li key={n.id}>
+              <button type="button" role="option" aria-selected={niche === n.id} style={{ "--c": n.color, "--i": i } as React.CSSProperties} onClick={() => { onPick(n.id); setOpen(false); }}>
+                <i />{n.title}{niche === n.id && <em>✓</em>}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
