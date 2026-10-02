@@ -4445,3 +4445,73 @@ html[data-chattext="lg"] .msg-text { font-size: 17px; }
 .cr { display: flex; align-items: center; justify-content: center; }
 .cr-panel { min-width: 0; max-width: 100%; }
 .cr-window { max-width: 100%; }
+
+/* ===== Заметки в стиле iPhone ===== */
+.ws2-notes { --ic: #E0A100; }
+.nt { --y: #E0A100; --sys: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif; --sep: rgba(60,60,67,.18); --lab2: rgba(60,60,67,.6);
+  display: grid; grid-template-columns: 220px 300px minmax(0, 1fr); height: calc(100dvh - 140px); min-height: 520px; border-radius: 22px; overflow: hidden; background: #F2F2F7; border: 1px solid rgba(20,20,20,.08);
+  font-family: var(--sys); box-shadow: 0 30px 60px -44px rgba(0,0,0,.4); animation: cardIn .5s var(--spring) both; }
+.nt button { font-family: inherit; }
+.nt-folders, .nt-list { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--sep); }
+.nt-folders { background: #F2F2F7; padding: 0 10px; }
+.nt-list { background: #F2F2F7; }
+.nt-bar { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 10px 12px 6px; }
+.nt-h { font-size: 22px; font-weight: 700; letter-spacing: -.02em; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nt-link, .nt-back { border: 0; background: none; color: var(--y); font-size: 15px; font-weight: 500; cursor: pointer; padding: 4px 0; }
+.nt-back { display: none; }
+.nt-group { display: flex; flex-direction: column; border-radius: 12px; background: #fff; overflow: hidden; }
+.nt-folder { display: flex; align-items: center; gap: 10px; padding: 11px 12px; border: 0; background: none; font-size: 15px; color: #000; cursor: pointer; text-align: left; position: relative; transition: background .2s; }
+.nt-folder + .nt-folder::before, .nt-row + .nt-row::before { content: ""; position: absolute; left: 44px; right: 0; top: 0; height: 1px; background: var(--sep); transform: scaleY(.5); }
+.nt-row + .nt-row::before { left: 16px; }
+.nt-folder i { width: 22px; font-style: normal; color: var(--y); font-size: 16px; text-align: center; }
+.nt-folder span { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nt-folder em { font-style: normal; color: var(--lab2); font-size: 15px; }
+.nt-folder s { text-decoration: none; color: rgba(60,60,67,.3); font-size: 20px; line-height: 1; }
+.nt-folder[aria-current="true"] { background: #FFF4D1; }
+.nt-folder:hover { background: #F7F7F9; }
+.nt-search { display: flex; align-items: center; gap: 6px; margin: 0 12px 8px; padding: 7px 10px; border-radius: 10px; background: rgba(118,118,128,.12); color: var(--lab2); }
+.nt-search input { flex: 1; border: 0; outline: 0; background: none; font: inherit; font-size: 15px; color: #000; min-width: 0; }
+.nt-scroll { flex: 1; overflow-y: auto; padding: 0 12px 12px; }
+.nt-sec { margin-bottom: 14px; }
+.nt-sec-h { display: block; padding: 4px 4px 6px; font-size: 13px; font-weight: 600; color: var(--lab2); }
+.nt-row { position: relative; display: flex; flex-direction: column; gap: 2px; padding: 10px 16px; border: 0; background: none; text-align: left; cursor: pointer; transition: background .2s; }
+.nt-row b { font-size: 15px; font-weight: 600; color: #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nt-row span { font-size: 13.5px; color: var(--lab2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nt-row span em { font-style: normal; color: #3c3c43; margin-right: 8px; }
+.nt-row small { font-size: 12px; color: var(--lab2); }
+.nt-row:hover { background: #F7F7F9; }
+.nt-row[aria-current="true"] { background: #FFE9A6; }
+.nt-foot { display: flex; align-items: center; justify-content: center; position: relative; min-height: 46px; border-top: 1px solid var(--sep); background: rgba(249,249,249,.94); font-size: 12px; color: #000; }
+.nt-new { position: absolute; right: 10px; width: 38px; height: 38px; display: grid; place-items: center; border: 0; border-radius: 50%; background: none; color: var(--y); cursor: pointer; transition: background .2s, transform .25s var(--spring); }
+.nt-new:hover { background: #FFF4D1; transform: scale(1.08); }
+.nt-empty, .nt-blank { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 40px 16px; text-align: center; color: var(--lab2); }
+.nt-empty span, .nt-blank span { font-size: 40px; color: var(--y); }
+.nt-empty b, .nt-blank b { color: #000; font-size: 17px; }
+.nt-blank { height: 100%; }
+.nt-pill { margin-top: 10px; padding: 9px 18px; border: 0; border-radius: 99px; background: var(--y); color: #fff; font-size: 15px; font-weight: 600; cursor: pointer; }
+.nt-editor { display: flex; flex-direction: column; min-height: 0; background: #fff; }
+.nt-tools { border-bottom: 1px solid var(--sep); gap: 4px; flex-wrap: wrap; }
+.nt-status { flex: 1; font-size: 12px; color: var(--lab2); }
+.nt-tool { width: 36px; height: 36px; display: grid; place-items: center; border: 0; border-radius: 10px; background: none; color: var(--y); font-size: 17px; cursor: pointer; transition: background .2s; }
+.nt-tool:hover { background: #FFF4D1; }
+.nt-tool.on { background: #FFE9A6; }
+.nt-tool.danger:hover { background: #FDECEC; }
+.nt-move { border: 0; background: rgba(118,118,128,.12); border-radius: 8px; padding: 6px 8px; font: inherit; font-size: 13px; color: #000; max-width: 120px; }
+.nt-paper { flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 14px clamp(16px, 4vw, 48px) 0; }
+.nt-date { text-align: center; font-size: 12.5px; color: var(--lab2); margin-bottom: 10px; }
+.nt-area { flex: 1; width: 100%; border: 0; outline: 0; resize: none; background: none; font-family: var(--sys); font-size: 17px; line-height: 1.5; color: #000; }
+.nt-area::first-line { font-size: 28px; font-weight: 700; line-height: 1.6; }
+.nt-area::placeholder { color: rgba(60,60,67,.3); }
+.nt-meta { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px clamp(16px, 4vw, 48px) 12px; font-size: 12px; color: var(--lab2); border-top: 1px solid var(--sep); }
+.nt-todo { position: relative; padding: 3px 10px; border-radius: 99px; background: #FFF4D1; color: #8A6100; overflow: hidden; }
+.nt-todo i { position: absolute; left: 0; top: 0; bottom: 0; background: #FFE08A; z-index: 0; transition: width .4s var(--ease); }
+.nt-todo { isolation: isolate; } .nt-todo i { z-index: -1; }
+/* Телефон: экраны сменяются, как на iPhone */
+@media (max-width: 860px) {
+  .nt { grid-template-columns: 1fr; height: calc(100dvh - 190px); }
+  .nt > * { display: none !important; }
+  .nt.stage-folders .nt-folders, .nt.stage-list .nt-list, .nt.stage-editor .nt-editor { display: flex !important; animation: ntPush .35s var(--ease) both; }
+  .nt-back { display: inline-block; }
+  .nt-folders, .nt-list { border-right: 0; }
+}
+@keyframes ntPush { from { opacity: 0; transform: translateX(24px); } }
