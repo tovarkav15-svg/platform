@@ -274,7 +274,7 @@ export function ProfileForm({ userId, initial, role, projects, onSaved }: Props)
           <span className="hint bad">{e.bio}</span>
         </label>
 
-        <fieldset className="field plain">
+        <fieldset className="field plain" id="niches">
           <span>Ниши</span>
           <div className="chips">
             {NICHES.map((n) => (

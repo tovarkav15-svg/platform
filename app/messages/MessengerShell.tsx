@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import { supabase, type ChatListItem } from "@/lib/supabase";
 import { chatHref } from "@/lib/links";
 import { shortTime } from "./time";
@@ -24,6 +24,9 @@ export function MessengerShell({ chats, activeId, meId, children, onChanged }: P
   const [filter, setFilter] = useState<Filter>("all");
   const [menu, setMenu] = useState(false);
   const [create, setCreate] = useState<"group" | "channel" | null>(null);
+  // Переход из задания AURA: сразу открываем создание канала
+  const wantNew = useSearchParams().get("new");
+  useEffect(() => { if (wantNew === "channel" || wantNew === "group") setCreate(wantNew); }, [wantNew]);
   const [browse, setBrowse] = useState(false);
 
   const list = useMemo(() => chats ?? [], [chats]);

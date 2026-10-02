@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { supabase, type Profile } from "@/lib/supabase";
 import { useSession } from "@/lib/session";
 import { NICHES } from "@/lib/niches";
 import { profileHref } from "@/lib/links";
@@ -126,7 +126,7 @@ export default function AuraPage() {
           </>
         )}
 
-        {view === "quests" && <Quests mine={mine ?? null} username={me?.username ?? null} canWrite={me?.role === "owner"} loggedIn={!!me} />}
+        {view === "quests" && <Quests mine={mine ?? null} me={me} canWrite={me?.role === "owner"} loggedIn={!!me} />}
         {view === "shop" && <Shop />}
       </main>
     </>
@@ -146,22 +146,43 @@ function MyCard({ r, total }: { r: Row; total: number }) {
   );
 }
 
-// Задания: каждое правило AURA с прогрессом и кнопкой туда, где это делается
-const QUESTS: { key: keyof Row; label: string; pts: number; cap: number | null; hint: string; icon: string; href: (u: string | null) => string | null; cta: string }[] = [
-  { key: "profile", label: "Заполни профиль", pts: 15, cap: 6, hint: "Аватар, баннер, био, ниши, «о себе» и «ищу»: +15 за каждое", icon: "◐", href: (u) => (u ? "/settings/" : null), cta: "Настройки" },
-  { key: "works", label: "Добавь работу в Proof of Work", pts: 50, cap: 30, hint: "Ролик, сайт, запуск, с результатом в цифрах", icon: "◆", href: (u) => (u ? `/u/?n=${u}&tab=work` : null), cta: "К работам" },
-  { key: "projects", label: "Расскажи о проекте", pts: 60, cap: 15, hint: "Что строишь сейчас и кого ищешь", icon: "▲", href: (u) => (u ? `/u/?n=${u}&tab=projects` : null), cta: "К проектам" },
-  { key: "milestones", label: "Закрой этап проекта", pts: 20, cap: 100, hint: "Отметь этап готовым на странице проекта", icon: "✓", href: (u) => (u ? `/u/?n=${u}&tab=projects` : null), cta: "К проектам" },
-  { key: "goals", label: "Покори цель", pts: 60, cap: 30, hint: "Поставь вершину и дойди до неё", icon: "⚑", href: () => "/workspace/?tab=plans&view=goals", cta: "К целям" },
-  { key: "tasks", label: "Выполняй задачи", pts: 5, cap: 300, hint: "Задачи в Plans и шаги целей", icon: "☐", href: () => "/workspace/?tab=plans", cta: "К задачам" },
-  { key: "friends", label: "Находи своих людей", pts: 10, cap: 150, hint: "Каждый принятый друг", icon: "◎", href: () => "/community/?tab=people", cta: "К людям" },
-  { key: "subs", label: "Собери подписчиков канала", pts: 3, cap: 1000, hint: "Создай открытый канал и веди его", icon: "◈", href: () => "/messages/", cta: "К каналам" },
-  { key: "days", label: "Заходи каждый день", pts: 10, cap: 60, hint: "Активные дни за последние 60 дней", icon: "☀", href: () => "/workspace/", cta: "В Workspace" },
-  { key: "articles", label: "Напиши статью в Обучение", pts: 100, cap: null, hint: "Для команды платформы", icon: "✎", href: () => "/learn/", cta: "К Обучению" },
+// Задания: каждое правило AURA с прогрессом и кнопкой прямо к действию (форма, поле, раздел)
+type Ctx = { me: Profile | null; projectId: string | null };
+const MISSING: { key: keyof Profile; focus: string; label: string }[] = [
+  { key: "avatar", focus: "avatar", label: "аватар" },
+  { key: "banner_path", focus: "banner", label: "баннер" },
+  { key: "bio", focus: "bio", label: "био" },
+  { key: "niches", focus: "niches", label: "ниши" },
+  { key: "about", focus: "about", label: "«о себе»" },
+  { key: "looking_for", focus: "looking", label: "«ищу»" },
+];
+const firstMissing = (me: Profile | null) => MISSING.find((m) => !me?.[m.key]);
+const QUESTS: { key: keyof Row; label: string; pts: number; cap: number | null; hint: string; icon: string; href: (c: Ctx) => string | null; cta: (c: Ctx) => string }[] = [
+  { key: "profile", label: "Заполни профиль", pts: 15, cap: 6, hint: "Аватар, баннер, био, ниши, «о себе» и «ищу»: +15 за каждое", icon: "◐",
+    href: ({ me }) => (me ? `/settings/?s=profile&focus=${firstMissing(me)?.focus ?? "bio"}` : null), cta: ({ me }) => (firstMissing(me) ? `Добавить ${firstMissing(me)!.label}` : "К профилю") },
+  { key: "works", label: "Добавь работу в Proof of Work", pts: 50, cap: 30, hint: "Ролик, сайт, запуск, с результатом в цифрах", icon: "◆",
+    href: ({ me }) => (me ? `/u/?n=${me.username}&tab=work&new=work` : null), cta: () => "Добавить работу" },
+  { key: "projects", label: "Расскажи о проекте", pts: 60, cap: 15, hint: "Что строишь сейчас и кого ищешь", icon: "▲",
+    href: ({ me }) => (me ? `/u/?n=${me.username}&tab=projects&new=project` : null), cta: () => "Создать проект" },
+  { key: "milestones", label: "Закрой этап проекта", pts: 20, cap: 100, hint: "Отметь этап готовым на странице проекта", icon: "✓",
+    href: ({ me, projectId }) => (projectId ? `/project/?id=${projectId}&focus=new-milestone` : me ? `/u/?n=${me.username}&tab=projects&new=project` : null), cta: ({ projectId }) => (projectId ? "К этапам проекта" : "Сначала создай проект") },
+  { key: "goals", label: "Покори цель", pts: 60, cap: 30, hint: "Поставь вершину и дойди до неё", icon: "⚑", href: () => "/workspace/?tab=plans&view=goals&focus=new-goal", cta: () => "Поставить цель" },
+  { key: "tasks", label: "Выполняй задачи", pts: 5, cap: 300, hint: "Задачи в Plans и шаги целей", icon: "☐", href: () => "/workspace/?tab=plans&focus=new-task", cta: () => "Добавить задачу" },
+  { key: "friends", label: "Находи своих людей", pts: 10, cap: 150, hint: "Каждый принятый друг", icon: "◎", href: () => "/community/?tab=people&focus=search", cta: () => "Найти людей" },
+  { key: "subs", label: "Собери подписчиков канала", pts: 3, cap: 1000, hint: "Создай открытый канал и веди его", icon: "◈", href: () => "/messages/?new=channel", cta: () => "Создать канал" },
+  { key: "days", label: "Заходи каждый день", pts: 10, cap: 60, hint: "Активные дни за последние 60 дней", icon: "☀", href: () => "/workspace/?tab=plans&focus=new-task", cta: () => "План на сегодня" },
+  { key: "articles", label: "Напиши статью в Обучение", pts: 100, cap: null, hint: "Для команды платформы", icon: "✎", href: () => "/learn/edit/", cta: () => "Написать статью" },
 ];
 
-function Quests({ mine, username, canWrite, loggedIn }: { mine: Row | null; username: string | null; canWrite: boolean; loggedIn: boolean }) {
+function Quests({ mine, me, canWrite, loggedIn }: { mine: Row | null; me: Profile | null; canWrite: boolean; loggedIn: boolean }) {
   const list = QUESTS.filter((q) => q.key !== "articles" || canWrite);
+  // Для «закрой этап» ведём в последний проект человека
+  const [projectId, setProjectId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!me) return;
+    supabase.from("projects").select("id").eq("user_id", me.id).order("updated_at", { ascending: false }).limit(1).then(({ data }) => setProjectId(data?.[0]?.id ?? null));
+  }, [me]);
+  const ctx: Ctx = { me, projectId };
   return (
     <section className="qx">
       <div className="qx-head">
@@ -173,7 +194,7 @@ function Quests({ mine, username, canWrite, loggedIn }: { mine: Row | null; user
           const n = mine ? (mine[q.key] as number) : 0;
           const done = q.cap !== null && n >= q.cap;
           const pct = q.cap ? Math.min(100, (n / q.cap) * 100) : Math.min(100, n * 10);
-          const href = q.href(username);
+          const href = q.href(ctx);
           return (
             <article key={q.key} className={`qx-card ${done ? "done" : ""}`} style={{ "--i": i } as React.CSSProperties}>
               <div className="qx-top">
@@ -188,7 +209,7 @@ function Quests({ mine, username, canWrite, loggedIn }: { mine: Row | null; user
               </div>
               <div className="qx-foot">
                 <span>{done ? "Максимум" : loggedIn ? `+${Math.min(n, q.cap ?? n) * q.pts} получено` : "Войди, чтобы видеть прогресс"}</span>
-                {href && !done && <Link href={href} className="qx-go">{q.cta}<em aria-hidden="true">→</em></Link>}
+                {href && !done && <Link href={href} className="qx-go">{q.cta(ctx)}<em aria-hidden="true">→</em></Link>}
               </div>
             </article>
           );

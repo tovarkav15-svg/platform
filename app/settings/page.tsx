@@ -31,7 +31,7 @@ export default function SettingsPage() {
   const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
   const [hash, setHash] = useState(false);
   useEffect(() => { setHash(!!window.location.hash); }, []);
-  const s: Section = SECTIONS.find((x) => x.id === sp.get("s"))?.id ?? (hash ? "profile" : "general");
+  const s: Section = SECTIONS.find((x) => x.id === sp.get("s"))?.id ?? (hash || sp.get("focus") ? "profile" : "general");
   const go = (id: Section) => router.replace(id === "general" ? "/settings/" : `/settings/?s=${id}`, { scroll: false });
 
   useEffect(() => {

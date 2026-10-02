@@ -115,6 +115,13 @@ function ProfileView({ user, earnings, friends, state, works, projects, aura, ch
 
   const [workEdit, setWorkEdit] = useState<Work | null | "new">(null);
   const [projectEdit, setProjectEdit] = useState<Project | null | "new">(null);
+  // Переход из задания AURA: сразу открываем форму новой работы или проекта
+  const wantNew = useSearchParams().get("new");
+  useEffect(() => {
+    if (!isMe) return;
+    if (wantNew === "work") setWorkEdit("new");
+    if (wantNew === "project") setProjectEdit("new");
+  }, [wantNew, isMe]);
 
   // Подсветка активной вкладки едет за ней
   const tabsRef = useRef<HTMLElement>(null);

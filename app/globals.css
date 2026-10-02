@@ -4617,3 +4617,6 @@ html[data-chattext="lg"] .msg-text { font-size: 17px; }
   .hm-card.c4 b { font-size: 19px; }
   .hm-ring { width: 260px; height: 260px; margin: -130px; }
 }
+/* Подсветка поля, куда привело задание */
+.jump-hl { position: relative; border-radius: 16px; animation: jumpHl 2.6s var(--ease) both; }
+@keyframes jumpHl { 0%, 70% { box-shadow: 0 0 0 4px rgba(242,180,0,.55), 0 0 0 10px rgba(242,180,0,.18); background-color: rgba(255,244,214,.6); } 100% { box-shadow: 0 0 0 0 transparent; background-color: transparent; } }
