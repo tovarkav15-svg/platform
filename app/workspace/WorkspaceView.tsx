@@ -14,14 +14,16 @@ import { Clients } from "./Clients";
 import { Plans } from "./Plans";
 import { Finance } from "./Finance";
 import { Notes } from "./Notes";
+import { Tools } from "./Tools";
 
-type Tab = "overview" | "clients" | "plans" | "finance" | "notes";
+type Tab = "overview" | "clients" | "plans" | "finance" | "notes" | "tools";
 const TABS: { id: Tab; label: string; sub: string; icon: string }[] = [
   { id: "overview", label: "Обзор", sub: "Главное на сегодня", icon: "◎" },
   { id: "clients", label: "Clients", sub: "Клиенты и сделки", icon: "◧" },
   { id: "plans", label: "Plans / Цели", sub: "Задачи, планы, вершины", icon: "◷" },
   { id: "finance", label: "Finance", sub: "Деньги и оплаты", icon: "◈" },
   { id: "notes", label: "Заметки", sub: "Проекты, идеи, списки", icon: "✎" },
+  { id: "tools", label: "Инструменты", sub: "КП, шаблоны, помодоро", icon: "✦" },
 ];
 
 type Counters = { inWork: number; today: number; profit: number };
@@ -126,6 +128,7 @@ export function WorkspaceView({ me }: { me: Profile | null }) {
               {tab === "plans" && <Plans userId={me.id} />}
               {tab === "finance" && <Finance userId={me.id} />}
               {tab === "notes" && <Notes userId={me.id} />}
+              {tab === "tools" && <Tools name={me.display_name} />}
             </div>
           )}
         </section>
