@@ -105,3 +105,11 @@ export const publicMedia = (path: string | null) =>
   path ? supabase.storage.from("public-media").getPublicUrl(path).data.publicUrl : null;
 
 export const isOwner = (role?: string) => role === "owner" || role === "founder";
+
+/** Бан из базы: «навсегда» приходит как "infinity", обычный — как дата */
+export function banInfo(until: string | null | undefined) {
+  if (!until) return { banned: false, forever: false, date: null as Date | null };
+  if (/infinity/i.test(until)) return { banned: true, forever: true, date: null };
+  const date = new Date(until);
+  return { banned: !isNaN(date.getTime()) && date > new Date(), forever: false, date };
+}

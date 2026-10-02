@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { supabase, isOwner, PROFILE_CARD, type ProfileCard } from "@/lib/supabase";
+import { supabase, isOwner, banInfo, PROFILE_CARD, type ProfileCard } from "@/lib/supabase";
 import { useRequireMe } from "@/lib/session";
 import { profileHref } from "@/lib/links";
 import { TopBar } from "../TopBar";
@@ -130,7 +130,7 @@ function BanButton({ user, onDone }: { user: { id: string; display_name: string;
   const [open, setOpen] = useState(false);
   const [days, setDays] = useState("7");
   const [reason, setReason] = useState("");
-  const banned = !!user.banned_until && new Date(user.banned_until) > new Date();
+  const banned = banInfo(user.banned_until).banned;
   if (banned) return <button type="button" className="chip-btn" onClick={async () => { const { error } = await supabase.rpc("unban_user", { p_user: user.id }); if (error) window.alert(error.message); onDone(); }}>Разбанить</button>;
   return open ? (
     <div className="md-ban">
@@ -222,11 +222,12 @@ function Users({ initial }: { initial: string | null }) {
   useEffect(() => { const t = setTimeout(() => search(q), 300); return () => clearTimeout(t); }, [q, search]);
   const refresh = () => { loadBanned(); search(q); };
   const row = (p: ProfileCard & { banned_until: string | null; ban_reason?: string }) => {
-    const isBanned = !!p.banned_until && new Date(p.banned_until) > new Date();
+    const ban = banInfo(p.banned_until);
+    const isBanned = ban.banned;
     return (
       <li key={p.id} className={`md-user ${isBanned ? "is-banned" : ""}`}>
         <Link href={profileHref(p.username)} className="md-who"><Avatar name={p.display_name} avatar={p.avatar} accent={p.accent} size={36} /><span><b>{p.display_name}</b><small>@{p.username}</small></span></Link>
-        {isBanned && <span className="md-ban-info">{new Date(p.banned_until!).getFullYear() > 9000 ? "навсегда" : `до ${new Date(p.banned_until!).toLocaleDateString("ru-RU", { day: "numeric", month: "short" })}`}{p.ban_reason ? ` · ${p.ban_reason}` : ""}</span>}
+        {isBanned && <span className="md-ban-info">{ban.forever ? "навсегда" : `до ${ban.date!.toLocaleDateString("ru-RU", { day: "numeric", month: "short" })}`}{p.ban_reason ? ` · ${p.ban_reason}` : ""}</span>}
         {isOwner(p.role) ? <span className="md-ban-info">модератор</span> : <><button type="button" className="chip-btn" onClick={() => setPanel(p.username)}>Контент</button><BanButton user={p} onDone={refresh} /></>}
       </li>
     );
