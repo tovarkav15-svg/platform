@@ -59,9 +59,9 @@ export function JobBadge({ job, i, onOpen, onChat, photo: photoOverride, rating 
       <span className="bd-strap" aria-hidden="true" />
       <button type="button" className="bd" onClick={onOpen} aria-label={`${job.service}, ${job.author.display_name}`}>
         <span className="bd-clip" aria-hidden="true" />
-        {job.mod_status && job.mod_status !== "approved" && (
-          <span className={`bd-mod s-${job.mod_status}`}>{job.mod_status === "pending" ? "На проверке" : `Отклонён${job.mod_note ? `: ${job.mod_note}` : ""}`}</span>
-        )}
+        {job.mod_status === "rejected"
+          ? <span className="bd-mod s-rejected">Отклонён модерацией{job.mod_note ? `: ${job.mod_note}` : ""}</span>
+          : !job.active && <span className="bd-mod s-pending">Скрыт — включи «Показывать на бирже»</span>}
         <span className="bd-holo" aria-hidden="true" />
         <span className="bd-top">
           <span className="bd-niche"><i />{n?.title ?? "Услуга"}</span>

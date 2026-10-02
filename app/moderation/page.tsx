@@ -18,7 +18,7 @@ type Banned = ProfileCard & { banned_until: string; ban_reason: string };
 type Log = { id: number; action: string; note: string; created_at: string; m: ProfileCard; u: ProfileCard | null };
 
 const TABS = [
-  { id: "badges", label: "Бейджи", sub: "На проверке" },
+  { id: "badges", label: "Бейджи", sub: "Новые и изменённые" },
   { id: "orders", label: "Заказы", sub: "От заказчиков" },
   { id: "reports", label: "Жалобы", sub: "От пользователей" },
   { id: "users", label: "Пользователи", sub: "Поиск и баны" },
@@ -45,7 +45,13 @@ export default function ModerationPage() {
     ]);
     setCounts({ badges: b.count ?? 0, reports: r.count ?? 0, orders: o.count ?? 0 });
   }, []);
-  useEffect(() => { document.title = "Модерация"; if (allowed) loadCounts(); }, [allowed, loadCounts]);
+  useEffect(() => {
+    document.title = "Модерация";
+    if (!allowed) return;
+    loadCounts();
+    const t = setInterval(loadCounts, 20000); // новые бейджи, заказы и жалобы подтягиваются сами
+    return () => clearInterval(t);
+  }, [allowed, loadCounts]);
 
   if (me && !allowed) return (<><TopBar /><main className="page"><div className="pf-empty"><p className="lead">Эта страница только для модераторов Relic.</p><Link className="btn" href="/">На главную</Link></div></main></>);
 
@@ -97,7 +103,7 @@ function Badges({ onChange }: { onChange: () => void }) {
   return (
     <section className="md-section">
       <div className="seg small">
-        {([["pending", "Ждут проверки"], ["rejected", "Отклонённые"], ["approved", "Одобренные"]] as const).map(([k, l]) => (
+        {([["pending", "Новые · уже видны"], ["rejected", "Отклонённые"], ["approved", "Проверенные"]] as const).map(([k, l]) => (
           <button key={k} type="button" className="seg-item" aria-current={filter === k ? "page" : undefined} onClick={() => setFilter(k)}>{l}</button>
         ))}
       </div>
@@ -119,8 +125,8 @@ function Badges({ onChange }: { onChange: () => void }) {
                 </dl>
                 <textarea className="bl-in" rows={2} maxLength={300} placeholder="Причина или подсказка автору (увидит при отказе)" value={notes[j.id] ?? (j as JobRow & { mod_note?: string }).mod_note ?? ""} onChange={(e) => setNotes((n) => ({ ...n, [j.id]: e.target.value }))} />
                 <div className="md-actions">
-                  {filter !== "approved" && <button type="button" className="btn md-ok" onClick={() => decide(j, true)}>✓ Одобрить</button>}
-                  {filter !== "rejected" && <button type="button" className="btn danger" onClick={() => decide(j, false)}>✕ Отклонить</button>}
+                  {filter !== "approved" && <button type="button" className="btn md-ok" onClick={() => decide(j, true)}>✓ Всё ок</button>}
+                  {filter !== "rejected" && <button type="button" className="btn danger" onClick={() => decide(j, false)}>✕ Скрыть</button>}
                 </div>
               </div>
             </article>
@@ -291,7 +297,7 @@ function OrdersQueue({ onChange }: { onChange: () => void }) {
   return (
     <section className="md-section">
       <div className="seg small">
-        {([["pending", "Ждут проверки"], ["rejected", "Отклонённые"], ["approved", "Одобренные"]] as const).map(([k, l]) => (
+        {([["pending", "Новые · уже видны"], ["rejected", "Отклонённые"], ["approved", "Проверенные"]] as const).map(([k, l]) => (
           <button key={k} type="button" className="seg-item" aria-current={filter === k ? "page" : undefined} onClick={() => setFilter(k)}>{l}</button>
         ))}
       </div>
@@ -306,8 +312,8 @@ function OrdersQueue({ onChange }: { onChange: () => void }) {
               {o.client && <Link href={profileHref(o.client.username)} className="md-who"><Avatar name={o.client.display_name} avatar={o.client.avatar} accent={o.client.accent} size={30} /><span><b>{o.client.display_name}</b><small>@{o.client.username} · заказчик</small></span></Link>}
               <textarea className="bl-in" rows={2} maxLength={300} placeholder="Причина или подсказка автору" value={notes[o.id] ?? o.mod_note ?? ""} onChange={(e) => setNotes((n) => ({ ...n, [o.id]: e.target.value }))} />
               <div className="md-actions">
-                {filter !== "approved" && <button type="button" className="btn md-ok" onClick={() => decide(o, true)}>✓ Одобрить</button>}
-                {filter !== "rejected" && <button type="button" className="btn danger" onClick={() => decide(o, false)}>✕ Отклонить</button>}
+                {filter !== "approved" && <button type="button" className="btn md-ok" onClick={() => decide(o, true)}>✓ Всё ок</button>}
+                {filter !== "rejected" && <button type="button" className="btn danger" onClick={() => decide(o, false)}>✕ Скрыть</button>}
                 <button type="button" className="chip-btn md-danger" onClick={async () => { if (window.confirm("Удалить заказ?")) { await supabase.rpc("mod_delete", { p_kind: "order", p_id: o.id }); load(); onChange(); } }}>Удалить</button>
               </div>
             </li>

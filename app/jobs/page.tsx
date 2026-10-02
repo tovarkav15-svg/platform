@@ -145,12 +145,12 @@ export default function JobsPage() {
         </>)}
       </main>
       <OrderEditor open={orderEdit !== null} order={orderEdit === "new" ? null : orderEdit} onClose={() => setOrderEdit(null)}
-        onSaved={() => { setOrderEdit(null); setOrdersKey((k) => k + 1); setNotice("Заказ отправлен на проверку. После одобрения его увидят специалисты."); setTimeout(() => setNotice(""), 6000); if (side !== "my-orders") router.replace("/jobs/?tab=my-orders", { scroll: false }); }} />
+        onSaved={() => { setOrderEdit(null); setOrdersKey((k) => k + 1); setNotice("Заказ опубликован — специалисты уже видят его."); setTimeout(() => setNotice(""), 6000); if (side !== "my-orders") router.replace("/jobs/?tab=my-orders", { scroll: false }); }} />
 
       <JobDetail job={open} onClose={() => setOpen(null)} canWrite={!!me && open?.user_id !== me.id}
         onEdit={open && open.user_id === me?.id ? () => { setEdit(open); setOpen(null); } : undefined}
         onWrite={async () => { if (open) router.push(chatHref(await openDm(open.user_id))); }} />
-      {me && <JobEditor open={edit !== null} onClose={() => setEdit(null)} userId={me.id} job={edit === "new" ? null : edit} onSaved={() => { load(); setNotice("Бейдж отправлен на проверку. Как только модераторы одобрят, его увидят все."); setTimeout(() => setNotice(""), 6000); }}
+      {me && <JobEditor open={edit !== null} onClose={() => setEdit(null)} userId={me.id} job={edit === "new" ? null : edit} onSaved={() => { load(); setNotice("Бейдж на бирже — его уже видят все."); setTimeout(() => setNotice(""), 6000); }}
         author={{ id: me.id, username: me.username, display_name: me.display_name, avatar: me.avatar, accent: me.accent, niches: me.niches, role: me.role, headline: me.headline, open_to_work: me.open_to_work, city: me.city, skills: me.skills }} />}
     </>
   );

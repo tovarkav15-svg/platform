@@ -45,7 +45,7 @@ export function OrdersBoard({ me, onNew }: { me: Profile | null; onNew: () => vo
   const [open, setOpen] = useState<Order | null>(null);
 
   const load = useCallback(async () => {
-    const { data } = await supabase.from("orders").select(`*, client:profiles!orders_client_id_fkey(${PROFILE_CARD})`).eq("mod_status", "approved").eq("status", "open").order("created_at", { ascending: false }).limit(150);
+    const { data } = await supabase.from("orders").select(`*, client:profiles!orders_client_id_fkey(${PROFILE_CARD})`).neq("mod_status", "rejected").eq("status", "open").order("created_at", { ascending: false }).limit(150);
     const list = (data as unknown as Order[]) ?? [];
     setRows(list);
     if (list.length) {
@@ -226,9 +226,9 @@ export function OrderEditor({ open, order, onClose, onSaved }: { open: boolean; 
           <label className="field"><span>до, ₽</span><input className="bl-in mono" inputMode="numeric" value={f.to} onChange={(e) => setF({ ...f, to: e.target.value.replace(/\D/g, "") })} placeholder="20000" /></label>
           <label className="field"><span>Срок</span><input className="bl-in" type="date" value={f.deadline} onChange={(e) => setF({ ...f, deadline: e.target.value })} /></label>
         </div>
-        <p className="or-hint">Заказ появится на Бирже после проверки модераторами — обычно это быстро.</p>
+        <p className="or-hint">Заказ сразу появится на Бирже. Модераторы проверяют заказы и убирают нарушающие правила.</p>
         {err && <span className="hint bad">{err}</span>}
-        <div className="save-row"><button type="button" className="btn" disabled={busy} onClick={save}>{busy ? "Сохраняю…" : order ? "Сохранить" : "Отправить на проверку"}</button></div>
+        <div className="save-row"><button type="button" className="btn" disabled={busy} onClick={save}>{busy ? "Сохраняю…" : order ? "Сохранить" : "Опубликовать"}</button></div>
       </div>
     </Modal>
   );
@@ -279,7 +279,7 @@ export function MyOrders({ me, onNew, onEdit }: { me: Profile; onNew: () => void
               <div><b>{o.title}</b><small>{nicheOf(o.niche)?.title} · {budgetText(o)}{o.deadline ? ` · до ${new Date(o.deadline).toLocaleDateString("ru-RU", { day: "numeric", month: "short" })}` : ""}</small></div>
               <span className={`or-status s-${o.status}`}>{STATUS[o.status]}</span>
             </header>
-            {o.mod_status !== "approved" && <div className={`or-mod m-${o.mod_status}`}>{MOD[o.mod_status]}{o.mod_note ? `: ${o.mod_note}` : ""}{o.mod_status === "rejected" ? " — исправь и сохрани заново" : " — после одобрения заказ увидят все"}</div>}
+            {o.mod_status === "rejected" && <div className="or-mod m-rejected">{MOD.rejected}{o.mod_note ? `: ${o.mod_note}` : ""} — исправь и сохрани заново</div>}
             <div className="or-own-actions">
               {o.status === "open" && <button type="button" className="chip-btn" onClick={() => onEdit(o)}>Изменить</button>}
               {o.status !== "closed" && <button type="button" className="chip-btn" onClick={() => close(o)}>{o.status === "in_work" ? "Работа сдана, закрыть" : "Закрыть"}</button>}
@@ -287,7 +287,7 @@ export function MyOrders({ me, onNew, onEdit }: { me: Profile; onNew: () => void
             </div>
             <div className="or-resps">
               <span className="label">Отклики · {list.length}</span>
-              {list.length === 0 && <p className="or-hint">{o.mod_status === "approved" ? "Пока никто не откликнулся. Обычно первые отклики приходят в течение дня." : "Отклики начнут приходить после проверки."}</p>}
+              {list.length === 0 && <p className="or-hint">{o.mod_status !== "rejected" ? "Пока никто не откликнулся. Обычно первые отклики приходят в течение дня." : "Заказ скрыт модерацией."}</p>}
               {list.map((r) => {
                 const rt = ratings[r.freelancer_id];
                 return (
