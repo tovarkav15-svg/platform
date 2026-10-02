@@ -3053,3 +3053,21 @@ button.chat-item { width: 100%; border: 0; background: none; font: inherit; text
 
 /* AURA: минимальный заголовок — просто слово, без эффектов */
 .au-title.au-min { display: block; width: auto; padding: 0; margin: 4px 0 10px; font-size: clamp(56px, 9vw, 112px); line-height: .9; font-weight: 600; font-stretch: 100%; font-variation-settings: normal; letter-spacing: -.045em; color: var(--ink); animation: fadeUp .6s var(--ease) both; }
+
+/* AURA: заголовок крупнее со спокойным переливом; пьедестал и строки мягче */
+.au-title.au-min { font-size: clamp(72px, 12vw, 148px); background: linear-gradient(100deg, #141414 0%, #141414 30%, #6E5BE0 45%, #D9578E 55%, #141414 70%, #141414 100%); background-size: 300% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent; animation: fadeUp .6s var(--ease) both, auSheen 9s ease-in-out infinite; }
+@keyframes auSheen { 0% { background-position: 100% 0; } 50% { background-position: 0% 0; } 100% { background-position: 100% 0; } }
+@media (prefers-reduced-motion: reduce) { .au-title.au-min { animation: none; } }
+
+.pod-step { background: linear-gradient(180deg, #fff 0%, color-mix(in srgb, var(--m1) 70%, #fff) 45%, color-mix(in srgb, var(--m2) 40%, #fff) 100%);
+  border: 1px solid color-mix(in srgb, var(--m2) 30%, transparent); box-shadow: inset 0 1px 0 #fff, 0 20px 36px -28px var(--m3); }
+.pod-step b { color: color-mix(in srgb, var(--m3) 80%, #141414); }
+.pod-shine { background: linear-gradient(90deg, transparent, rgba(255,255,255,.6), transparent); }
+.pod .pod-ava { background: conic-gradient(color-mix(in srgb, var(--m2) 60%, #fff), #fff, color-mix(in srgb, var(--m3) 50%, #fff), #fff, color-mix(in srgb, var(--m2) 60%, #fff)); box-shadow: 0 10px 26px -14px var(--m2); }
+
+.au-list li { background: linear-gradient(90deg, color-mix(in srgb, var(--t) 5%, #fff), #fff 40%); border-left: 3px solid color-mix(in srgb, var(--t) 45%, #fff); }
+.au-list li.top-1 { background: linear-gradient(90deg, #FFF9E6, #fff 45%); border-left-color: #F3D27A; }
+.au-list li.top-2 { background: linear-gradient(90deg, #F6F7FA, #fff 45%); border-left-color: #CDD2DC; }
+.au-list li.top-3 { background: linear-gradient(90deg, #FFF3EA, #fff 45%); border-left-color: #EDB892; }
+.au-tier { background: color-mix(in srgb, var(--t) 8%, #fff); }
