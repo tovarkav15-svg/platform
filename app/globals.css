@@ -4235,3 +4235,75 @@ html[data-chattext="lg"] .msg-text { font-size: 17px; }
 .bd-rating { display: inline-flex; align-items: baseline; gap: 6px; font-size: 13px; margin-top: -2px; }
 .bd-rating b { color: #C98A00; }
 .bd-rating small { color: var(--mute); font-size: 11.5px; }
+
+/* ===== Регистрация и вход в стиле Relic ===== */
+.auth { position: relative; isolation: isolate; background: var(--paper); }
+.rg-bg { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
+.rg-bg i { position: absolute; width: 48vw; height: 48vw; border-radius: 50%; filter: blur(90px); opacity: .55; }
+.rg-bg i:nth-child(1) { background: #E6DCFF; left: -14vw; top: -14vw; animation: blob1 22s ease-in-out infinite; }
+.rg-bg i:nth-child(2) { background: #FFE0EC; right: -12vw; top: 30vh; animation: blob2 26s ease-in-out infinite; }
+.rg-bg i:nth-child(3) { background: #D9F3E8; left: 20vw; bottom: -26vw; animation: blob3 30s ease-in-out infinite; }
+.rg-side { position: relative; display: flex; flex-direction: column; justify-content: space-between; gap: 24px; margin: 16px; padding: clamp(22px, 3vw, 40px); border-radius: 32px; overflow: hidden;
+  background: radial-gradient(80% 60% at 20% 10%, rgba(255,255,255,.95), rgba(255,255,255,.55)); border: 1px solid rgba(20,20,20,.06); box-shadow: 0 40px 80px -60px rgba(0,0,0,.35); backdrop-filter: blur(10px); }
+.rg-side::before { content: ""; position: absolute; inset: 0; z-index: -1; background-image: radial-gradient(rgba(20,20,20,.08) 1px, transparent 1.2px); background-size: 22px 22px; -webkit-mask: radial-gradient(70% 60% at 50% 50%, #000, transparent); mask: radial-gradient(70% 60% at 50% 50%, #000, transparent); }
+.rg-stage { position: relative; display: grid; place-items: center; min-height: 420px; perspective: 1000px; }
+.rg-orbit { position: absolute; width: 420px; height: 420px; max-width: 100%; border-radius: 50%; border: 1px dashed rgba(20,20,20,.1); animation: spin 40s linear infinite; }
+.rg-orbit i { position: absolute; left: 50%; top: 50%; width: 14px; height: 14px; margin: -7px; border-radius: 5px; background: var(--c); box-shadow: 0 0 0 4px #fff, 0 6px 14px -4px var(--c);
+  transform: rotate(calc(var(--i) * 40deg)) translateY(-210px) rotate(calc(var(--i) * -40deg)); }
+.rg-card { position: relative; z-index: 1; width: 300px; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 0 0 20px; border-radius: 28px; overflow: hidden; background: #fff; text-align: center;
+  box-shadow: 0 50px 90px -50px rgba(40,20,90,.45), 0 0 0 1px rgba(20,20,20,.05); animation: rgFloat 7s ease-in-out infinite; transform-style: preserve-3d; }
+@keyframes rgFloat { 0%, 100% { transform: rotateX(6deg) rotateY(-10deg) translateY(0); } 50% { transform: rotateX(-3deg) rotateY(8deg) translateY(-10px); } }
+.rg-banner { position: relative; width: 100%; height: 96px; overflow: hidden; background: linear-gradient(120deg, #CFC2FF, #FFC8DC 55%, #FFE7B3); }
+.rg-banner i { position: absolute; width: 140px; height: 140px; border-radius: 50%; filter: blur(30px); opacity: .8; }
+.rg-banner i:nth-child(1) { background: #A99BFF; left: -30px; top: -50px; animation: blob1 9s ease-in-out infinite; }
+.rg-banner i:nth-child(2) { background: #FF9EC2; right: -20px; top: -30px; animation: blob2 11s ease-in-out infinite; }
+.rg-banner i:nth-child(3) { background: #9FE6CB; left: 40%; top: 20px; animation: blob3 10s ease-in-out infinite; }
+.rg-ava { width: 86px; height: 86px; margin-top: -43px; border-radius: 50%; padding: 4px; background: conic-gradient(#7B61FF, #FF4F8B, #E8B100, #1FA67A, #7B61FF); animation: spin 8s linear infinite; }
+.rg-ava span { display: grid; place-items: center; width: 100%; height: 100%; border-radius: 50%; background: linear-gradient(135deg, #2a2a2a, #141414); color: #fff; font-size: 34px; font-weight: 700; box-shadow: 0 0 0 4px #fff; animation: spin 8s linear infinite reverse; }
+.rg-name { margin-top: 8px; font-size: 22px; letter-spacing: -.03em; max-width: 90%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rg-handle { font-family: var(--serif); font-style: italic; font-size: 17px; color: var(--graphite); }
+.rg-tags { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; padding: 8px 16px 2px; min-height: 34px; }
+.rg-tags span { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 99px; background: var(--paper); font-size: 12px; font-weight: 700; animation: pop .4s var(--spring) both; }
+.rg-tags span i { width: 7px; height: 7px; border-radius: 50%; background: var(--c); }
+.rg-tags span.ghost { background: none; border: 1px dashed rgba(20,20,20,.15); color: var(--mute); font-weight: 600; }
+.rg-gift { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; padding: 7px 12px; border-radius: 99px; background: #FFF6DA; color: #7a5200; font-size: 12px; font-weight: 700; }
+.rg-caption { margin: 0; font-size: 13px; color: var(--mute); text-align: center; }
+.rg-form { gap: 16px; }
+.rg-steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.rg-steps i { height: 4px; border-radius: 2px; background: rgba(20,20,20,.08); position: relative; overflow: hidden; }
+.rg-steps i::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, #7B61FF, #FF4F8B); transform: scaleX(0); transform-origin: left; transition: transform .6s var(--spring); }
+.rg-steps i.on::after { transform: scaleX(1); }
+.rg-title { margin: 0; font-size: clamp(32px, 4vw, 46px); font-weight: 600; letter-spacing: -.045em; line-height: 1; color: var(--ink); }
+.rg-sub { margin: -4px 0 0; color: var(--graphite); font-size: 15px; }
+.rg-form .input { border-radius: 14px; background: rgba(255,255,255,.9); transition: border-color .25s, box-shadow .25s, transform .25s var(--spring); }
+.rg-form .input:focus-within { box-shadow: 0 0 0 4px rgba(123,97,255,.12); border-color: #7B61FF; transform: translateY(-1px); }
+.rg-strength { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-top: 2px; }
+.rg-strength i { height: 3px; border-radius: 2px; background: rgba(20,20,20,.08); transition: background .3s; }
+.rg-strength.s1 i:nth-child(-n+1) { background: #E5484D; }
+.rg-strength.s2 i:nth-child(-n+2) { background: #E8B100; }
+.rg-strength.s3 i:nth-child(-n+3) { background: #2F7BFF; }
+.rg-strength.s4 i { background: #1FA67A; }
+.rg-form .chip span { border-radius: 12px; transition: transform .25s var(--spring), background .25s, border-color .25s; }
+.rg-form .chip input:checked + span { transform: translateY(-2px); box-shadow: 0 8px 16px -10px var(--c); }
+.rg-form > .btn { height: 52px; border-radius: 16px; font-size: 16px; background: linear-gradient(100deg, #141414, #2b2440 50%, #141414); background-size: 200% 100%; transition: background-position .6s var(--ease), transform .3s var(--spring); }
+.rg-form > .btn:hover:not(:disabled) { background-position: 100% 0; transform: translateY(-2px); }
+@media (max-width: 860px) {
+  .rg-side { margin: 10px 10px 0; }
+  .rg-stage { min-height: 300px; }
+  .rg-orbit { width: 300px; height: 300px; }
+  .rg-orbit i { transform: rotate(calc(var(--i) * 40deg)) translateY(-150px) rotate(calc(var(--i) * -40deg)); }
+  .rg-card { width: 250px; }
+}
+
+/* Вход — в том же светлом стиле */
+.auth-side { margin: 16px; border-radius: 32px; color: var(--ink); border: 1px solid rgba(20,20,20,.06);
+  background: radial-gradient(70% 60% at 85% 100%, #FFE0EC, transparent 70%), radial-gradient(70% 60% at 10% 0%, #E6DCFF, transparent 70%), #fff; }
+.auth-side::after { background: radial-gradient(circle, rgba(123,97,255,.22), transparent 65%); }
+.auth-side .h-xl { color: var(--ink); font-weight: 600; letter-spacing: -.045em; text-transform: none; }
+.auth-side .h-xl .it { color: #7B61FF; }
+.auth-side p { color: var(--graphite); }
+.side-dots span { background: rgba(255,255,255,.9); color: var(--graphite); border: 1px solid rgba(20,20,20,.06); }
+@media (max-width: 860px) { .auth-side { margin: 10px 10px 0; } }
+.auth-side .caps, .auth-form h1.caps { text-transform: none; }
+.auth-form h1 { font-weight: 600; letter-spacing: -.045em; color: var(--ink); }
+.auth-form h1 .it { color: #7B61FF; }

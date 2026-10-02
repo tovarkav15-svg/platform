@@ -4,7 +4,6 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useSession } from "@/lib/session";
 import { profileHref } from "@/lib/links";
-import { AuthSide } from "../AuthSide";
 import { RegisterForm } from "./RegisterForm";
 
 export default function RegisterPage() {
@@ -13,14 +12,9 @@ export default function RegisterPage() {
   useEffect(() => { if (me) router.replace(profileHref(me.username)); }, [me, router]);
 
   return (
-    <div className="auth">
-      <AuthSide
-        title={<>Расти <span className="it">каждый</span> день</>}
-        text="Обучение по нишам, свои люди, цели и марафоны. Всё в одном месте."
-      />
-      <main className="auth-main">
-        <RegisterForm />
-      </main>
+    <div className="auth rg">
+      <div className="rg-bg" aria-hidden="true"><i /><i /><i /></div>
+      <RegisterForm />
     </div>
   );
 }
