@@ -42,10 +42,7 @@ export default function AuraPage() {
         <header className="au-hero">
           <div>
             <span className="label">Лидерборд</span>
-            <h1 className="au-title" aria-label="AURA">
-              <span className="au-halo" aria-hidden="true"><i /><i /><i /></span>
-              {"AURA".split("").map((c, i) => <span key={i} className="au-letter" style={{ "--i": i } as React.CSSProperties}>{c}</span>)}
-            </h1>
+            <h1 className="au-title au-min">AURA</h1>
             <p className="lead">В CS это MMR, в Доте PTS, у нас AURA. Её нельзя купить: она растёт, когда ты делаешь. Работы, проекты, покорённые цели, друзья, подписчики и активные дни.</p>
           </div>
           {mine && <MyCard r={mine} total={rows?.length ?? 0} />}

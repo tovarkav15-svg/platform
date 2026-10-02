@@ -3050,3 +3050,6 @@ button.chat-item { width: 100%; border: 0; background: none; font: inherit; text
 .quest.done { background: color-mix(in srgb, var(--q) 8%, #fff); }
 .quest.done .quest-earned { color: color-mix(in srgb, var(--q) 70%, #141414); }
 @media (prefers-reduced-motion: reduce) { .au-halo i, .pod-shine, .au-title .au-letter { animation: none; } }
+
+/* AURA: минимальный заголовок — просто слово, без эффектов */
+.au-title.au-min { display: block; width: auto; padding: 0; margin: 4px 0 10px; font-size: clamp(56px, 9vw, 112px); line-height: .9; font-weight: 600; font-stretch: 100%; font-variation-settings: normal; letter-spacing: -.045em; color: var(--ink); animation: fadeUp .6s var(--ease) both; }
