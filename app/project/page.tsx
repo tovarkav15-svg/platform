@@ -58,7 +58,7 @@ export default function ProjectPage() {
 
   if (project === null) return (<><TopBar /><main className="page"><div className="skeleton profile-skeleton" /></main></>);
   if (project === "missing") return (
-    <><TopBar /><main className="page"><div className="empty"><b className="caps">Проект не найден</b><Link className="btn" href="/discover/">В Discover</Link></div></main></>
+    <><TopBar /><main className="page"><div className="empty"><b className="caps">Проект не найден</b><Link className="btn" href="/community/">В ленту</Link></div></main></>
   );
 
   const n = NICHES.find((x) => x.id === project.niche);

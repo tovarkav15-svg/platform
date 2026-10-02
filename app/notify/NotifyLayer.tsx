@@ -66,6 +66,8 @@ export function NotifyLayer() {
         const prefs = readPrefs();
         window.dispatchEvent(new Event("chats:refresh"));
         if (!prefs.popups) return;
+        const h = new Date().getHours();
+        if (prefs.quietNight && (h >= 23 || h < 8)) return; // ночью не беспокоим
         const note: Note = { id: m.id, chat, sender: sender ?? "Кто-то", text: m.text, kind: m.kind, at: Date.now() };
         setNotes((n) => [note, ...n].slice(0, 3));
         if (prefs.sound) ping();
@@ -86,7 +88,7 @@ export function NotifyLayer() {
             <b>{chatTitle(n.chat)}</b>
             <small>
               {n.chat.kind !== "dm" && <em>{n.sender}: </em>}
-              {n.kind === "sticker" ? "Стикер" : n.kind === "text" ? n.text : LABEL[n.kind] ?? "Сообщение"}
+              {!readPrefs().notifyText ? "Новое сообщение" : n.kind === "sticker" ? "Стикер" : n.kind === "text" ? n.text : LABEL[n.kind] ?? "Сообщение"}
             </small>
           </span>
           {n.kind === "sticker" && <span className="note-sticker"><StickerArt code={n.text} size={40} /></span>}

@@ -93,7 +93,10 @@ export default function JobsPage() {
           <div className="bx-board" key={`${niche}-${sort}`}>
             {view.map((r, i) => (
               <JobBadge key={r.id} job={r} i={i} onOpen={() => setOpen(r)}
-                onChat={r.user_id === me?.id ? undefined : async () => { if (!me) return router.push("/login"); router.push(chatHref(await openDm(r.user_id))); }} />
+                onChat={r.user_id === me?.id ? undefined : async () => {
+                  if (!me) return router.push("/login");
+                  try { router.push(chatHref(await openDm(r.user_id))); } catch { window.alert("Этот человек принимает сообщения только от друзей. Открой бейдж и отправь заявку в друзья через профиль."); }
+                }} />
             ))}
           </div>
         ) : (

@@ -1,98 +1,69 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
-import { supabase, PROFILE_CARD, type Project, type ProfileCard } from "@/lib/supabase";
-import { useRequireMe } from "@/lib/session";
-import { useFriendLinks } from "@/lib/useFriendLinks";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { usePrefs } from "@/lib/prefs";
 import { TopBar } from "../TopBar";
-import { Empty, PeopleList } from "../PeopleList";
-import { ProjectCard } from "../Cards";
-import { Orbit, SpaceHero } from "../SpaceHero";
+import { Feed } from "./Feed";
+import { People } from "./People";
+import { Circle } from "./Circle";
 
-type Tab = "friends" | "requests" | "teams";
-type Team = { project: Project; author: ProfileCard };
+const TABS = [
+  { id: "feed", label: "Лента", sub: "Проекты и работы" },
+  { id: "people", label: "Люди", sub: "Найти своих" },
+  { id: "circle", label: "Мой круг", sub: "Друзья, заявки, команды" },
+] as const;
+type Tab = (typeof TABS)[number]["id"];
 
+// Community: лента, люди и твой круг в одной вкладке
 export default function CommunityPage() {
-  const { me } = useRequireMe();
   const sp = useSearchParams();
-  const tab: Tab = sp.get("tab") === "requests" || sp.get("tab") === "teams" ? (sp.get("tab") as Tab) : "friends";
-  const fl = useFriendLinks(me?.id);
-  const [teams, setTeams] = useState<Team[] | null>(null);
+  const router = useRouter();
+  const prefs = usePrefs();
+  const raw = sp.get("tab");
+  // Старые ссылки ?tab=requests / ?tab=teams ведут в «Мой круг»
+  const legacy = raw === "requests" || raw === "teams" || raw === "friends";
+  const tab: Tab = legacy ? "circle" : TABS.find((t) => t.id === raw)?.id ?? prefs.communityTab;
 
-  useEffect(() => { document.title = "Community"; }, []);
-
-  // Команды: мои проекты и проекты, куда меня добавили
   useEffect(() => {
-    if (!me) return;
-    (async () => {
-      const { data: memberOf } = await supabase.from("project_members").select("project_id").eq("user_id", me.id);
-      const ids = (memberOf ?? []).map((m) => m.project_id);
-      const { data } = await supabase
-        .from("projects")
-        .select(`*, author:profiles!projects_user_id_fkey(${PROFILE_CARD})`)
-        .or(`user_id.eq.${me.id}${ids.length ? `,id.in.(${ids.join(",")})` : ""}`)
-        .order("updated_at", { ascending: false });
-      setTeams(((data as unknown as (Project & { author: ProfileCard })[]) ?? []).map(({ author, ...project }) => ({ project, author })));
-    })();
-  }, [me]);
+    if (legacy) router.replace(`/community/?tab=circle${raw !== "friends" ? `&c=${raw}` : ""}`, { scroll: false });
+  }, [legacy, raw, router]);
+  useEffect(() => { document.title = `Community · ${TABS.find((t) => t.id === tab)?.label}`; }, [tab]);
 
-  const tabs: { id: Tab; label: string; count?: number; hot?: boolean }[] = [
-    { id: "friends", label: "Друзья", count: fl.friends.length },
-    { id: "requests", label: "Заявки", count: fl.incoming.length, hot: true },
-    { id: "teams", label: "Команды", count: teams?.length },
-  ];
+  const bar = useRef<HTMLElement>(null);
+  const [pill, setPill] = useState<{ left: number; width: number } | null>(null);
+  useLayoutEffect(() => {
+    const place = () => {
+      const el = bar.current?.querySelector<HTMLElement>(`[data-t="${tab}"]`);
+      if (el) setPill({ left: el.offsetLeft, width: el.offsetWidth });
+    };
+    place();
+    window.addEventListener("resize", place);
+    return () => window.removeEventListener("resize", place);
+  }, [tab]);
 
   return (
     <>
       <TopBar />
-      <main className="page">
-        <SpaceHero
-          space="community" eyebrow="Community · твой круг"
-          title={<>С кем ты <span className="it">строишь</span></>}
-          text={fl.loaded ? `${fl.friends.length} в кругу · ${teams?.length ?? 0} команд · ${fl.incoming.length} новых заявок` : undefined}
-          art={me ? <Orbit me={me} friends={fl.friends} /> : undefined}
-        />
-
-        <nav className="seg" aria-label="Вкладки">
-          {tabs.map((t) => (
-            <Link key={t.id} href={`/community/${t.id === "friends" ? "" : `?tab=${t.id}`}`} replace className="seg-item" aria-current={tab === t.id ? "page" : undefined}>
-              {t.label}
-              {!!t.count && <span className={t.hot ? "count-badge" : "count-plain"}>{t.count}</span>}
-            </Link>
-          ))}
-        </nav>
-
-        {!fl.loaded ? <div className="skeleton list-skeleton" /> : (
-          <>
-            {tab === "friends" && (fl.friends.length
-              ? <PeopleList people={fl.friends} stateOf={fl.stateOf} onChange={fl.reload} />
-              : <Empty title="Пока никого" text="Найди людей по нише или навыку и добавь в друзья." cta={{ href: "/people/", label: "Найти людей" }} />)}
-
-            {tab === "requests" && (
-              <>
-                {fl.incoming.length
-                  ? <PeopleList people={fl.incoming} stateOf={fl.stateOf} onChange={fl.reload} />
-                  : <Empty title="Новых заявок нет" text="Когда кто-то захочет дружить, заявка появится здесь." />}
-                {fl.outgoing.length > 0 && (
-                  <>
-                    <div className="label" style={{ marginTop: 8 }}>Ты отправил</div>
-                    <PeopleList people={fl.outgoing} stateOf={fl.stateOf} onChange={fl.reload} />
-                  </>
-                )}
-              </>
-            )}
-
-            {tab === "teams" && (teams === null ? <div className="skeleton list-skeleton" /> : teams.length ? (
-              <div className="pgrid">
-                {teams.map((t, i) => <ProjectCard key={t.project.id} project={t.project} author={t.project.user_id === me?.id ? undefined : t.author} i={i} />)}
-              </div>
-            ) : (
-              <Empty title="Команд пока нет" text="Создай проект в профиле и добавь в него друзей, или попроси автора проекта добавить тебя." cta={me ? { href: `/u/?n=${me.username}&tab=projects`, label: "К моим проектам" } : undefined} />
+      <div className="dv-bg" aria-hidden="true"><i /><i /><i /></div>
+      <main className="page wide cm">
+        <header className="cm-head">
+          <h1 className="cm-title">Community</h1>
+          <nav className="cm-tabs" ref={bar} aria-label="Разделы Community">
+            {pill && <span className="cm-pill" style={{ transform: `translateX(${pill.left}px)`, width: pill.width }} aria-hidden="true" />}
+            {TABS.map((t) => (
+              <Link key={t.id} data-t={t.id} href={`/community/?tab=${t.id}`} replace scroll={false} className="cm-tab" aria-current={tab === t.id ? "page" : undefined}>
+                <b>{t.label}</b><small>{t.sub}</small>
+              </Link>
             ))}
-          </>
-        )}
+          </nav>
+        </header>
+        <div key={tab} className="cm-body">
+          {tab === "feed" && <Feed />}
+          {tab === "people" && <People />}
+          {tab === "circle" && <Circle />}
+        </div>
       </main>
     </>
   );

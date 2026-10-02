@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { supabase, type Earnings } from "@/lib/supabase";
 import { signOut, useRequireMe } from "@/lib/session";
 import { profileHref } from "@/lib/links";
-import { savePrefs, usePrefs, type Prefs } from "@/lib/prefs";
+import { DEFAULT_PREFS, savePrefs, usePrefs, type Prefs } from "@/lib/prefs";
 import { TopBar } from "../TopBar";
 import { ProfileForm } from "./ProfileForm";
 import { PasswordForm } from "./PasswordForm";
@@ -15,7 +15,8 @@ const SECTIONS = [
   { id: "general", label: "Внешний вид", sub: "Тема, текст, анимации", icon: "◐" },
   { id: "notify", label: "Уведомления", sub: "Всплывашки и звук", icon: "◉" },
   { id: "chats", label: "Чаты", sub: "Как отправлять сообщения", icon: "✉" },
-  { id: "privacy", label: "Приватность", sub: "Статус в сети, доход", icon: "◍" },
+  { id: "privacy", label: "Приватность", sub: "Кто пишет, кто находит", icon: "◍" },
+  { id: "community", label: "Community", sub: "Что открывать первым", icon: "◎" },
   { id: "profile", label: "Профиль", sub: "Имя, фото, баннер, ниши", icon: "☺" },
   { id: "security", label: "Безопасность", sub: "Пароль", icon: "⚿" },
   { id: "account", label: "Аккаунт", sub: "Выход", icon: "⏻" },
@@ -67,6 +68,7 @@ export default function SettingsPage() {
             {s === "notify" && <Notify />}
             {s === "chats" && <Chats />}
             {s === "privacy" && <Privacy earnings={earnings} onEarnings={setEarnings} />}
+            {s === "community" && <CommunityPrefs />}
             {s === "profile" && (me && earnings ? (
               <ProfileForm
                 key={me.id} userId={me.id} role={me.role} projects={projects} onSaved={refreshMe}
@@ -104,7 +106,8 @@ function usePref<K extends keyof Prefs>(k: K): [Prefs[K], (v: Prefs[K]) => void]
   return [p[k], (v) => savePrefs({ ...p, [k]: v })];
 }
 
-function Toggle({ k, label, sub }: { k: "popups" | "sound" | "showOnline" | "enterSend"; label: string; sub?: string }) {
+type BoolKey = { [K in keyof Prefs]: Prefs[K] extends boolean ? K : never }[keyof Prefs];
+function Toggle({ k, label, sub }: { k: BoolKey; label: string; sub?: string }) {
   const [v, set] = usePref(k);
   return (
     <label className="st-row">
@@ -151,6 +154,13 @@ function General() {
           <button type="button" aria-pressed={motion === "reduce"} onClick={() => setMotion("reduce")}>Минимум<small>без движения</small></button>
         </div>
       </Group>
+      <Group title="Детали">
+        <Toggle k="dots" label="Декоративный фон" sub="Цветные пятна и точки за страницами" />
+        <Toggle k="contrast" label="Повышенный контраст" sub="Текст и линии чётче" />
+      </Group>
+      <Group title="Сброс" hint="Вернёт тему, текст, уведомления и чаты к исходным">
+        <button type="button" className="btn ghost st-danger" onClick={() => savePrefs(DEFAULT_PREFS)}>Сбросить настройки устройства</button>
+      </Group>
     </>
   );
 }
@@ -160,16 +170,65 @@ function Notify() {
     <Group title="Новые сообщения" hint="В режиме фокуса уведомлений нет в любом случае">
       <Toggle k="popups" label="Всплывающие уведомления" sub="Карточка в углу экрана, когда тебе пишут" />
       <Toggle k="sound" label="Звук" sub="Тихий «тук» при новом сообщении" />
+      <Toggle k="notifyText" label="Показывать текст сообщения" sub="Выключи, если рядом кто-то смотрит в экран" />
+      <Toggle k="quietNight" label="Не беспокоить ночью" sub="С 23:00 до 8:00 без всплывашек и звука" />
     </Group>
   );
 }
 
+const CHAT_BGS: { id: Prefs["chatBg"]; label: string }[] = [
+  { id: "plain", label: "Обычный" }, { id: "dots", label: "Точки" }, { id: "grad", label: "Градиент" }, { id: "paper", label: "Бумага" },
+];
+
 function Chats() {
+  const [bg, setBg] = usePref("chatBg");
+  const [size, setSize] = usePref("chatText");
   return (
-    <Group title="Отправка сообщений">
-      <Toggle k="enterSend" label="Отправлять по Enter" sub="Выключи, чтобы Enter переносил строку, а отправка была по Ctrl/⌘ + Enter" />
+    <>
+      <Group title="Отправка сообщений">
+        <Toggle k="enterSend" label="Отправлять по Enter" sub="Выключи, чтобы Enter переносил строку, а отправка была по Ctrl/⌘ + Enter" />
+      </Group>
+      <Group title="Фон переписки">
+        <div className="st-chatbgs">
+          {CHAT_BGS.map((b) => <button key={b.id} type="button" className={`st-chatbg bg-${b.id}`} aria-pressed={bg === b.id} onClick={() => setBg(b.id)}><span aria-hidden="true" />{b.label}</button>)}
+        </div>
+      </Group>
+      <Group title="Размер текста сообщений">
+        <div className="st-seg">
+          {([["sm", "Мельче"], ["md", "Обычный"], ["lg", "Крупнее"]] as const).map(([id, l]) => (
+            <button key={id} type="button" aria-pressed={size === id} onClick={() => setSize(id)} className={`st-seg-${id}`}>Аа<small>{l}</small></button>
+          ))}
+        </div>
+      </Group>
+    </>
+  );
+}
+
+function CommunityPrefs() {
+  const [tab, setTab] = usePref("communityTab");
+  return (
+    <Group title="Открывать Community на вкладке">
+      <div className="st-radio">
+        {([["feed", "Лента", "Проекты и работы людей"], ["people", "Люди", "Поиск по нишам и навыкам"], ["circle", "Мой круг", "Друзья, заявки и команды"]] as const).map(([id, l, sub]) => (
+          <label key={id}><input type="radio" name="cmtab" checked={tab === id} onChange={() => setTab(id)} /><span><b>{l}</b><small>{sub}</small></span></label>
+        ))}
+      </div>
     </Group>
   );
+}
+
+/** Настройка, которая хранится в профиле (видна базе), а не на устройстве */
+function useProfileFlag() {
+  const { me, refreshMe } = useRequireMe();
+  const [busy, setBusy] = useState(false);
+  const set = async (patch: { dm_policy?: "all" | "friends"; discoverable?: boolean }) => {
+    if (!me) return;
+    setBusy(true);
+    await supabase.from("profiles").update(patch).eq("id", me.id);
+    await refreshMe();
+    setBusy(false);
+  };
+  return { me, busy, set };
 }
 
 function Privacy({ earnings, onEarnings }: { earnings: Earnings | null; onEarnings: (e: Earnings) => void }) {
@@ -179,6 +238,7 @@ function Privacy({ earnings, onEarnings }: { earnings: Earnings | null; onEarnin
       <Group title="Статус в сети">
         <Toggle k="showOnline" label="Показывать, что я в сети" sub="Если выключить, для других ты будешь «спит»" />
       </Group>
+      <ProfilePrivacy />
       {earnings && (
         <Group title="Доход в профиле">
           <label className="st-row">
@@ -194,6 +254,29 @@ function Privacy({ earnings, onEarnings }: { earnings: Earnings | null; onEarnin
           </label>
         </Group>
       )}
+    </>
+  );
+}
+
+function ProfilePrivacy() {
+  const { me, busy, set } = useProfileFlag();
+  if (!me) return null;
+  const policy = me.dm_policy ?? "all";
+  return (
+    <>
+      <Group title="Кто может написать мне первым" hint="Уже начатые переписки не закроются. Команда поддержки может написать всегда">
+        <div className="st-radio">
+          <label><input type="radio" name="dm" checked={policy === "all"} disabled={busy} onChange={() => set({ dm_policy: "all" })} /><span><b>Все</b><small>Любой человек на платформе</small></span></label>
+          <label><input type="radio" name="dm" checked={policy === "friends"} disabled={busy} onChange={() => set({ dm_policy: "friends" })} /><span><b>Только друзья</b><small>Остальные сначала отправят заявку в друзья</small></span></label>
+        </div>
+      </Group>
+      <Group title="Поиск">
+        <label className="st-row">
+          <span><b>Показывать меня в «Людях»</b><small>Если выключить, тебя не будет в поиске и подборках. Профиль по ссылке откроется как раньше</small></span>
+          <input type="checkbox" checked={me.discoverable !== false} disabled={busy} onChange={() => set({ discoverable: me.discoverable === false })} />
+          <span className="pp-switch" aria-hidden="true" />
+        </label>
+      </Group>
     </>
   );
 }

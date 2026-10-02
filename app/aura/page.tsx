@@ -154,7 +154,7 @@ const QUESTS: { key: keyof Row; label: string; pts: number; cap: number | null; 
   { key: "milestones", label: "Закрой этап проекта", pts: 20, cap: 100, hint: "Отметь этап готовым на странице проекта", icon: "✓", href: (u) => (u ? `/u/?n=${u}&tab=projects` : null), cta: "К проектам" },
   { key: "goals", label: "Покори цель", pts: 60, cap: 30, hint: "Поставь вершину и дойди до неё", icon: "⚑", href: () => "/workspace/?tab=plans&view=goals", cta: "К целям" },
   { key: "tasks", label: "Выполняй задачи", pts: 5, cap: 300, hint: "Задачи в Plans и шаги целей", icon: "☐", href: () => "/workspace/?tab=plans", cta: "К задачам" },
-  { key: "friends", label: "Находи своих людей", pts: 10, cap: 150, hint: "Каждый принятый друг", icon: "◎", href: () => "/people/", cta: "К людям" },
+  { key: "friends", label: "Находи своих людей", pts: 10, cap: 150, hint: "Каждый принятый друг", icon: "◎", href: () => "/community/?tab=people", cta: "К людям" },
   { key: "subs", label: "Собери подписчиков канала", pts: 3, cap: 1000, hint: "Создай открытый канал и веди его", icon: "◈", href: () => "/messages/", cta: "К каналам" },
   { key: "days", label: "Заходи каждый день", pts: 10, cap: 60, hint: "Активные дни за последние 60 дней", icon: "☀", href: () => "/workspace/", cta: "В Workspace" },
   { key: "articles", label: "Напиши статью в Обучение", pts: 100, cap: null, hint: "Для команды платформы", icon: "✎", href: () => "/learn/", cta: "К Обучению" },

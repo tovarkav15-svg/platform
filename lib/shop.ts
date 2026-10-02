@@ -2,12 +2,14 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
 
-export type ShopKind = "banner" | "ring" | "name" | "title" | "bg";
+export type ShopKind = "banner" | "ring" | "name" | "title" | "bg" | "overlay" | "scene";
 export type ShopItem = { id: string; kind: ShopKind; name: string; price: number; min_tier: number; sort: number };
-export type Deco = { user_id: string; banner: string | null; ring: string | null; name_fx: string | null; title: string | null; page_bg: string | null };
+export type Deco = { user_id: string; banner: string | null; ring: string | null; name_fx: string | null; title: string | null; page_bg: string | null; overlay: string | null; scene: string | null };
 export type Wallet = { aura: number; peak: number; tier: number; earned: number; spent: number; balance: number };
 
 export const KINDS: { id: ShopKind; label: string; sub: string; slot: keyof Omit<Deco, "user_id"> }[] = [
+  { id: "scene", label: "Живые сцены", sub: "Анимированная картина вместо баннера", slot: "scene" },
+  { id: "overlay", label: "Анимация баннера", sub: "Лепестки, снег, туман поверх твоего фото", slot: "overlay" },
   { id: "banner", label: "Нижние баннеры", sub: "Живой фон под шапкой профиля", slot: "banner" },
   { id: "ring", label: "Ауры аватара", sub: "Анимация вокруг аватарки", slot: "ring" },
   { id: "name", label: "Эффекты имени", sub: "Как переливается твоё имя", slot: "name_fx" },
@@ -73,6 +75,21 @@ export const ABOUT: Record<string, string> = {
   "t-marathon": "Доводит до конца",
   "t-boss": "Строит своё дело",
   "p-dots": "Мягкие точки плывут по странице",
+  "o-mist": "Туман стелется по низу баннера",
+  "o-sakura": "Розовые лепестки летят поверх твоего фото",
+  "o-snow": "Снег падает на баннер",
+  "o-rain": "Ливень и чуть темнее небо",
+  "o-stars": "Звёздочки вспыхивают на фото",
+  "o-leaves": "Осенние листья кружатся",
+  "o-embers": "Искры поднимаются, как от костра",
+  "o-rays": "Тёплые лучи света сквозь кадр",
+  "o-fireflies": "Огоньки летают над фото",
+  "o-birds": "Стая птиц пролетает через баннер",
+  "s-winter": "Сосны, снег и холодная луна",
+  "s-field": "Пшеница качается, солнце садится, летят птицы",
+  "s-fjord": "Корабль с полосатым парусом качается среди гор",
+  "s-sea": "Драккар идёт по волнам на закате",
+  "s-aurora": "Северное сияние над горами и озером",
   "p-pastel": "Пастельные пятна дышат на фоне",
   "p-grid": "Тонкая сетка, как в чертеже",
   "p-waves": "Медленные волны внизу страницы",
@@ -116,7 +133,7 @@ export function useDecos(ids: string[]) {
   const key = ids.slice().sort().join(",");
   useEffect(() => {
     if (!key) return;
-    supabase.from("profile_deco").select("user_id, banner, ring, name_fx, title, page_bg").in("user_id", key.split(","))
+    supabase.from("profile_deco").select("user_id, banner, ring, name_fx, title, page_bg, overlay, scene").in("user_id", key.split(","))
       .then(({ data }) => setMap(Object.fromEntries(((data as Deco[]) ?? []).map((d) => [d.user_id, d]))));
   }, [key]);
   return map;

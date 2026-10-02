@@ -40,11 +40,9 @@ export function NavTabs({ me }: { me: Profile }) {
     { href: profileHref(me.username), label: "Профиль", active: isMyProfile },
     { href: "/workspace/", label: "Workspace", active: path.startsWith("/workspace") },
     { href: "/learn/", label: "Обучение", active: path.startsWith("/learn") },
-    { href: "/people/", label: "People", active: path.startsWith("/people") },
-    { href: "/community/", label: "Community", active: path.startsWith("/community"), count: requests },
+    { href: "/community/", label: "Community", active: ["/community", "/people", "/discover", "/project"].some((p) => path.startsWith(p)), count: requests },
     { href: "/jobs/", label: "Биржа", active: path.startsWith("/jobs") },
     { href: "/aura/", label: "AURA", active: path.startsWith("/aura") },
-    { href: "/discover/", label: "Discover", active: path.startsWith("/discover") || path.startsWith("/project") },
     { href: "/messages/", label: "Чаты", active: path.startsWith("/messages"), count: unread },
     { href: "/settings/", label: "Settings", active: path.startsWith("/settings") },
   ];

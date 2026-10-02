@@ -9,9 +9,16 @@ export type Prefs = {
   sound: boolean;
   showOnline: boolean;
   enterSend: boolean;
+  contrast: boolean;
+  dots: boolean;
+  quietNight: boolean;
+  notifyText: boolean;
+  chatBg: "plain" | "dots" | "grad" | "paper";
+  chatText: "sm" | "md" | "lg";
+  communityTab: "feed" | "people" | "circle";
 };
 
-export const DEFAULT_PREFS: Prefs = { theme: "light", text: "md", motion: "full", popups: true, sound: true, showOnline: true, enterSend: true };
+export const DEFAULT_PREFS: Prefs = { theme: "light", text: "md", motion: "full", popups: true, sound: true, showOnline: true, enterSend: true, contrast: false, dots: true, quietNight: false, notifyText: true, chatBg: "plain", chatText: "md", communityTab: "feed" };
 const KEY = "prefs:v1";
 
 export function readPrefs(): Prefs {
@@ -29,6 +36,10 @@ export function applyPrefs(p: Prefs) {
   el.dataset.theme = dark ? "dark" : p.theme === "warm" ? "warm" : "light";
   el.dataset.text = p.text;
   el.dataset.motion = p.motion;
+  el.dataset.contrast = p.contrast ? "hi" : "";
+  el.dataset.dots = p.dots ? "" : "off";
+  el.dataset.chatbg = p.chatBg;
+  el.dataset.chattext = p.chatText;
 }
 
 export function savePrefs(p: Prefs) {

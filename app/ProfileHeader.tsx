@@ -2,6 +2,7 @@ import { accentColor } from "@/lib/style";
 import { isOwner } from "@/lib/supabase";
 import { PresenceDot, PresenceLabel } from "./Avatar";
 import { BannerFx, RingFx, TitleChip } from "./Deco";
+import { OverlayFx, SceneFx } from "./Scenes";
 import type { Deco } from "@/lib/shop";
 
 type Props = {
@@ -36,10 +37,12 @@ export function RoleBadge({ role, small, support }: { role?: string; small?: boo
   );
 }
 
-export function Banner({ image, preset = "aurora", className = "" }: { image?: string | null; preset?: string; className?: string }) {
+export function Banner({ image, preset = "aurora", className = "", scene, overlay }: { image?: string | null; preset?: string; className?: string; scene?: string | null; overlay?: string | null }) {
   return (
     <div className={`ph2-banner bn-${image ? "image" : preset} ${className}`}>
       {image ? <img src={image} alt="" /> : <><i className="bn-l1" /><i className="bn-l2" /><i className="bn-l3" /></>}
+      <SceneFx id={scene} />
+      <OverlayFx id={overlay} />
     </div>
   );
 }
@@ -49,7 +52,7 @@ export function ProfileHeader({ displayName, username, headline, bio, status, op
   return (
     <section className={`ph2 ${compact ? "compact" : ""} ${deco?.banner ? "has-fx" : ""}`} style={{ "--c": accentColor(accent) } as React.CSSProperties}>
       <BannerFx id={deco?.banner} />
-      <Banner image={banner} preset={bannerPreset} />
+      <Banner image={banner} preset={bannerPreset} scene={deco?.scene} overlay={deco?.overlay} />
       <div className="ph2-body">
         <div className={`ph2-avatar ring-${ring} ${openToWork ? "otw-on" : ""}`}>
           <span className="ph2-ring" />

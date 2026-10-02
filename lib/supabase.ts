@@ -34,6 +34,8 @@ export type Profile = {
   emoji: string;
   page_bg: "aurora" | "plain" | "dots";
   is_support: boolean;
+  dm_policy?: "all" | "friends";
+  discoverable?: boolean;
   looking_for: string;
 };
 

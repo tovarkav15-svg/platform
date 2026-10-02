@@ -57,7 +57,7 @@ export function MessengerShell({ chats, activeId, meId, children, onChanged }: P
             <button type="button" className="btn sm" onClick={() => setMenu((v) => !v)} aria-expanded={menu}>+ Новый</button>
             {menu && (
               <div className="new-menu-pop" onMouseLeave={() => setMenu(false)}>
-                <Link href="/people/" onClick={() => setMenu(false)}><i>✉</i><span><b>Личный чат</b><small>Найди человека</small></span></Link>
+                <Link href="/community/?tab=people" onClick={() => setMenu(false)}><i>✉</i><span><b>Личный чат</b><small>Найди человека</small></span></Link>
                 <button type="button" onClick={() => { setCreate("group"); setMenu(false); }}><i>◍</i><span><b>Группа</b><small>Пишут все участники</small></span></button>
                 <button type="button" onClick={() => { setCreate("channel"); setMenu(false); }}><i>◈</i><span><b>Канал</b><small>Пишут админы, читают подписчики</small></span></button>
                 <button type="button" onClick={() => { setBrowse(true); setMenu(false); }}><i>⌕</i><span><b>Найти канал</b><small>Открытые каналы платформы</small></span></button>
@@ -108,7 +108,7 @@ export function MessengerShell({ chats, activeId, meId, children, onChanged }: P
         {chats && !list.length && (
           <div className="chat-list-empty">
             <p className="lead">Чатов пока нет. Найди людей, создай группу или канал.</p>
-            <Link className="btn sm" href="/people/">Найти людей</Link>
+            <Link className="btn sm" href="/community/?tab=people">Найти людей</Link>
           </div>
         )}
         {chats && list.length > 0 && !shown.length && <p className="chat-list-empty lead">Ничего не нашлось.</p>}

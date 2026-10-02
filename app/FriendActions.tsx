@@ -12,6 +12,7 @@ type Props = { userId: string; state: FriendState; compact?: boolean; onChange?:
 export function FriendActions({ userId, state, compact, onChange }: Props) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
+  const [err, setErr] = useState("");
   if (state === "self") return null;
   const cls = compact ? "sm" : "";
 
@@ -25,7 +26,11 @@ export function FriendActions({ userId, state, compact, onChange }: Props) {
 
   const write = async () => {
     setBusy("write");
-    try { router.push(chatHref(await openDm(userId))); } catch { setBusy(null); }
+    try { router.push(chatHref(await openDm(userId))); } catch (e) {
+      setBusy(null);
+      const m = (e as { message?: string })?.message ?? "";
+      setErr(m.includes("только от друзей") ? "Пишет только друзьям — сначала добавь в друзья" : "Не получилось открыть чат");
+    }
   };
 
   const btn = (key: string, label: string, pendingLabel: string, onClick: () => void, ghost = false) => (
@@ -46,6 +51,7 @@ export function FriendActions({ userId, state, compact, onChange }: Props) {
       )}
       {state === "friends" && !compact && btn("remove", "Удалить из друзей", "Удаляю…", run("remove", () => friendsApi.remove(userId)), true)}
       {btn("write", "Написать", "Открываю…", write, state !== "friends")}
+      {err && <small className="fa-err">{err}</small>}
     </div>
   );
 }

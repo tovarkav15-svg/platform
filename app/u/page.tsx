@@ -57,7 +57,7 @@ export default function ProfilePage() {
       supabase.rpc("my_aura", { p_user: user.id }),
       supabase.rpc("user_channels", { p_user: user.id }),
       supabase.from("jobs").select("id, service, niche, avg_check").eq("user_id", user.id).eq("active", true).order("updated_at", { ascending: false }),
-      supabase.from("profile_deco").select("user_id, banner, ring, name_fx, title, page_bg").eq("user_id", user.id).maybeSingle(),
+      supabase.from("profile_deco").select("user_id, banner, ring, name_fx, title, page_bg, overlay, scene").eq("user_id", user.id).maybeSingle(),
     ]);
     setData({
       user: user as Profile, earnings: earnings as Earnings | null, friends: friends ?? 0, state,

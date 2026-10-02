@@ -8,11 +8,12 @@ import { TIERS } from "@/lib/aura";
 import { ABOUT, CHEST_PRICE, KINDS, TIER_COINS, loadCatalog, rarity, type Deco, type ShopItem, type ShopKind, type Wallet } from "@/lib/shop";
 import { ProfileHeader } from "../ProfileHeader";
 import { BannerFx, PageFx, RingFx, TitleChip } from "../Deco";
+import { OverlayFx, SceneFx } from "../Scenes";
 import { CountUp } from "../CountUp";
 
 type Slot = keyof Omit<Deco, "user_id">;
-const SHORT: Record<ShopKind, string> = { banner: "баннеры", ring: "ауры", name: "имена", title: "титулы", bg: "фоны" };
-const EMPTY: Omit<Deco, "user_id"> = { banner: null, ring: null, name_fx: null, title: null, page_bg: null };
+const SHORT: Record<ShopKind, string> = { banner: "баннеры", ring: "ауры", name: "имена", title: "титулы", bg: "фоны", overlay: "анимации", scene: "сцены" };
+const EMPTY: Omit<Deco, "user_id"> = { banner: null, ring: null, name_fx: null, title: null, page_bg: null, overlay: null, scene: null };
 
 export function Shop() {
   const { ready, me } = useSession();
@@ -20,7 +21,7 @@ export function Shop() {
   const [wallet, setWallet] = useState<Wallet | null>(null);
   const [owned, setOwned] = useState<Set<string>>(new Set());
   const [deco, setDeco] = useState(EMPTY);
-  const [kind, setKind] = useState<ShopKind>("banner");
+  const [kind, setKind] = useState<ShopKind>("scene");
   const [preview, setPreview] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [toast, setToast] = useState<{ text: string; bad?: boolean } | null>(null);
@@ -35,7 +36,7 @@ export function Shop() {
     const [{ data: w }, { data: own }, { data: d }] = await Promise.all([
       supabase.rpc("my_wallet"),
       supabase.from("user_items").select("item_id"),
-      supabase.from("profile_deco").select("banner, ring, name_fx, title, page_bg").eq("user_id", me.id).maybeSingle(),
+      supabase.from("profile_deco").select("banner, ring, name_fx, title, page_bg, overlay, scene").eq("user_id", me.id).maybeSingle(),
     ]);
     setWallet(((w as Wallet[]) ?? [])[0] ?? null);
     setOwned(new Set(((own as { item_id: string }[]) ?? []).map((o) => o.item_id)));
@@ -194,7 +195,7 @@ export function Shop() {
               return (
                 <article key={it.id} className={`sh-item rar-${r.id} ${preview === it.id ? "on" : ""} ${worn ? "worn" : ""}`} style={{ "--i": i } as React.CSSProperties}
                   onClick={() => setPreview(preview === it.id ? null : it.id)}>
-                  <div className="sh-item-art"><ItemArt it={it} name={name} avatar={me?.avatar ?? null} /></div>
+                  <div className="sh-item-art"><ItemArt it={it} name={name} avatar={me?.avatar ?? null} banner={publicMedia(me?.banner_path ?? null)} /></div>
                   <div className="sh-item-info">
                     <span className="sh-rar">{r.label}</span>
                     <b>{it.name}</b>
@@ -236,7 +237,9 @@ export function Shop() {
   );
 }
 
-function ItemArt({ it, name, avatar }: { it: ShopItem; name: string; avatar: string | null }) {
+function ItemArt({ it, name, avatar, banner }: { it: ShopItem; name: string; avatar: string | null; banner?: string | null }) {
+  if (it.kind === "scene") return <div className="sh-art-scene"><SceneFx id={it.id} /></div>;
+  if (it.kind === "overlay") return <div className="sh-art-over">{banner && <img src={banner} alt="" />}<OverlayFx id={it.id} /></div>;
   if (it.kind === "banner") return <div className="sh-art-banner"><BannerFx id={it.id} /><em /><em /><em /></div>;
   if (it.kind === "ring") return (
     <span className="fx-host sh-art-ava"><RingFx id={it.id} /><span className="ava" style={{ width: 64, height: 64, fontSize: 24 }}>{avatar ? <img src={avatar} alt="" /> : name.slice(0, 1)}</span></span>
