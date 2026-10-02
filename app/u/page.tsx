@@ -23,6 +23,7 @@ import { ChatAvatar } from "../messages/ChatAvatar";
 import { tierOf } from "@/lib/aura";
 import { chatHref } from "@/lib/links";
 import { useRouter } from "next/navigation";
+import type { Deco } from "@/lib/shop";
 
 const fmt = (n: number) => Math.round(n).toLocaleString("ru-RU").replace(/ /g, " ");
 const plural = (n: number, one: string, few: string, many: string) => {
@@ -34,7 +35,7 @@ const plural = (n: number, one: string, few: string, many: string) => {
 
 type Channel = { chat_id: string; title: string; username: string | null; avatar: string | null; accent: string; emoji: string; description: string; member_count: number };
 type JobLite = { id: string; service: string; niche: string; avg_check: number };
-type Data = { user: Profile; earnings: Earnings | null; friends: number; state: FriendState | null; works: Work[]; projects: Project[]; aura: number; channels: Channel[]; jobs: JobLite[] };
+type Data = { user: Profile; earnings: Earnings | null; friends: number; state: FriendState | null; works: Work[]; projects: Project[]; aura: number; channels: Channel[]; jobs: JobLite[]; deco: Deco | null };
 
 export default function ProfilePage() {
   const sp = useSearchParams();
@@ -46,7 +47,7 @@ export default function ProfilePage() {
     const { data: user } = await supabase.from("profiles").select("*").eq("username", username).maybeSingle();
     if (!user) return setData("missing");
     // Доход отдаёт сама база: владельцу всегда, остальным только если он открыт
-    const [{ data: earnings }, { data: friends }, state, { data: works }, { data: projects }, { data: aura }, { data: channels }, { data: jobs }] = await Promise.all([
+    const [{ data: earnings }, { data: friends }, state, { data: works }, { data: projects }, { data: aura }, { data: channels }, { data: jobs }, { data: deco }] = await Promise.all([
       supabase.from("earnings").select("*").eq("user_id", user.id).maybeSingle(),
       supabase.rpc("friend_count", { p_user: user.id }),
       me ? friendState(me.id, user.id) : Promise.resolve(null),
@@ -55,11 +56,12 @@ export default function ProfilePage() {
       supabase.rpc("my_aura", { p_user: user.id }),
       supabase.rpc("user_channels", { p_user: user.id }),
       supabase.from("jobs").select("id, service, niche, avg_check").eq("user_id", user.id).eq("active", true).order("updated_at", { ascending: false }),
+      supabase.from("profile_deco").select("user_id, banner, ring, name_fx, title").eq("user_id", user.id).maybeSingle(),
     ]);
     setData({
       user: user as Profile, earnings: earnings as Earnings | null, friends: friends ?? 0, state,
       works: (works as Work[]) ?? [], projects: (projects as Project[]) ?? [],
-      aura: (aura as number) ?? 0, channels: (channels as Channel[]) ?? [], jobs: (jobs as JobLite[]) ?? [],
+      aura: (aura as number) ?? 0, channels: (channels as Channel[]) ?? [], jobs: (jobs as JobLite[]) ?? [], deco: deco as Deco | null,
     });
   }, [username, me]);
 
@@ -96,7 +98,7 @@ export default function ProfilePage() {
   );
 }
 
-function ProfileView({ user, earnings, friends, state, works, projects, aura, channels, jobs, tab, isMe, loggedIn, reload }: Data & { tab: string | null; isMe: boolean; loggedIn: boolean; reload: () => void }) {
+function ProfileView({ user, earnings, friends, state, works, projects, aura, channels, jobs, deco, tab, isMe, loggedIn, reload }: Data & { tab: string | null; isMe: boolean; loggedIn: boolean; reload: () => void }) {
   const niches = parseNiches(user.niches);
   const skills = user.skills.split(",").map((s) => s.trim()).filter(Boolean);
   const since = new Date(user.created_at);
@@ -135,7 +137,7 @@ function ProfileView({ user, earnings, friends, state, works, projects, aura, ch
       <ProfileHeader
         displayName={user.display_name} username={user.username} headline={user.headline} bio={user.bio}
         status={user.status} openToWork={user.open_to_work} accent={user.accent} avatar={user.avatar} role={user.role}
-        banner={publicMedia(user.banner_path)} bannerPreset={user.banner_preset} userId={user.id} ring={user.avatar_ring} nameStyle={user.name_style} emoji={user.emoji} support={user.is_support}
+        banner={publicMedia(user.banner_path)} bannerPreset={user.banner_preset} userId={user.id} ring={user.avatar_ring} nameStyle={user.name_style} emoji={user.emoji} support={user.is_support} deco={deco}
         actions={isMe
           ? <Link className="btn" href="/settings/">Редактировать</Link>
           : loggedIn && state
@@ -151,104 +153,106 @@ function ProfileView({ user, earnings, friends, state, works, projects, aura, ch
         }
       />
 
-      <div className="pf-stats">
-        {stats.map((s, i) => {
-          const inner = <><b className="mono"><CountUp value={s.n} /></b><span>{s.label}</span></>;
-          return s.href
-            ? <Link key={i} href={s.href} replace={s.href.startsWith("/u/")} scroll={false} className="pf-stat" style={{ "--i": i } as React.CSSProperties}>{inner}</Link>
-            : <div key={i} className="pf-stat" style={{ "--i": i } as React.CSSProperties}>{inner}</div>;
-        })}
-      </div>
+      <section className="pv-band">
+        <AuraCard aura={aura} isMe={isMe} />
+        <div className="pv-stats">
+          {stats.map((s, i) => {
+            const inner = <><b className="mono"><CountUp value={s.n} /></b><span>{s.label}</span></>;
+            return s.href
+              ? <Link key={i} href={s.href} replace={s.href.startsWith("/u/")} scroll={false} className="pv-stat" style={{ "--i": i } as React.CSSProperties}>{inner}<em aria-hidden="true">→</em></Link>
+              : <div key={i} className="pv-stat" style={{ "--i": i } as React.CSSProperties}>{inner}</div>;
+          })}
+        </div>
+      </section>
 
-      <div className="pf-layout">
-        <aside className="pf-side">
-          <AuraCard aura={aura} isMe={isMe} />
-
-          {user.is_support && (
-            <section className="pf-card pf-support">
-              <header><span className="pf-dot" /><b>Команда поддержки</b></header>
-              <p className="pf-muted">{isMe ? "Ты в команде поддержки: обращения приходят тебе во вкладку «Обращения» в чатах." : `${user.display_name} из команды платформы. Если что-то не работает или есть идея, напиши в поддержку, ответим.`}</p>
-              {!isMe && <SupportButton />}
-            </section>
+      <div className="pv-bricks">
+        <section className="pf-card pf-about">
+          <header><span className="pf-dot" /><b>О себе</b>{isMe && <Link href="/settings/#about" className="link-btn">Изменить</Link>}</header>
+          {user.about ? (
+            <div className="pf-about-text">{user.about.split(/\n{2,}/).map((p, i) => <p key={i}>{p}</p>)}</div>
+          ) : (
+            <p className="pf-muted">{isMe ? "Расскажи подробнее, чем занимаешься, с кем работал и что ищешь. Это видят все, кто открыл профиль." : "Пока ничего не рассказал о себе."}</p>
           )}
-
-          {(user.looking_for || isMe) && (
-            <section className="pf-card pf-looking">
-              <header><span className="pf-dot" /><b>Ищу</b>{isMe && <Link href="/settings/#looking" className="link-btn">Изменить</Link>}</header>
-              {user.looking_for ? <p className="pf-looking-text">{user.looking_for}</p> : <p className="pf-muted">Напиши, кого или что ищешь: команду, клиентов, наставника. Это видят все.</p>}
-              {projects.filter((p) => p.looking_for).slice(0, 3).map((p) => (
-                <Link key={p.id} href={`/project/?id=${p.id}`} className="pf-looking-proj"><b>{p.name}</b><span>{p.looking_for}</span></Link>
-              ))}
-            </section>
+          {niches.length > 0 && (
+            <div className="pf-tags">
+              {niches.map((n) => <span key={n.id} className="tag" style={{ "--c": n.color } as React.CSSProperties}>{n.title}</span>)}
+            </div>
           )}
-
-          {channels.length > 0 && (
-            <section className="pf-card pf-channels">
-              <header><span className="pf-dot" /><b>Каналы</b></header>
-              <ul>
-                {channels.map((c) => (
-                  <li key={c.chat_id}>
-                    <Link href={c.username ? `/c/?u=${c.username}` : "/messages/"} className="pf-channel">
-                      <ChatAvatar size={40} c={{ kind: "channel", avatar: c.avatar, accent: c.accent, emoji: c.emoji, title: c.title, other_id: null, other_name: null, other_avatar: null, other_accent: null }} />
-                      <span><b>{c.title}</b><small>{c.username ? `@${c.username} · ` : ""}{c.member_count} подписчиков</small></span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </section>
+          {skills.length > 0 && (
+            <div className="pf-skills">
+              <span className="label">Навыки</span>
+              <div className="tags">{skills.map((s, i) => <span key={s} className="skill" style={{ "--i": i } as React.CSSProperties}>{s}</span>)}</div>
+            </div>
           )}
+        </section>
 
-          {jobs.length > 0 && (
-            <section className="pf-card pf-jobs">
-              <header><span className="pf-dot" /><b>На бирже</b><Link href="/jobs/" className="link-btn">Биржа →</Link></header>
-              {jobs.map((j) => (
-                <div key={j.id} className="pf-job"><b>{j.service}</b><span className="mono">{j.avg_check ? `${Math.round(j.avg_check).toLocaleString("ru-RU").replace(/\u00a0/g, " ")} ₽` : "по договорённости"}</span></div>
-              ))}
-            </section>
-          )}
-          <section className="pf-card pf-about">
-            <header><span className="pf-dot" /><b>О себе</b>{isMe && <Link href="/settings/#about" className="link-btn">Изменить</Link>}</header>
-            {user.about ? (
-              <div className="pf-about-text">{user.about.split(/\n{2,}/).map((p, i) => <p key={i}>{p}</p>)}</div>
-            ) : (
-              <p className="pf-muted">{isMe ? "Расскажи подробнее, чем занимаешься, с кем работал и что ищешь. Это видят все, кто открыл профиль." : "Пока ничего не рассказал о себе."}</p>
-            )}
-            {niches.length > 0 && (
-              <div className="pf-tags">
-                {niches.map((n) => <span key={n.id} className="tag" style={{ "--c": n.color } as React.CSSProperties}>{n.title}</span>)}
-              </div>
-            )}
-            {skills.length > 0 && (
-              <div className="pf-skills">
-                <span className="label">Навыки</span>
-                <div className="tags">{skills.map((s, i) => <span key={s} className="skill" style={{ "--i": i } as React.CSSProperties}>{s}</span>)}</div>
-              </div>
+        {(user.looking_for || isMe) && (
+          <section className="pf-card pf-looking">
+            <header><span className="pf-dot" /><b>Ищу</b>{isMe && <Link href="/settings/#looking" className="link-btn">Изменить</Link>}</header>
+            {user.looking_for ? <p className="pf-looking-text">{user.looking_for}</p> : <p className="pf-muted">Напиши, кого или что ищешь: команду, клиентов, наставника. Это видят все.</p>}
+            {projects.filter((p) => p.looking_for).slice(0, 3).map((p) => (
+              <Link key={p.id} href={`/project/?id=${p.id}`} className="pf-looking-proj"><b>{p.name}</b><span>{p.looking_for}</span></Link>
+            ))}
+          </section>
+        )}
+
+        {pinned && (
+          <section className="pf-card pf-pinned">
+            <header><span className="pf-dot" /><b>Сейчас строю</b></header>
+            <ProjectCard project={pinned} pinned />
+          </section>
+        )}
+
+        {jobs.length > 0 && (
+          <section className="pf-card pf-jobs">
+            <header><span className="pf-dot" /><b>На бирже</b><Link href="/jobs/" className="link-btn">Биржа →</Link></header>
+            {jobs.map((j) => (
+              <div key={j.id} className="pf-job"><b>{j.service}</b><span className="mono">{j.avg_check ? `${Math.round(j.avg_check).toLocaleString("ru-RU").replace(/\u00a0/g, " ")} ₽` : "по договорённости"}</span></div>
+            ))}
+          </section>
+        )}
+
+        {earnings && (
+          <section className="card money">
+            <div className="label">{isMe ? "Сколько ты заработал" : "Заработал в этом месяце"}</div>
+            <div className="sum"><CountUp value={earnings.amount} format={fmt} ms={900} /><span className="it">₽</span></div>
+            {isMe && <div className="private"><i></i>{earnings.is_public ? "Видят все" : "Видишь только ты"}</div>}
+            {earnings.goal > 0 && (
+              <>
+                <div className="bar"><b style={{ width: `${pct}%` }} /></div>
+                <div className="money-row"><span>Цель: {fmt(earnings.goal)} ₽</span><span>{pct}%</span></div>
+              </>
             )}
           </section>
+        )}
 
-          {earnings && (
-            <section className="card money">
-              <div className="label">{isMe ? "Сколько ты заработал" : "Заработал в этом месяце"}</div>
-              <div className="sum"><CountUp value={earnings.amount} format={fmt} ms={900} /><span className="it">₽</span></div>
-              {isMe && <div className="private"><i></i>{earnings.is_public ? "Видят все" : "Видишь только ты"}</div>}
-              {earnings.goal > 0 && (
-                <>
-                  <div className="bar"><b style={{ width: `${pct}%` }} /></div>
-                  <div className="money-row"><span>Цель: {fmt(earnings.goal)} ₽</span><span>{pct}%</span></div>
-                </>
-              )}
-            </section>
-          )}
+        {channels.length > 0 && (
+          <section className="pf-card pf-channels">
+            <header><span className="pf-dot" /><b>Каналы</b></header>
+            <ul>
+              {channels.map((c) => (
+                <li key={c.chat_id}>
+                  <Link href={c.username ? `/c/?u=${c.username}` : "/messages/"} className="pf-channel">
+                    <ChatAvatar size={40} c={{ kind: "channel", avatar: c.avatar, accent: c.accent, emoji: c.emoji, title: c.title, other_id: null, other_name: null, other_avatar: null, other_accent: null }} />
+                    <span><b>{c.title}</b><small>{c.username ? `@${c.username} · ` : ""}{c.member_count} подписчиков</small></span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
-          {pinned && (
-            <section className="pf-card pf-pinned">
-              <header><span className="pf-dot" /><b>Сейчас строю</b></header>
-              <ProjectCard project={pinned} pinned />
-            </section>
-          )}
-        </aside>
+        {user.is_support && (
+          <section className="pf-card pf-support">
+            <header><span className="pf-dot" /><b>Команда поддержки</b></header>
+            <p className="pf-muted">{isMe ? "Ты в команде поддержки: обращения приходят тебе во вкладку «Обращения» в чатах." : `${user.display_name} из команды платформы. Если что-то не работает или есть идея, напиши в поддержку, ответим.`}</p>
+            {!isMe && <SupportButton />}
+          </section>
+        )}
+      </div>
 
-        <section className="pf-main">
+      <div className="pv-main">
+        <section className="pf-main pv-content">
           {sections.length > 1 && (
             <nav className="pf-tabs" ref={tabsRef} aria-label="Разделы профиля">
               {pill && <span className="pf-tabs-pill" style={{ transform: `translateX(${pill.left}px)`, width: pill.width }} />}

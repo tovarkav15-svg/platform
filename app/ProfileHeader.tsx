@@ -1,6 +1,8 @@
 import { accentColor } from "@/lib/style";
 import { isOwner } from "@/lib/supabase";
 import { PresenceDot, PresenceLabel } from "./Avatar";
+import { BannerFx, RingFx, TitleChip } from "./Deco";
+import type { Deco } from "@/lib/shop";
 
 type Props = {
   displayName: string;
@@ -22,6 +24,7 @@ type Props = {
   nameStyle?: string;
   emoji?: string;
   support?: boolean;
+  deco?: Partial<Deco> | null;   // надетое из AURA Shop
 };
 
 export function RoleBadge({ role, small, support }: { role?: string; small?: boolean; support?: boolean }) {
@@ -42,13 +45,15 @@ export function Banner({ image, preset = "aurora", className = "" }: { image?: s
 }
 
 // Шапка профиля: баннер, аватар с кольцом, имя. Используется в профиле и как живое превью в настройках
-export function ProfileHeader({ displayName, username, headline, bio, status, openToWork, accent, avatar, role, banner, bannerPreset, meta, actions, compact, userId, ring = "spin", nameStyle = "plain", emoji, support }: Props) {
+export function ProfileHeader({ displayName, username, headline, bio, status, openToWork, accent, avatar, role, banner, bannerPreset, meta, actions, compact, userId, ring = "spin", nameStyle = "plain", emoji, support, deco }: Props) {
   return (
-    <section className={`ph2 ${compact ? "compact" : ""}`} style={{ "--c": accentColor(accent) } as React.CSSProperties}>
+    <section className={`ph2 ${compact ? "compact" : ""} ${deco?.banner ? "has-fx" : ""}`} style={{ "--c": accentColor(accent) } as React.CSSProperties}>
+      <BannerFx id={deco?.banner} />
       <Banner image={banner} preset={bannerPreset} />
       <div className="ph2-body">
         <div className={`ph2-avatar ring-${ring} ${openToWork ? "otw-on" : ""}`}>
           <span className="ph2-ring" />
+          <RingFx id={deco?.ring} />
           <div className="avatar">
             {avatar ? <img src={avatar} alt="" /> : (displayName || username || "?").slice(0, 1).toUpperCase()}
           </div>
@@ -57,9 +62,10 @@ export function ProfileHeader({ displayName, username, headline, bio, status, op
         </div>
         <div className="ph2-id">
           <div className="ph2-name">
-            <h1 className={`caps name-${nameStyle}`}>{displayName || "Имя"}</h1>
+            <h1 className={`caps name-${nameStyle} ${deco?.name_fx ? `fx-name ${deco.name_fx}` : ""}`} data-text={displayName || "Имя"}>{displayName || "Имя"}</h1>
             {emoji && <span className="name-emoji" aria-hidden="true">{emoji}</span>}
             <RoleBadge role={role} support={support} />
+            <TitleChip id={deco?.title} />
           </div>
           <span className="handle">@{username || "username"}{headline && <span className="headline"> · {headline}</span>}</span>
           {userId && <PresenceLabel userId={userId} />}

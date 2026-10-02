@@ -15,15 +15,24 @@ type Item =
   | { type: "project"; at: string; project: Project; author: ProfileCard }
   | { type: "work"; at: string; work: Work; author: ProfileCard };
 
-const KINDS: { id: Kind; label: string; icon: string; color: string }[] = [
-  { id: "all", label: "Вся лента", icon: "✦", color: "#7B61FF" },
-  { id: "projects", label: "Проекты", icon: "◆", color: "#2F7BFF" },
-  { id: "work", label: "Proof of Work", icon: "●", color: "#FF6A3D" },
-  { id: "looking", label: "Ищут людей", icon: "◎", color: "#1FA67A" },
+const KINDS: { id: Kind; label: string }[] = [
+  { id: "all", label: "Всё" },
+  { id: "projects", label: "Проекты" },
+  { id: "work", label: "Proof of Work" },
+  { id: "looking", label: "Ищут людей" },
 ];
 
 const nicheOf = (it: Item) => NICHES.find((n) => n.id === (it.type === "project" ? it.project.niche : it.work.niche));
 const weekAgo = () => new Date(Date.now() - 7 * 86400000).toISOString();
+const keyOf = (it: Item) => `${it.type}-${it.type === "project" ? it.project.id : it.work.id}`;
+const ago = (iso: string) => {
+  const m = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  if (m < 60) return `${Math.max(1, m)} мин назад`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `${h} ч назад`;
+  const d = Math.round(h / 24);
+  return d < 30 ? `${d} дн назад` : new Date(iso).toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
+};
 
 export default function DiscoverPage() {
   const { ready, me } = useSession();
@@ -52,23 +61,17 @@ export default function DiscoverPage() {
   const view = useMemo(() => byKind(kind).filter((it) => !niche || nicheOf(it)?.id === niche), [items, kind, niche]); // eslint-disable-line react-hooks/exhaustive-deps
   const focus = view[0];
   const rest = view.slice(1);
+  const looking = all.filter((it): it is Extract<Item, { type: "project" }> => it.type === "project" && !!it.project.looking_for && (!niche || it.project.niche === niche)).slice(0, 8);
   const fresh = all.filter((it) => it.at > weekAgo()).length;
   const authors = new Set(all.map((it) => it.author.id)).size;
-  const growing = all
-    .filter((it): it is Extract<Item, { type: "project" }> => it.type === "project" && it.project.goal_target > 0)
-    .sort((a, b) => b.project.goal_current / b.project.goal_target - a.project.goal_current / a.project.goal_target)
-    .slice(0, 3);
 
-  // Подсветка пункта меню переезжает пружиной, как в Workspace
-  const nav = useRef<HTMLElement>(null);
-  const [pill, setPill] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
+  // Подсветка фильтра едет за выбранным, как в Workspace, только по горизонтали
+  const bar = useRef<HTMLDivElement>(null);
+  const [pill, setPill] = useState<{ left: number; width: number } | null>(null);
   useLayoutEffect(() => {
     const place = () => {
-      const el = nav.current?.querySelector<HTMLElement>(`[data-k="${kind}"]`);
-      if (!el) return;
-      setPill({ top: el.offsetTop, left: el.offsetLeft, width: el.offsetWidth, height: el.offsetHeight });
-      const n = nav.current;
-      if (n && n.scrollWidth > n.clientWidth) n.scrollTo({ left: el.offsetLeft - 12, behavior: "smooth" });
+      const el = bar.current?.querySelector<HTMLElement>(`[data-k="${kind}"]`);
+      if (el) setPill({ left: el.offsetLeft, width: el.offsetWidth });
     };
     place();
     window.addEventListener("resize", place);
@@ -76,99 +79,91 @@ export default function DiscoverPage() {
   }, [kind, items]);
 
   const hour = new Date().getHours();
-  const hello = hour < 5 ? "Ночная лента" : hour < 12 ? "Утренняя лента" : hour < 18 ? "Дневная лента" : "Вечерняя лента";
+  const part = hour < 5 ? "ночь" : hour < 12 ? "утро" : hour < 18 ? "день" : "вечер";
 
   return (
     <>
       <TopBar />
-      <main className="ws2 dx">
-        <div className="ws2-aurora dx-aurora" aria-hidden="true"><i /><i /><i /></div>
-
-        <aside className="ws2-rail dx-rail">
-          <div className="ws2-me">
-            <span className="dx-logo">✦</span>
-            <span><b>Discover</b><small>что строят другие</small></span>
+      <div className="dv-bg" aria-hidden="true"><i /><i /><i /></div>
+      <main className="page wide dv">
+        <header className="dv-head">
+          <div className="dv-head-l">
+            <span className="label">{new Date().toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long" })} · {part}</span>
+            <h1 className="dv-title">Discover</h1>
+            <p className="dv-sub">Что строят и что уже сделали люди платформы. Свежее сверху.</p>
           </div>
+          <dl className="dv-stats">
+            <div><dt>за неделю</dt><dd className="mono"><CountUp value={fresh} /></dd></div>
+            <div><dt>проектов</dt><dd className="mono"><CountUp value={all.filter((i) => i.type === "project").length} /></dd></div>
+            <div><dt>работ</dt><dd className="mono"><CountUp value={all.filter((i) => i.type === "work").length} /></dd></div>
+            <div><dt>авторов</dt><dd className="mono"><CountUp value={authors} /></dd></div>
+          </dl>
+        </header>
 
-          <nav className="ws2-nav" ref={nav} aria-label="Лента">
-            {pill && <span className="ws2-pill dx-pill" style={{ transform: `translate(${pill.left}px, ${pill.top}px)`, height: pill.height, width: pill.width }} />}
+        <div className="dv-controls">
+          <div className="dv-kinds" ref={bar} role="tablist">
+            {pill && <span className="dv-pill" style={{ transform: `translateX(${pill.left}px)`, width: pill.width }} aria-hidden="true" />}
             {KINDS.map((k) => (
-              <button key={k.id} type="button" data-k={k.id} className="ws2-link dx-link" aria-current={kind === k.id ? "page" : undefined}
-                style={{ "--ic": k.color } as React.CSSProperties} onClick={() => setKind(k.id)}>
-                <i className="ws2-ico">{k.icon}</i>
-                <span><b>{k.label}</b><small>{items ? `${byKind(k.id).length} публикаций` : "…"}</small></span>
+              <button key={k.id} type="button" role="tab" data-k={k.id} aria-selected={kind === k.id} className="dv-kind" onClick={() => setKind(k.id)}>
+                {k.label}<em className="mono">{items ? byKind(k.id).length : "·"}</em>
               </button>
             ))}
-          </nav>
-
-          <div className="dx-niches">
-            <span className="label">Ниши</span>
-            <button type="button" className={`dx-niche ${!niche ? "on" : ""}`} onClick={() => setNiche("")}><i style={{ background: "#141414" }} />Все<em className="mono">{byKind(kind).length}</em></button>
+          </div>
+          <div className="dv-niches">
+            <button type="button" className={`dv-niche ${!niche ? "on" : ""}`} onClick={() => setNiche("")}>Все ниши</button>
             {NICHES.map((n) => {
               const c = byKind(kind).filter((it) => nicheOf(it)?.id === n.id).length;
               return (
-                <button key={n.id} type="button" className={`dx-niche ${niche === n.id ? "on" : ""} ${c ? "" : "zero"}`} style={{ "--c": n.color } as React.CSSProperties} onClick={() => setNiche(niche === n.id ? "" : n.id)}>
-                  <i />{n.title}<em className="mono">{c}</em>
+                <button key={n.id} type="button" className={`dv-niche ${niche === n.id ? "on" : ""} ${c ? "" : "zero"}`} style={{ "--c": n.color } as React.CSSProperties} onClick={() => setNiche(niche === n.id ? "" : n.id)}>
+                  <i />{n.title}
                 </button>
               );
             })}
           </div>
+        </div>
 
-          {me && <Link className="btn dx-add" href={profileHref(me.username, "projects")}>+ Показать своё</Link>}
-        </aside>
+        {items === null ? (
+          <div className="dv-skel"><div className="skeleton" /><div className="skeleton" /><div className="skeleton" /></div>
+        ) : view.length === 0 ? (
+          <div className="pf-empty">
+            <span className="pf-empty-art" aria-hidden="true"><i /><i /><i /></span>
+            <p className="lead">{all.length ? "Здесь пусто. Выбери другую нишу или раздел." : "Лента пока пустая. Добавь проект или работу в профиль, и они появятся здесь."}</p>
+            {me && <Link className="btn" href={profileHref(me.username, "projects")}>Добавить</Link>}
+          </div>
+        ) : (
+          <div className="dv-flow" key={`${kind}-${niche}`}>
+            {focus && <Focus it={focus} />}
 
-        <section className="ws2-main dx-main">
-          <section className="ov-hello dx-hello">
-            <span className="label">{new Date().toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long" })}</span>
-            <h1 className="caps">{hello}<span className="it"> платформы</span></h1>
-            <div className="dx-stats">
-              <span><b className="mono"><CountUp value={fresh} /></b>новых за неделю</span>
-              <span><b className="mono"><CountUp value={all.filter((i) => i.type === "project").length} /></b>проектов</span>
-              <span><b className="mono"><CountUp value={all.filter((i) => i.type === "work").length} /></b>работ</span>
-              <span><b className="mono"><CountUp value={authors} /></b>авторов</span>
-            </div>
-          </section>
-
-          {items === null ? (
-            <div className="ov-grid">{[0, 1, 2, 3].map((k) => <div key={k} className="skeleton dx-ph" />)}</div>
-          ) : view.length === 0 ? (
-            <div className="pf-empty">
-              <span className="pf-empty-art" aria-hidden="true"><i /><i /><i /></span>
-              <p className="lead">{all.length ? "Здесь пусто. Выбери другую нишу или раздел слева." : "Лента пока пустая. Добавь проект или работу в профиль, и они появятся здесь."}</p>
-              {me && <Link className="btn" href={profileHref(me.username, "projects")}>Добавить</Link>}
-            </div>
-          ) : (
-            <>
-              {focus && <Focus it={focus} />}
-
-              {growing.length > 0 && kind !== "work" && !niche && (
-                <section className="ov-card dx-growing" style={{ "--c": "#1FA67A" } as React.CSSProperties}>
-                  <header><span className="ov-dot" /><b>Ближе всех к цели</b></header>
-                  <ul>
-                    {growing.map((g, i) => {
-                      const pct = Math.min(100, Math.round((g.project.goal_current / g.project.goal_target) * 100));
-                      return (
-                        <li key={g.project.id} style={{ "--i": i } as React.CSSProperties}>
-                          <Link href={projectHref(g.project.id)} className="dx-grow-row">
-                            <span className="dx-grow-name"><b>{g.project.name}</b><small>{g.project.goal_label || "Цель"} · {g.author.display_name}</small></span>
-                            <span className="fn-track"><i style={{ width: `${pct}%`, background: nicheOf(g)?.color ?? "#1FA67A" }} /></span>
-                            <b className="mono">{pct}%</b>
-                          </Link>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </section>
-              )}
-
-              {rest.length > 0 && (
-                <div className="dx-grid" key={`${kind}-${niche}`}>
-                  {rest.map((it, i) => <Tile key={`${it.type}-${it.type === "project" ? it.project.id : it.work.id}`} it={it} i={i} />)}
+            {looking.length > 0 && kind !== "work" && (
+              <section className="dv-calls">
+                <div className="dv-sec-head"><h2>Ищут людей</h2><span>Проекты, которым нужна помощь прямо сейчас</span></div>
+                <div className="dv-calls-row">
+                  {looking.map((g, i) => {
+                    const n = NICHES.find((x) => x.id === g.project.niche);
+                    return (
+                      <Link key={g.project.id} href={projectHref(g.project.id)} className="dv-call" style={{ "--c": n?.color ?? "#141414", "--i": i } as React.CSSProperties}>
+                        <span className="dv-call-who"><Avatar name={g.author.display_name} avatar={g.author.avatar} accent={g.author.accent} size={26} userId={g.author.id} /><b>{g.project.name}</b></span>
+                        <span className="dv-call-need">{g.project.looking_for}</span>
+                        <span className="dv-call-go">Откликнуться <em>→</em></span>
+                      </Link>
+                    );
+                  })}
                 </div>
-              )}
-            </>
-          )}
-        </section>
+              </section>
+            )}
+
+            {rest.length > 0 && (
+              <section>
+                <div className="dv-sec-head"><h2>Лента</h2><span>{rest.length} публикаций</span></div>
+                <div className="dv-mosaic">
+                  {rest.map((it, i) => <Tile key={keyOf(it)} it={it} i={i} />)}
+                </div>
+              </section>
+            )}
+          </div>
+        )}
+
+        {me && <Link className="dv-fab" href={profileHref(me.username, "projects")}>+ Показать своё</Link>}
       </main>
     </>
   );
@@ -185,29 +180,38 @@ function Go({ it, className, style, children }: { it: Item; className: string; s
     : <Link className={className} style={style} href={h.href}>{children}</Link>;
 }
 
-/** «В фокусе»: самая свежая публикация крупно */
+function Author({ it }: { it: Item }) {
+  return (
+    <span className="dv-author">
+      <Avatar name={it.author.display_name} avatar={it.author.avatar} accent={it.author.accent} size={24} userId={it.author.id} />
+      <b>{it.author.display_name}</b><small>{ago(it.at)}</small>
+    </span>
+  );
+}
+
+/** Главный материал: самая свежая публикация на всю ширину */
 function Focus({ it }: { it: Item }) {
   const n = nicheOf(it);
   const img = publicMedia(it.type === "project" ? it.project.image_path : it.work.image_path);
   const title = it.type === "project" ? it.project.name : it.work.title;
   const text = it.type === "project" ? it.project.tagline || it.project.description : it.work.description;
   return (
-    <Go it={it} className="dx-focus">
-      <span className="dx-focus-media" style={{ "--c": n?.color ?? "#7B61FF" } as React.CSSProperties}>
-        {img ? <img src={img} alt="" /> : <span className="dx-focus-glyph caps">{title.slice(0, 1)}</span>}
+    <Go it={it} className="dv-focus" style={{ "--c": n?.color ?? "#7B61FF" } as React.CSSProperties}>
+      <span className="dv-focus-media">
+        {img ? <img src={img} alt="" /> : <span className="dv-glyph">{title.slice(0, 1)}</span>}
       </span>
-      <span className="dx-focus-text">
-        <span className="dx-chip"><i style={{ background: n?.color ?? "#7B61FF" }} />В фокусе · {it.type === "project" ? STAGES[it.project.stage] : "Proof of Work"}</span>
-        <b className="dx-focus-title">{title}</b>
-        {it.type === "work" && it.work.result && <span className="dx-result mono">{it.work.result}</span>}
-        {text && <span className="dx-focus-desc">{text}</span>}
-        <span className="dx-author"><Avatar name={it.author.display_name} avatar={it.author.avatar} accent={it.author.accent} size={28} userId={it.author.id} /><span><b>{it.author.display_name}</b><small>@{it.author.username}</small></span><em>Открыть →</em></span>
+      <span className="dv-focus-text">
+        <span className="dv-kicker"><i />{it.type === "project" ? `Проект · ${STAGES[it.project.stage]}` : "Proof of Work"}{n && ` · ${n.title}`}</span>
+        <b className="dv-focus-title">{title}</b>
+        {it.type === "work" && it.work.result && <span className="dv-result mono">{it.work.result}</span>}
+        {text && <span className="dv-focus-desc">{text}</span>}
+        <span className="dv-focus-foot"><Author it={it} /><em className="dv-open">Открыть <i>→</i></em></span>
       </span>
     </Go>
   );
 }
 
-/** Плитка ленты в стиле карточек Обзора */
+/** Карточка мозаики: с картинкой — фото с подписью, без — крупный текст */
 function Tile({ it, i }: { it: Item; i: number }) {
   const n = nicheOf(it);
   const img = publicMedia(it.type === "project" ? it.project.image_path : it.work.image_path);
@@ -216,15 +220,22 @@ function Tile({ it, i }: { it: Item; i: number }) {
   const p = it.type === "project" ? it.project : null;
   const pct = p && p.goal_target ? Math.min(100, Math.round((p.goal_current / p.goal_target) * 100)) : null;
   return (
-    <Go it={it} className="ov-card dx-tile" style={{ "--c": n?.color ?? (it.type === "project" ? "#2F7BFF" : "#FF6A3D"), "--i": Math.min(i, 12) } as React.CSSProperties}>
-        <header><span className="ov-dot" /><b>{it.type === "project" ? "Проект" : "Proof of Work"}</b>{n && <span className="dx-tile-niche">{n.title}</span>}</header>
-        {img && <span className="dx-thumb"><img src={img} alt="" loading="lazy" /></span>}
-        <b className="dx-tile-title">{title}</b>
-        {it.type === "work" && it.work.result && <span className="dx-result mono">{it.work.result}</span>}
-        {text && <span className="dx-tile-text">{text}</span>}
-        {pct !== null && <span className="dx-prog"><span>{p!.goal_label || "Цель"}</span><em className="mono">{p!.goal_current}/{p!.goal_target}</em><i style={{ width: `${pct}%` }} /></span>}
-        {p?.looking_for && <span className="dx-looking">Ищут: {p.looking_for}</span>}
-        <span className="dx-author small"><Avatar name={it.author.display_name} avatar={it.author.avatar} accent={it.author.accent} size={22} userId={it.author.id} /><b>{it.author.display_name}</b></span>
+    <Go it={it} className={`dv-tile ${img ? "has-img" : "no-img"} t-${it.type}`} style={{ "--c": n?.color ?? "#141414", "--i": Math.min(i, 14) } as React.CSSProperties}>
+      {img && <span className="dv-tile-img"><img src={img} alt="" loading="lazy" /></span>}
+      <span className="dv-tile-body">
+        <span className="dv-kicker"><i />{it.type === "project" ? "Проект" : "Proof of Work"}{n && ` · ${n.title}`}</span>
+        <b className="dv-tile-title">{title}</b>
+        {it.type === "work" && it.work.result && <span className="dv-result mono">{it.work.result}</span>}
+        {text && <span className="dv-tile-text">{text}</span>}
+        {pct !== null && (
+          <span className="dv-goal">
+            <span><small>{p!.goal_label || "Цель"}</small><em className="mono">{pct}%</em></span>
+            <span className="dv-goal-bar"><i style={{ width: `${pct}%` }} /></span>
+          </span>
+        )}
+        {p?.looking_for && <span className="dv-need">Ищут: {p.looking_for}</span>}
+        <Author it={it} />
+      </span>
     </Go>
   );
 }

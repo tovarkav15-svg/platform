@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { publicMedia, type ProfileCard } from "@/lib/supabase";
 import { NICHES } from "@/lib/niches";
 import { profileHref } from "@/lib/links";
@@ -19,12 +19,42 @@ export const rub = (n: number) => (n ? `${Math.round(n).toLocaleString("ru-RU").
 const nicheOf = (id: string) => NICHES.find((n) => n.id === id);
 const photoOf = (j: JobRow) => publicMedia(j.photo_path) ?? j.author.avatar;
 
-/** Бейдж на ленточке: висит, раскачивается при наведении */
-export function JobBadge({ job, i, onOpen, photo: photoOverride }: { job: JobRow; i: number; onOpen: () => void; photo?: string | null }) {
+/** Раскачка на пружине: под курсором бейдж качается и клонится к нему, без курсора плавно затухает */
+function useSwing(amp: number) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let a = 0, v = 0, hover = false, lean = 0, t0 = 0, last = 0, raf = 0;
+    const step = (t: number) => {
+      const dt = Math.min(0.032, (t - (last || t)) / 1000) || 0.016;
+      last = t;
+      const target = hover ? amp * Math.sin((t - t0) / 420) + lean : 0;
+      v += ((target - a) * 60 - v * (hover ? 9 : 5.5)) * dt;
+      a += v * dt;
+      el.style.rotate = `${a.toFixed(3)}deg`;
+      if (!hover && Math.abs(a) < 0.02 && Math.abs(v) < 0.02) { el.style.rotate = ""; raf = 0; last = 0; return; }
+      raf = requestAnimationFrame(step);
+    };
+    const run = () => { if (!raf) raf = requestAnimationFrame(step); };
+    const enter = () => { hover = true; t0 = performance.now(); run(); };
+    const move = (e: PointerEvent) => { const r = el.getBoundingClientRect(); lean = ((e.clientX - r.left) / r.width - 0.5) * -amp * 1.4; };
+    const leave = () => { hover = false; lean = 0; run(); };
+    el.addEventListener("pointerenter", enter);
+    el.addEventListener("pointermove", move);
+    el.addEventListener("pointerleave", leave);
+    return () => { cancelAnimationFrame(raf); el.removeEventListener("pointerenter", enter); el.removeEventListener("pointermove", move); el.removeEventListener("pointerleave", leave); };
+  }, [amp]);
+  return ref;
+}
+
+/** Бейдж на ленточке: висит, раскачивается при наведении. onChat — сразу написать автору */
+export function JobBadge({ job, i, onOpen, onChat, photo: photoOverride }: { job: JobRow; i: number; onOpen: () => void; onChat?: () => void; photo?: string | null }) {
   const n = nicheOf(job.niche);
   const photo = photoOverride ?? photoOf(job);
+  const swing = useSwing(2.5 + (i % 3));
   return (
-    <div className="bd-wrap" style={{ "--i": i, "--c": n?.color ?? "#141414", "--sw": `${(i % 2 ? 1 : -1) * (2 + (i % 3))}deg` } as React.CSSProperties}>
+    <div ref={swing} className={`bd-wrap ${onChat ? "has-chat" : ""}`} style={{ "--i": i, "--c": n?.color ?? "#141414", "--sw": `${(i % 2 ? 1 : -1) * (2 + (i % 3))}deg` } as React.CSSProperties}>
       <span className="bd-strap" aria-hidden="true" />
       <button type="button" className="bd" onClick={onOpen} aria-label={`${job.service}, ${job.author.display_name}`}>
         <span className="bd-clip" aria-hidden="true" />
@@ -45,37 +75,52 @@ export function JobBadge({ job, i, onOpen, photo: photoOverride }: { job: JobRow
           <span className="bd-more">Открыть →</span>
         </span>
       </button>
+      {onChat && (
+        <button type="button" className="bd-chat" onClick={onChat} aria-label={`Написать ${job.author.display_name} в чат`}>
+          <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4.2 3.6c-.5.4-1.3 0-1.3-.6V16A2.5 2.5 0 0 1 4 13.5z" fill="currentColor" /></svg>
+          Написать
+        </button>
+      )}
     </div>
   );
 }
 
-/** 3D-карусель лучших карточек: крутится сама, останавливается под курсором */
+/** Лента лучших карточек: листается вбок сама, стрелками и свайпом; под курсором стоит */
 export function Coverflow({ jobs, onOpen }: { jobs: JobRow[]; onOpen: (j: JobRow) => void }) {
   const [idx, setIdx] = useState(0);
   const [paused, setPaused] = useState(false);
+  const drag = useRef<{ x: number; moved: boolean } | null>(null);
+  const [dx, setDx] = useState(0);
+  const n = jobs.length;
+  const go = (step: number) => setIdx((v) => (v + step + n) % n);
   useEffect(() => {
-    if (paused || jobs.length < 2) return;
-    const t = setTimeout(() => setIdx((v) => (v + 1) % jobs.length), 3800);
+    if (paused || n < 2) return;
+    const t = setTimeout(() => go(1), 4200);
     return () => clearTimeout(t);
-  }, [idx, paused, jobs.length]);
-  if (!jobs.length) return null;
+  }, [idx, paused, n]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!n) return null;
 
   return (
-    <div className="cf" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
-      <div className="cf-stage">
+    <div className={`cf cf-side ${drag.current ? "dragging" : ""}`} onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}
+      onKeyDown={(e) => { if (e.key === "ArrowLeft") go(-1); if (e.key === "ArrowRight") go(1); }}>
+      <div className="cf-stage" style={{ "--dx": `${dx}px` } as React.CSSProperties}
+        onPointerDown={(e) => { drag.current = { x: e.clientX, moved: false }; }}
+        onPointerMove={(e) => { if (!drag.current) return; const d = e.clientX - drag.current.x; if (Math.abs(d) > 6) drag.current.moved = true; setDx(d); }}
+        onPointerUp={() => { if (!drag.current) return; if (dx < -60) go(1); else if (dx > 60) go(-1); setDx(0); setTimeout(() => { drag.current = null; }, 0); }}
+        onPointerLeave={() => { if (drag.current) { setDx(0); drag.current = null; } }}>
         {jobs.map((j, k) => {
           let d = k - idx;
-          if (d > jobs.length / 2) d -= jobs.length;
-          if (d < -jobs.length / 2) d += jobs.length;
-          const n = nicheOf(j.niche);
+          if (d > n / 2) d -= n;
+          if (d < -n / 2) d += n;
+          const nn = nicheOf(j.niche);
           const photo = photoOf(j);
           return (
-            <button key={j.id} type="button" className={`cf-card ${d === 0 ? "on" : ""}`} hidden={Math.abs(d) > 2}
-              style={{ "--d": d, "--ad": Math.abs(d), "--c": n?.color ?? "#141414" } as React.CSSProperties}
-              onClick={() => (d === 0 ? onOpen(j) : setIdx(k))} aria-label={j.service}>
-              <span className="cf-photo">{photo ? <img src={photo} alt="" /> : <span className="caps">{j.author.display_name.slice(0, 1)}</span>}</span>
+            <button key={j.id} type="button" className={`cf-card ${d === 0 ? "on" : ""}`} hidden={Math.abs(d) > 3} tabIndex={d === 0 ? 0 : -1}
+              style={{ "--d": d, "--ad": Math.abs(d), "--c": nn?.color ?? "#141414" } as React.CSSProperties}
+              onClick={() => { if (drag.current?.moved) return; if (d === 0) onOpen(j); else setIdx(k); }} aria-label={j.service}>
+              <span className="cf-photo">{photo ? <img src={photo} alt="" draggable={false} /> : <span className="caps">{j.author.display_name.slice(0, 1)}</span>}</span>
               <span className="cf-info">
-                <span className="cf-niche">{n?.title ?? "Услуга"}</span>
+                <span className="cf-niche">{nn?.title ?? "Услуга"}</span>
                 <b>{j.service}</b>
                 <span className="cf-row"><span>{j.author.display_name}</span><em className="mono">{rub(j.avg_check)}</em></span>
               </span>
@@ -83,10 +128,14 @@ export function Coverflow({ jobs, onOpen }: { jobs: JobRow[]; onOpen: (j: JobRow
           );
         })}
       </div>
-      {jobs.length > 1 && (
-        <div className="cf-dots">
-          {jobs.map((_, k) => <button key={k} type="button" aria-label={`Карточка ${k + 1}`} aria-pressed={k === idx} onClick={() => setIdx(k)} />)}
-        </div>
+      {n > 1 && (
+        <>
+          <button type="button" className="cf-arrow prev" aria-label="Назад" onClick={() => go(-1)}>‹</button>
+          <button type="button" className="cf-arrow next" aria-label="Дальше" onClick={() => go(1)}>›</button>
+          <div className="cf-dots">
+            {jobs.map((_, k) => <button key={k} type="button" aria-label={`Карточка ${k + 1}`} aria-pressed={k === idx} onClick={() => setIdx(k)}>{k === idx && !paused && <i key={idx} />}</button>)}
+          </div>
+        </>
       )}
     </div>
   );

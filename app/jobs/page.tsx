@@ -91,7 +91,10 @@ export default function JobsPage() {
           <div className="bx-board">{[0, 1, 2, 3].map((k) => <div key={k} className="skeleton bd-ph" />)}</div>
         ) : view.length ? (
           <div className="bx-board" key={`${niche}-${sort}`}>
-            {view.map((r, i) => <JobBadge key={r.id} job={r} i={i} onOpen={() => setOpen(r)} />)}
+            {view.map((r, i) => (
+              <JobBadge key={r.id} job={r} i={i} onOpen={() => setOpen(r)}
+                onChat={r.user_id === me?.id ? undefined : async () => { if (!me) return router.push("/login"); router.push(chatHref(await openDm(r.user_id))); }} />
+            ))}
           </div>
         ) : (
           <div className="pf-empty">

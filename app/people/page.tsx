@@ -1,15 +1,22 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase, PROFILE_CARD, type ProfileCard } from "@/lib/supabase";
 import { useRequireMe } from "@/lib/session";
 import { useFriendLinks } from "@/lib/useFriendLinks";
 import { NICHES } from "@/lib/niches";
 import { normalizeUsername } from "@/lib/username";
+import { profileHref } from "@/lib/links";
+import { useDecos } from "@/lib/shop";
 import { TopBar } from "../TopBar";
-import { Empty, PeopleList } from "../PeopleList";
-import { FloatingFaces, SpaceHero } from "../SpaceHero";
+import { Avatar } from "../Avatar";
+import { FriendActions } from "../FriendActions";
+import { CountUp } from "../CountUp";
+import { Grid } from "./PersonCard";
+
+const SKILLS = ["Premiere Pro", "After Effects", "Figma", "Reels", "Telegram", "Next.js", "Midjourney", "Таргет", "Копирайтинг"];
 
 export default function PeoplePage() {
   const { me } = useRequireMe();
@@ -20,17 +27,9 @@ export default function PeoplePage() {
   const open = sp.get("open") === "1";
   const fl = useFriendLinks(me?.id);
   const [found, setFound] = useState<ProfileCard[] | null>(null);
-  const [total, setTotal] = useState(0);
-  const [faces, setFaces] = useState<ProfileCard[]>([]);
-  const [layout, setLayout] = useState<"list" | "grid">("grid");
-
-  useEffect(() => {
-    try { const v = localStorage.getItem("people:layout"); if (v === "list" || v === "grid") setLayout(v); } catch {}
-    supabase.from("profiles").select(PROFILE_CARD, { count: "exact" }).not("avatar", "is", null).limit(7)
-      .then(({ data, count }) => { setFaces((data as ProfileCard[]) ?? []); if (count !== null) setTotal((t) => Math.max(t, count)); });
-    supabase.from("profiles").select("id", { count: "exact", head: true }).then(({ count }) => setTotal(count ?? 0));
-  }, []);
-  const pickLayout = (v: "list" | "grid") => { setLayout(v); try { localStorage.setItem("people:layout", v); } catch {} };
+  const [pool, setPool] = useState<{ niches: string; open_to_work: boolean }[]>([]);
+  const [draft, setDraft] = useState(q);
+  const filtered = !!(q || niche || open);
 
   const go = (patch: Record<string, string>) => {
     const p = new URLSearchParams({ ...(q && { q }), ...(niche && { niche }), ...(open && { open: "1" }) });
@@ -40,11 +39,25 @@ export default function PeoplePage() {
   };
 
   useEffect(() => { document.title = "Люди"; }, []);
+  useEffect(() => { setDraft(q); }, [q]);
+
+  // Поиск прямо при вводе, без кнопки
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const type = (v: string) => {
+    setDraft(v);
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => go({ q: v.trim() }), 320);
+  };
+
+  // Сколько людей в каждой нише — для плиток «Кого ищешь»
+  useEffect(() => {
+    supabase.from("profiles").select("niches, open_to_work").limit(2000).then(({ data }) => setPool((data as typeof pool) ?? []));
+  }, []);
 
   useEffect(() => {
     if (!me) return;
     setFound(null);
-    let query = supabase.from("profiles").select(PROFILE_CARD).neq("id", me.id).order("created_at", { ascending: false }).limit(60);
+    let query = supabase.from("profiles").select(PROFILE_CARD).neq("id", me.id).order("created_at", { ascending: false }).limit(90);
     if (q) {
       const safe = q.replace(/[%,()*]/g, "");
       query = query.or(`username.ilike.%${normalizeUsername(safe)}%,display_name.ilike.%${safe}%,headline.ilike.%${safe}%,skills.ilike.%${safe}%`);
@@ -54,43 +67,115 @@ export default function PeoplePage() {
     query.then(({ data }) => setFound((data as ProfileCard[]) ?? []));
   }, [me, q, niche, open]);
 
+  const decos = useDecos((found ?? []).map((p) => p.id));
+  const myNiches = useMemo(() => new Set((me?.niches ?? "").split(",").filter(Boolean)), [me]);
+  const people = found ?? [];
+  const openNow = people.filter((p) => p.open_to_work);
+  const close = people.filter((p) => p.niches.split(",").some((n) => myNiches.has(n)) && !openNow.includes(p)).slice(0, 8);
+  const count = (id: string) => pool.filter((p) => p.niches.split(",").includes(id)).length;
+
   return (
     <>
       <TopBar />
-      <main className="page">
-        <SpaceHero
-          space="people" eyebrow="People · картотека"
-          title={<>Кого ты <span className="it">можешь</span> найти</>}
-          text="Монтажёры, продюсеры, дизайнеры, кодеры. Ищи по навыку, нише или тем, кто открыт к работе."
-          art={<FloatingFaces people={faces.length ? faces : (found ?? []).slice(0, 7)} total={total} />}
-        />
-
-        <form className="search" role="search" onSubmit={(e) => { e.preventDefault(); go({ q: String(new FormData(e.currentTarget).get("q") ?? "").trim() }); }}>
-          <div className="input"><input id="q" name="q" defaultValue={q} placeholder="Имя, @юзернейм, навык: Premiere, Figma…" autoComplete="off" /></div>
-          <button className="btn" type="submit">Найти</button>
-        </form>
-
-        <div className="filters">
-          <button type="button" className={`fchip ${!niche ? "on" : ""}`} onClick={() => go({ niche: "" })}>Все ниши</button>
-          {NICHES.map((n) => (
-            <button key={n.id} type="button" className={`fchip ${niche === n.id ? "on" : ""}`} style={{ "--c": n.color } as React.CSSProperties}
-              onClick={() => go({ niche: niche === n.id ? "" : n.id })}>{n.title}</button>
-          ))}
-          <button type="button" className={`fchip otw-filter ${open ? "on" : ""}`} onClick={() => go({ open: open ? "" : "1" })}>Открыт к работе</button>
-        </div>
-
-        <div className="section-head">
-          <span className="label">{found ? `Найдено: ${found.length}` : "Ищу…"}</span>
-          <div className="seg small">
-            <button type="button" className="seg-item" aria-current={layout === "grid" ? "page" : undefined} onClick={() => pickLayout("grid")}>Карточки</button>
-            <button type="button" className="seg-item" aria-current={layout === "list" ? "page" : undefined} onClick={() => pickLayout("list")}>Список</button>
+      <div className="dv-bg pp-bg" aria-hidden="true"><i /><i /><i /></div>
+      <main className="page wide pp">
+        <header className="pp-head">
+          <div>
+            <span className="label">People</span>
+            <h1 className="pp-title">Люди платформы</h1>
+            <p className="pp-sub">Здесь все участники. Найди монтажёра, дизайнера или продюсера, добавь в друзья, напиши в чат или позови в проект.</p>
           </div>
-        </div>
+          <dl className="dv-stats">
+            <div><dt>людей</dt><dd className="mono"><CountUp value={pool.length} /></dd></div>
+            <div><dt>открыты к работе</dt><dd className="mono"><CountUp value={pool.filter((p) => p.open_to_work).length} /></dd></div>
+            <div><dt>твоих друзей</dt><dd className="mono"><CountUp value={fl.friends.length} /></dd></div>
+          </dl>
+        </header>
 
-        {found === null || !fl.loaded ? <div className="skeleton list-skeleton" /> : found.length
-          ? <PeopleList people={found} stateOf={fl.stateOf} onChange={fl.reload} layout={layout} />
-          : <Empty title="Никого не нашли" text="Попробуй другое имя, навык или убери фильтры." />}
+        {fl.incoming.length > 0 && (
+          <section className="pp-requests">
+            <b>{fl.incoming.length === 1 ? "Тебя хотят добавить в друзья" : `${fl.incoming.length} заявки в друзья`}</b>
+            <div className="pp-req-list">
+              {fl.incoming.slice(0, 4).map((p) => (
+                <div key={p.id} className="pp-req">
+                  <Link href={profileHref(p.username)} className="pp-req-who"><Avatar name={p.display_name} avatar={p.avatar} accent={p.accent} size={32} userId={p.id} /><span><b>{p.display_name}</b><small>@{p.username}</small></span></Link>
+                  <FriendActions userId={p.id} state="incoming" compact onChange={fl.reload} />
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        <section className="pp-search">
+          <div className="pp-input">
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" strokeWidth="2" /><path d="m20 20-3.5-3.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
+            <input value={draft} onChange={(e) => type(e.target.value)} placeholder="Имя, @юзернейм или навык" aria-label="Поиск людей" autoComplete="off" />
+            {draft && <button type="button" className="pp-clear" aria-label="Очистить" onClick={() => { setDraft(""); go({ q: "" }); }}>×</button>}
+          </div>
+          <div className="pp-skills">
+            <span>Часто ищут:</span>
+            {SKILLS.map((s) => <button key={s} type="button" className={`pp-skill ${q === s ? "on" : ""}`} onClick={() => go({ q: q === s ? "" : s })}>{s}</button>)}
+          </div>
+        </section>
+
+        <section>
+          <div className="dv-sec-head"><h2>Кого ищешь?</h2><span>Нажми на нишу, чтобы увидеть людей в ней</span></div>
+          <div className="pp-niches">
+            {NICHES.map((n, i) => (
+              <button key={n.id} type="button" className={`pp-niche ${niche === n.id ? "on" : ""}`} style={{ "--c": n.color, "--i": i } as React.CSSProperties} onClick={() => go({ niche: niche === n.id ? "" : n.id })}>
+                <i aria-hidden="true" />
+                <b>{n.title}</b>
+                <small>{count(n.id)} {plural(count(n.id))}</small>
+              </button>
+            ))}
+          </div>
+          <label className="pp-open">
+            <input type="checkbox" checked={open} onChange={() => go({ open: open ? "" : "1" })} />
+            <span className="pp-switch" aria-hidden="true" />
+            Только те, кто открыт к работе
+          </label>
+        </section>
+
+        {found === null || !fl.loaded ? (
+          <div className="pp-grid">{[0, 1, 2, 3, 4, 5].map((k) => <div key={k} className="skeleton pp-ph" />)}</div>
+        ) : filtered ? (
+          <section>
+            <div className="dv-sec-head">
+              <h2>{people.length ? `Нашлось ${people.length}` : "Никого не нашли"}</h2>
+              <button type="button" className="link-btn" onClick={() => router.replace("/people/", { scroll: false })}>Сбросить фильтры</button>
+            </div>
+            {people.length
+              ? <Grid people={people} decos={decos} stateOf={fl.stateOf} reload={fl.reload} />
+              : <p className="pp-none">Попробуй другое имя или навык, или убери фильтры.</p>}
+          </section>
+        ) : (
+          <>
+            {openNow.length > 0 && (
+              <section>
+                <div className="dv-sec-head"><h2>Открыты к работе</h2><span>Можно звать в проект прямо сейчас</span></div>
+                <Grid people={openNow.slice(0, 8)} decos={decos} stateOf={fl.stateOf} reload={fl.reload} />
+              </section>
+            )}
+            {close.length > 0 && (
+              <section>
+                <div className="dv-sec-head"><h2>Из твоих ниш</h2><span>Те, кто занимается тем же, что и ты</span></div>
+                <Grid people={close} decos={decos} stateOf={fl.stateOf} reload={fl.reload} />
+              </section>
+            )}
+            <section>
+              <div className="dv-sec-head"><h2>Все люди</h2><span>Новые сверху</span></div>
+              {people.length ? <Grid people={people} decos={decos} stateOf={fl.stateOf} reload={fl.reload} /> : <p className="pp-none">Пока здесь только ты. Позови друзей на платформу.</p>}
+            </section>
+          </>
+        )}
       </main>
     </>
   );
 }
+
+const plural = (n: number) => {
+  const m10 = n % 10, m100 = n % 100;
+  if (m10 === 1 && m100 !== 11) return "человек";
+  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return "человека";
+  return "человек";
+};
