@@ -318,7 +318,7 @@ function ProfileView({ user, earnings, friends, state, works, projects, aura, ch
         </section>
       </div>
 
-      {!isMe && loggedIn && <ProfileSafety userId={user.id} name={user.display_name} />}
+      {!isMe && loggedIn && <ProfileSafety userId={user.id} name={user.display_name} username={user.username} />}
 
       {isMe && (
         <>
@@ -367,7 +367,8 @@ function SupportButton() {
 }
 
 /** Внизу чужого профиля: пожаловаться модераторам или заблокировать */
-function ProfileSafety({ userId, name }: { userId: string; name: string }) {
+function ProfileSafety({ userId, name, username }: { userId: string; name: string; username: string }) {
+  const { me } = useSession();
   const [report, setReport] = useState(false);
   const [blocked, setBlocked] = useState<boolean | null>(null);
   useEffect(() => { supabase.from("blocks").select("blocked").eq("blocked", userId).maybeSingle().then(({ data }) => setBlocked(!!data)); }, [userId]);
@@ -381,6 +382,7 @@ function ProfileSafety({ userId, name }: { userId: string; name: string }) {
   }
   return (
     <div className="pf-safety">
+      {(me?.role === "owner" || me?.role === "founder") && <Link className="link-btn md-shield" href={`/moderation/?tab=users&u=${username}`}>🛡 Модерация</Link>}
       <button type="button" className="link-btn" onClick={() => setReport(true)}>⚑ Пожаловаться</button>
       {blocked !== null && <button type="button" className="link-btn" onClick={toggle}>{blocked ? "↺ Разблокировать" : "⊘ Заблокировать"}</button>}
       <ReportDialog target={report ? userId : null} name={name} onClose={() => setReport(false)} />

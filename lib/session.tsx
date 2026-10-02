@@ -44,6 +44,23 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const uid = session?.user.id;
   useEffect(() => (uid ? startHeartbeat(uid) : undefined), [uid]);
 
+  // Свой профиль обновляется сам: бан, роль, правки модераторов приходят сразу, без перезагрузки.
+  // Realtime + проверка раз в 15 секунд на случай, если обновление потерялось
+  useEffect(() => {
+    if (!uid) return;
+    const ch = supabase.channel(`me:${uid}`)
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "profiles", filter: `id=eq.${uid}` }, (payload) => {
+        setMe((cur) => (cur ? { ...cur, ...(payload.new as Profile) } : (payload.new as Profile)));
+      })
+      .subscribe();
+    const t = setInterval(async () => {
+      const { data } = await supabase.from("profiles").select("banned_until, ban_reason, role").eq("id", uid).maybeSingle();
+      if (!data) return;
+      setMe((cur) => (cur && (cur.banned_until !== data.banned_until || cur.ban_reason !== data.ban_reason || cur.role !== data.role) ? { ...cur, ...data } : cur));
+    }, 15000);
+    return () => { supabase.removeChannel(ch); clearInterval(t); };
+  }, [uid]);
+
   const refreshMe = useCallback(() => loadMe(session), [loadMe, session]);
 
   return <SessionContext.Provider value={{ ready, session, me, refreshMe }}>{children}</SessionContext.Provider>;

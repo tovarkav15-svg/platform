@@ -9,6 +9,7 @@ import { profileHref } from "@/lib/links";
 import { TopBar } from "../TopBar";
 import { Avatar } from "../Avatar";
 import { JobBadge, rub, type JobRow } from "../jobs/JobCard";
+import { UserPanel } from "./UserPanel";
 
 type Report = { id: string; reporter: string; target_user: string; message_id: string | null; reason: string; details: string; status: string; created_at: string; r: ProfileCard; t: ProfileCard & { banned_until: string | null } };
 type Banned = ProfileCard & { banned_until: string; ban_reason: string };
@@ -22,7 +23,7 @@ const TABS = [
 ] as const;
 type Tab = (typeof TABS)[number]["id"];
 
-const ACTION: Record<string, string> = { ban: "забанил", unban: "разбанил", approve_job: "одобрил бейдж", reject_job: "отклонил бейдж" };
+const ACTION: Record<string, string> = { ban: "забанил", unban: "разбанил", approve_job: "одобрил бейдж", reject_job: "отклонил бейдж", clear_profile: "очистил в профиле", wipe: "стёр весь контент", delete_work: "удалил работу", delete_project: "удалил проект", delete_job: "удалил бейдж", delete_review: "удалил отзыв", delete_chat: "удалил канал", delete_message: "удалил сообщение" };
 
 /** Модерация: только для @fedonko и @awiny (роль owner). Права проверяет база, страница лишь показывает */
 export default function ModerationPage() {
@@ -62,7 +63,7 @@ export default function ModerationPage() {
           <div key={tab} className="md-body">
             {tab === "badges" && <Badges onChange={loadCounts} />}
             {tab === "reports" && <Reports onChange={loadCounts} />}
-            {tab === "users" && <Users />}
+            {tab === "users" && <Users initial={sp.get("u")} />}
             {tab === "log" && <LogView />}
           </div>
         )}
@@ -189,6 +190,7 @@ function Reports({ onChange }: { onChange: () => void }) {
               {r.details && <p className="md-details">{r.details}</p>}
               <div className="md-actions">
                 <BanButton user={{ id: r.target_user, display_name: r.t.display_name, banned_until: r.t.banned_until }} onDone={load} />
+                <Link className="chip-btn" href={`/moderation/?tab=users&u=${r.t.username}`}>Контент пользователя</Link>
                 {r.message_id && <button type="button" className="chip-btn" onClick={async () => { await supabase.rpc("delete_message", { p_id: r.message_id }); load(); }}>Удалить сообщение</button>}
                 {status === "open" && <button type="button" className="chip-btn" onClick={() => close(r, "resolved")}>✓ Решено</button>}
                 {status === "open" && <button type="button" className="chip-btn" onClick={() => close(r, "dismissed")}>Отклонить жалобу</button>}
@@ -201,8 +203,9 @@ function Reports({ onChange }: { onChange: () => void }) {
   );
 }
 
-function Users() {
-  const [q, setQ] = useState("");
+function Users({ initial }: { initial: string | null }) {
+  const [q, setQ] = useState(initial ?? "");
+  const [panel, setPanel] = useState<string | null>(initial);
   const [found, setFound] = useState<(ProfileCard & { banned_until: string | null; ban_reason: string })[]>([]);
   const [banned, setBanned] = useState<Banned[] | null>(null);
   const loadBanned = useCallback(async () => {
@@ -224,7 +227,7 @@ function Users() {
       <li key={p.id} className={`md-user ${isBanned ? "is-banned" : ""}`}>
         <Link href={profileHref(p.username)} className="md-who"><Avatar name={p.display_name} avatar={p.avatar} accent={p.accent} size={36} /><span><b>{p.display_name}</b><small>@{p.username}</small></span></Link>
         {isBanned && <span className="md-ban-info">{new Date(p.banned_until!).getFullYear() > 9000 ? "навсегда" : `до ${new Date(p.banned_until!).toLocaleDateString("ru-RU", { day: "numeric", month: "short" })}`}{p.ban_reason ? ` · ${p.ban_reason}` : ""}</span>}
-        {isOwner(p.role) ? <span className="md-ban-info">модератор</span> : <BanButton user={p} onDone={refresh} />}
+        {isOwner(p.role) ? <span className="md-ban-info">модератор</span> : <><button type="button" className="chip-btn" onClick={() => setPanel(p.username)}>Контент</button><BanButton user={p} onDone={refresh} /></>}
       </li>
     );
   };
@@ -234,6 +237,7 @@ function Users() {
       {found.length > 0 && <ul className="md-list">{found.map(row)}</ul>}
       <h3 className="md-h">Забанены сейчас{banned ? ` · ${banned.length}` : ""}</h3>
       {banned === null ? <div className="skeleton list-skeleton" /> : banned.length === 0 ? <p className="md-empty">Никого.</p> : <ul className="md-list">{banned.map(row)}</ul>}
+      <UserPanel username={panel} onClose={() => { setPanel(null); refresh(); }} />
     </section>
   );
 }
