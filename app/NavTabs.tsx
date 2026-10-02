@@ -46,6 +46,7 @@ export function NavTabs({ me }: { me: Profile }) {
     { href: "/aura/", label: "AURA", active: path.startsWith("/aura") },
     { href: "/discover/", label: "Discover", active: path.startsWith("/discover") || path.startsWith("/project") },
     { href: "/messages/", label: "Чаты", active: path.startsWith("/messages"), count: unread },
+    { href: "/settings/", label: "Settings", active: path.startsWith("/settings") },
   ];
 
   // В фокусе виден только Workspace

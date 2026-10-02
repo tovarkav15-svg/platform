@@ -16,7 +16,7 @@ export function BannerFx({ id }: { id?: string | null }) {
   if (!id) return null;
   return (
     <span className={`fx-banner ${id}`} aria-hidden="true">
-      {Array.from({ length: 10 }, (_, i) => <i key={i} style={{ "--k": i } as React.CSSProperties} />)}
+      {Array.from({ length: 14 }, (_, i) => <i key={i} style={{ "--k": i } as React.CSSProperties} />)}
     </span>
   );
 }
@@ -31,4 +31,14 @@ export function TitleChip({ id, small }: { id?: string | null; small?: boolean }
 export function WithRing({ id, children }: { id?: string | null; children: React.ReactNode }) {
   if (!id) return <>{children}</>;
   return <span className="fx-host"><RingFx id={id} />{children}</span>;
+}
+
+/** Живой фон всей страницы профиля */
+export function PageFx({ id }: { id?: string | null }) {
+  if (!id) return null;
+  return (
+    <div className={`fx-page ${id}`} aria-hidden="true">
+      {Array.from({ length: 14 }, (_, i) => <i key={i} />)}
+    </div>
+  );
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useSyncExternalStore } from "react";
 import { supabase } from "./supabase";
+import { readPrefs } from "./prefs";
 
 // Статус как в Discord: в сети / на платформе (вкладка открыта, но человек отошёл) / спит
 export type PresenceState = "online" | "idle" | "sleep";
@@ -71,6 +72,7 @@ export function startHeartbeat(userId: string) {
   let lastInput = Date.now();
   const mark = () => { lastInput = Date.now(); };
   const beat = async () => {
+    if (!readPrefs().showOnline) return; // человек скрыл, что он в сети
     const state = !document.hidden && Date.now() - lastInput < IDLE_AFTER ? "online" : "idle";
     const row = { user_id: userId, state, last_seen: new Date().toISOString() } as const;
     await supabase.from("presence").upsert(row);

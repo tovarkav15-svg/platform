@@ -5,6 +5,8 @@ import { FocusGuard } from "./focus/Focus";
 import { NotifyLayer } from "./notify/NotifyLayer";
 import { Suspense } from "react";
 import "./globals.css";
+import { PREFS_BOOT } from "@/lib/prefs-boot";
+import { PrefsSync } from "./PrefsSync";
 
 export const metadata: Metadata = {
   title: "Платформа",
@@ -13,8 +15,9 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ru">
+    <html lang="ru" suppressHydrationWarning>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: PREFS_BOOT }} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link
@@ -23,7 +26,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body>
-        <SessionProvider><CallLayer><FocusGuard>{children}</FocusGuard><Suspense fallback={null}><NotifyLayer /></Suspense></CallLayer></SessionProvider>
+        <PrefsSync /><SessionProvider><CallLayer><FocusGuard>{children}</FocusGuard><Suspense fallback={null}><NotifyLayer /></Suspense></CallLayer></SessionProvider>
       </body>
     </html>
   );

@@ -13,6 +13,7 @@ import { StickerArt } from "@/lib/stickers";
 import { useSession } from "@/lib/session";
 import { clock, dayLabel } from "./time";
 import { FileMedia, ImageMedia, imageSize, VideoMedia, VoiceMedia, useVoiceRecorder, type MediaMeta } from "./ChatMedia";
+import { readPrefs } from "@/lib/prefs";
 
 type Kind = "text" | "image" | "video" | "voice" | "file" | "system" | "sticker";
 type Msg = {
@@ -223,7 +224,10 @@ export function ChatThread({ chatId, meId, chat, onSettings, onCall }: { chatId:
   }
 
   function onKey(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); submit(); }
+    if (e.key !== "Enter" || e.nativeEvent.isComposing) return;
+    // Отправка по Enter или по Ctrl/⌘+Enter — как выбрано в Settings
+    const send = readPrefs().enterSend ? !e.shiftKey : e.metaKey || e.ctrlKey;
+    if (send) { e.preventDefault(); submit(); }
   }
 
   function onPaste(e: React.ClipboardEvent) {

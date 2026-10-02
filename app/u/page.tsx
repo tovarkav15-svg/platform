@@ -24,6 +24,7 @@ import { tierOf } from "@/lib/aura";
 import { chatHref } from "@/lib/links";
 import { useRouter } from "next/navigation";
 import type { Deco } from "@/lib/shop";
+import { PageFx } from "../Deco";
 
 const fmt = (n: number) => Math.round(n).toLocaleString("ru-RU").replace(/ /g, " ");
 const plural = (n: number, one: string, few: string, many: string) => {
@@ -56,7 +57,7 @@ export default function ProfilePage() {
       supabase.rpc("my_aura", { p_user: user.id }),
       supabase.rpc("user_channels", { p_user: user.id }),
       supabase.from("jobs").select("id, service, niche, avg_check").eq("user_id", user.id).eq("active", true).order("updated_at", { ascending: false }),
-      supabase.from("profile_deco").select("user_id, banner, ring, name_fx, title").eq("user_id", user.id).maybeSingle(),
+      supabase.from("profile_deco").select("user_id, banner, ring, name_fx, title, page_bg").eq("user_id", user.id).maybeSingle(),
     ]);
     setData({
       user: user as Profile, earnings: earnings as Earnings | null, friends: friends ?? 0, state,
@@ -78,7 +79,8 @@ export default function ProfilePage() {
   return (
     <>
       <TopBar />
-      {data && data !== "missing" && data.user.page_bg !== "plain" && (
+      {data && data !== "missing" && data.deco?.page_bg && <PageFx id={data.deco.page_bg} />}
+      {data && data !== "missing" && !data.deco?.page_bg && data.user.page_bg !== "plain" && (
         <div className={`pf-aurora bg-${data.user.page_bg}`} aria-hidden="true" style={{ "--c": accentColor(data.user.accent) } as React.CSSProperties}><i /><i /></div>
       )}
       <main className="page wide pf">

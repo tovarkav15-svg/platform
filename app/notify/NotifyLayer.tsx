@@ -7,6 +7,7 @@ import { useSession } from "@/lib/session";
 import { chatHref } from "@/lib/links";
 import { ChatAvatar, chatTitle } from "../messages/ChatAvatar";
 import { StickerArt } from "@/lib/stickers";
+import { readPrefs } from "@/lib/prefs";
 
 type Note = { id: string; chat: ChatListItem; sender: string; text: string; kind: string; at: number };
 const LABEL: Record<string, string> = { image: "📷 Фото", video: "🎬 Видео", voice: "🎤 Голосовое", file: "📎 Файл" };
@@ -62,9 +63,12 @@ export function NotifyLayer() {
           sender = (data?.display_name as string | undefined) ?? "Кто-то";
           names.current.set(m.sender_id, sender ?? "Кто-то");
         }
+        const prefs = readPrefs();
+        window.dispatchEvent(new Event("chats:refresh"));
+        if (!prefs.popups) return;
         const note: Note = { id: m.id, chat, sender: sender ?? "Кто-то", text: m.text, kind: m.kind, at: Date.now() };
         setNotes((n) => [note, ...n].slice(0, 3));
-        ping();
+        if (prefs.sound) ping();
         setTimeout(() => setNotes((n) => n.filter((x) => x.id !== note.id)), 6000);
         window.dispatchEvent(new Event("chats:refresh"));
       })

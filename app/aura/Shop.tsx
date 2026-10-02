@@ -5,13 +5,14 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase, publicMedia } from "@/lib/supabase";
 import { useSession } from "@/lib/session";
 import { TIERS } from "@/lib/aura";
-import { ABOUT, KINDS, TIER_COINS, loadCatalog, rarity, type Deco, type ShopItem, type ShopKind, type Wallet } from "@/lib/shop";
+import { ABOUT, CHEST_PRICE, KINDS, TIER_COINS, loadCatalog, rarity, type Deco, type ShopItem, type ShopKind, type Wallet } from "@/lib/shop";
 import { ProfileHeader } from "../ProfileHeader";
-import { BannerFx, RingFx, TitleChip } from "../Deco";
+import { BannerFx, PageFx, RingFx, TitleChip } from "../Deco";
 import { CountUp } from "../CountUp";
 
 type Slot = keyof Omit<Deco, "user_id">;
-const EMPTY: Omit<Deco, "user_id"> = { banner: null, ring: null, name_fx: null, title: null };
+const SHORT: Record<ShopKind, string> = { banner: "баннеры", ring: "ауры", name: "имена", title: "титулы", bg: "фоны" };
+const EMPTY: Omit<Deco, "user_id"> = { banner: null, ring: null, name_fx: null, title: null, page_bg: null };
 
 export function Shop() {
   const { ready, me } = useSession();
@@ -23,13 +24,18 @@ export function Shop() {
   const [preview, setPreview] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [toast, setToast] = useState<{ text: string; bad?: boolean } | null>(null);
+  const [rar, setRar] = useState("all");
+  const [onlyMine, setOnlyMine] = useState<"all" | "avail" | "owned">("all");
+  const [sort, setSort] = useState<"default" | "cheap" | "pricey">("default");
+  const [won, setWon] = useState<ShopItem | null>(null);
+  const [rolling, setRolling] = useState(false);
 
   const loadMine = useCallback(async () => {
     if (!me) return;
     const [{ data: w }, { data: own }, { data: d }] = await Promise.all([
       supabase.rpc("my_wallet"),
       supabase.from("user_items").select("item_id"),
-      supabase.from("profile_deco").select("banner, ring, name_fx, title").eq("user_id", me.id).maybeSingle(),
+      supabase.from("profile_deco").select("banner, ring, name_fx, title, page_bg").eq("user_id", me.id).maybeSingle(),
     ]);
     setWallet(((w as Wallet[]) ?? [])[0] ?? null);
     setOwned(new Set(((own as { item_id: string }[]) ?? []).map((o) => o.item_id)));
@@ -61,7 +67,21 @@ export function Shop() {
     setBusy(null);
   }
 
-  const shown = items.filter((i) => i.kind === kind);
+  async function chest() {
+    setRolling(true);
+    const [{ data, error }] = await Promise.all([supabase.rpc("open_chest"), new Promise((r) => setTimeout(r, 1400))]);
+    setRolling(false);
+    if (error) return say(error.message, true);
+    const it = items.find((i) => i.id === data) ?? null;
+    setWon(it);
+    await loadMine();
+  }
+
+  const shown = items
+    .filter((i) => i.kind === kind)
+    .filter((i) => rar === "all" || rarity(i.price).id === rar)
+    .filter((i) => onlyMine === "all" || (onlyMine === "owned" ? owned.has(i.id) : !owned.has(i.id) && tier >= i.min_tier && (!wallet || wallet.balance >= i.price)))
+    .sort((a, b) => (sort === "cheap" ? a.price - b.price : sort === "pricey" ? b.price - a.price : a.sort - b.sort));
   const previewItem = items.find((i) => i.id === preview);
   // В превью надето то, что выбрал сейчас, поверх того, что уже носишь
   const look = useMemo(() => {
@@ -99,10 +119,30 @@ export function Shop() {
         </ol>
       </div>
 
+      <div className="sh-extras">
+        <div className={`sh-chest ${rolling ? "rolling" : ""}`}>
+          <span className="sh-chest-box" aria-hidden="true"><i /><b>?</b></span>
+          <div>
+            <b>Сундук удачи</b>
+            <small>Случайный предмет до 500 Coins, которого у тебя ещё нет. Бывает, что выпадает вещь дороже сундука.</small>
+          </div>
+          {me
+            ? <button type="button" className="sh-btn" disabled={rolling || !wallet || wallet.balance < CHEST_PRICE} onClick={chest}>{rolling ? "Открываю…" : <>Открыть · <i className="sh-coin sm" aria-hidden="true">C</i>{CHEST_PRICE}</>}</button>
+            : <Link className="sh-btn" href="/login">Войти</Link>}
+        </div>
+        <div className="sh-collection">
+          <span className="label">Коллекция</span>
+          <b className="mono">{owned.size}<em>/{items.length}</em></b>
+          <span className="sh-col-bar"><i style={{ width: `${items.length ? (owned.size / items.length) * 100 : 0}%` }} /></span>
+          <small>{KINDS.map((k) => `${SHORT[k.id]} ${items.filter((i) => i.kind === k.id && owned.has(i.id)).length}/${items.filter((i) => i.kind === k.id).length}`).join(" · ")}</small>
+        </div>
+      </div>
+
       <div className="sh-body">
         <aside className="sh-preview">
           <span className="label">Примерка</span>
-          <div className="sh-preview-card">
+          <div className="sh-preview-card sh-stage">
+            <PageFx id={look.page_bg} />
             <ProfileHeader
               compact displayName={name} username={me?.username ?? "username"} headline={me?.headline}
               accent={me?.accent ?? "edit"} avatar={me?.avatar ?? null} role={me?.role} support={me?.is_support}
@@ -124,7 +164,27 @@ export function Shop() {
               </button>
             ))}
           </nav>
-          <div className="sh-grid" key={kind}>
+          <div className="sh-filters">
+            <div className="sh-rars">
+              {[["all", "Все"], ["common", "Обычные"], ["rare", "Редкие"], ["epic", "Эпические"], ["legend", "Легендарные"]].map(([id, l]) => (
+                <button key={id} type="button" className={`sh-rar-chip r-${id}`} aria-pressed={rar === id} onClick={() => setRar(id)}>{l}</button>
+              ))}
+            </div>
+            <div className="sh-sorts">
+              <select className="mini-select" value={onlyMine} onChange={(e) => setOnlyMine(e.target.value as typeof onlyMine)} aria-label="Показывать">
+                <option value="all">Все предметы</option>
+                <option value="avail">Могу купить</option>
+                <option value="owned">Мои</option>
+              </select>
+              <select className="mini-select" value={sort} onChange={(e) => setSort(e.target.value as typeof sort)} aria-label="Сортировка">
+                <option value="default">По порядку</option>
+                <option value="cheap">Сначала дешёвые</option>
+                <option value="pricey">Сначала дорогие</option>
+              </select>
+            </div>
+          </div>
+          {shown.length === 0 && <p className="sh-empty">Тут пусто. Попробуй другой фильтр.</p>}
+          <div className="sh-grid" key={`${kind}-${rar}-${onlyMine}-${sort}`}>
             {shown.map((it, i) => {
               const r = rarity(it.price);
               const have = owned.has(it.id);
@@ -156,6 +216,21 @@ export function Shop() {
           </div>
         </div>
       </div>
+      {won && (
+        <div className="sh-won" role="dialog" aria-label="Выпал предмет" onClick={() => setWon(null)}>
+          <div className={`sh-won-card rar-${rarity(won.price).id}`} onClick={(e) => e.stopPropagation()}>
+            <span className="sh-won-rays" aria-hidden="true" />
+            <span className="sh-rar">{rarity(won.price).label} · {KINDS.find((k) => k.id === won.kind)?.label}</span>
+            <div className="sh-item-art"><ItemArt it={won} name={name} avatar={me?.avatar ?? null} /></div>
+            <b>{won.name}</b>
+            <small>{ABOUT[won.id]}{won.price > CHEST_PRICE ? ` · в магазине стоит ${won.price}` : ""}</small>
+            <div className="save-row">
+              <button type="button" className="sh-btn" onClick={async () => { await equip(won, true); setWon(null); }}>Надеть</button>
+              <button type="button" className="sh-btn ghost" onClick={() => setWon(null)}>Позже</button>
+            </div>
+          </div>
+        </div>
+      )}
       {toast && <div className={`sh-toast ${toast.bad ? "bad" : ""}`} role="status">{toast.text}</div>}
     </section>
   );
@@ -166,6 +241,7 @@ function ItemArt({ it, name, avatar }: { it: ShopItem; name: string; avatar: str
   if (it.kind === "ring") return (
     <span className="fx-host sh-art-ava"><RingFx id={it.id} /><span className="ava" style={{ width: 64, height: 64, fontSize: 24 }}>{avatar ? <img src={avatar} alt="" /> : name.slice(0, 1)}</span></span>
   );
-  if (it.kind === "name") return <span className={`sh-art-name caps fx-name ${it.id}`}>{name.split(" ")[0]}</span>;
+  if (it.kind === "name") return <span className={`sh-art-name caps fx-name ${it.id}`} data-text={name.split(" ")[0]}>{name.split(" ")[0]}</span>;
+  if (it.kind === "bg") return <div className="sh-art-page"><PageFx id={it.id} /><span /><span /></div>;
   return <TitleChip id={it.id} />;
 }
