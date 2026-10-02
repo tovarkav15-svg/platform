@@ -26,6 +26,7 @@ import { useRouter } from "next/navigation";
 import type { Deco } from "@/lib/shop";
 import { PageFx } from "../Deco";
 import { Reviews } from "../Reviews";
+import { ReportDialog } from "../messages/ChatTools";
 
 const fmt = (n: number) => Math.round(n).toLocaleString("ru-RU").replace(/ /g, " ");
 const plural = (n: number, one: string, few: string, many: string) => {
@@ -317,6 +318,8 @@ function ProfileView({ user, earnings, friends, state, works, projects, aura, ch
         </section>
       </div>
 
+      {!isMe && loggedIn && <ProfileSafety userId={user.id} name={user.display_name} />}
+
       {isMe && (
         <>
           <WorkEditor open={workEdit !== null} onClose={() => setWorkEdit(null)} userId={user.id} work={workEdit === "new" ? null : workEdit} onSaved={reload} />
@@ -360,5 +363,27 @@ function SupportButton() {
       const { data } = await supabase.rpc("open_support");
       if (data) router.push(chatHref(data as string));
     }}>Написать в поддержку</button>
+  );
+}
+
+/** Внизу чужого профиля: пожаловаться модераторам или заблокировать */
+function ProfileSafety({ userId, name }: { userId: string; name: string }) {
+  const [report, setReport] = useState(false);
+  const [blocked, setBlocked] = useState<boolean | null>(null);
+  useEffect(() => { supabase.from("blocks").select("blocked").eq("blocked", userId).maybeSingle().then(({ data }) => setBlocked(!!data)); }, [userId]);
+  async function toggle() {
+    if (blocked) await supabase.from("blocks").delete().eq("blocked", userId);
+    else {
+      if (!window.confirm(`Заблокировать ${name}? Он не сможет писать и звонить тебе.`)) return;
+      await supabase.from("blocks").insert({ blocked: userId });
+    }
+    setBlocked(!blocked);
+  }
+  return (
+    <div className="pf-safety">
+      <button type="button" className="link-btn" onClick={() => setReport(true)}>⚑ Пожаловаться</button>
+      {blocked !== null && <button type="button" className="link-btn" onClick={toggle}>{blocked ? "↺ Разблокировать" : "⊘ Заблокировать"}</button>}
+      <ReportDialog target={report ? userId : null} name={name} onClose={() => setReport(false)} />
+    </div>
   );
 }

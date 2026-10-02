@@ -36,6 +36,8 @@ export type Profile = {
   is_support: boolean;
   dm_policy?: "all" | "friends";
   discoverable?: boolean;
+  banned_until?: string | null;
+  ban_reason?: string;
   looking_for: string;
 };
 

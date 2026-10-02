@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase, publicMedia } from "@/lib/supabase";
 import { useSession } from "@/lib/session";
 import { TIERS } from "@/lib/aura";
@@ -30,6 +30,7 @@ export function Shop() {
   const [sort, setSort] = useState<"default" | "cheap" | "pricey">("default");
   const [won, setWon] = useState<ShopItem | null>(null);
   const [rolling, setRolling] = useState(false);
+  const [roll, setRoll] = useState<ShopItem | null>(null); // что крутится в рулетке перед показом
 
   const loadMine = useCallback(async () => {
     if (!me) return;
@@ -70,12 +71,12 @@ export function Shop() {
 
   async function chest() {
     setRolling(true);
-    const [{ data, error }] = await Promise.all([supabase.rpc("open_chest"), new Promise((r) => setTimeout(r, 1400))]);
-    setRolling(false);
-    if (error) return say(error.message, true);
+    const { data, error } = await supabase.rpc("open_chest");
+    if (error) { setRolling(false); return say(error.message, true); }
     const it = items.find((i) => i.id === data) ?? null;
-    setWon(it);
-    await loadMine();
+    if (!it) { setRolling(false); return; }
+    setRoll(it); // рулетка покрутится и покажет выигрыш
+    loadMine();
   }
 
   const shown = items
@@ -217,6 +218,7 @@ export function Shop() {
           </div>
         </div>
       </div>
+      {roll && <CaseRoll items={items} winner={roll} name={name} avatar={me?.avatar ?? null} onDone={() => { setWon(roll); setRoll(null); setRolling(false); }} />}
       {won && (
         <div className="sh-won" role="dialog" aria-label="Выпал предмет" onClick={() => setWon(null)}>
           <div className={`sh-won-card rar-${rarity(won.price).id}`} onClick={(e) => e.stopPropagation()}>
@@ -247,4 +249,44 @@ function ItemArt({ it, name, avatar, banner }: { it: ShopItem; name: string; ava
   if (it.kind === "name") return <span className={`sh-art-name caps fx-name ${it.id}`} data-text={name.split(" ")[0]}>{name.split(" ")[0]}</span>;
   if (it.kind === "bg") return <div className="sh-art-page"><PageFx id={it.id} /><span /><span /></div>;
   return <TitleChip id={it.id} />;
+}
+
+/** Открытие сундука как кейса: лента предметов разгоняется и останавливается на выигрыше */
+export function CaseRoll({ items, winner, name, avatar, onDone }: { items: ShopItem[]; winner: ShopItem; name: string; avatar: string | null; onDone: () => void }) {
+  const W = 142; // ширина карточки + отступ
+  const WIN = 42;
+  const [strip] = useState(() => {
+    const pool = items.filter((i) => i.price <= 900);
+    // дешёвые попадаются чаще — как в настоящем кейсе
+    const pick = () => { const r = Math.random(); const tier = r < .55 ? 200 : r < .85 ? 500 : 900; const p = pool.filter((i) => i.price < tier); return p[Math.floor(Math.random() * p.length)] ?? pool[0]; };
+    return Array.from({ length: 50 }, (_, i) => (i === WIN ? winner : pick()));
+  });
+  const box = useRef<HTMLDivElement>(null);
+  const [x, setX] = useState(0);
+  const [done, setDone] = useState(false);
+  useEffect(() => {
+    const w = box.current?.clientWidth ?? 600;
+    const jitter = (Math.random() - 0.5) * (W - 30);
+    const t = requestAnimationFrame(() => requestAnimationFrame(() => setX(-(WIN * W + W / 2 - w / 2 + jitter))));
+    return () => cancelAnimationFrame(t);
+  }, []);
+  return (
+    <div className="cr" role="dialog" aria-label="Открываем сундук">
+      <div className="cr-panel">
+        <b className="cr-title">Сундук удачи</b>
+        <div className="cr-window" ref={box}>
+          <span className="cr-marker" aria-hidden="true" />
+          <div className={`cr-strip ${done ? "stopped" : ""}`} style={{ transform: `translateX(${x}px)` }} onTransitionEnd={() => { setDone(true); setTimeout(onDone, 900); }}>
+            {strip.map((it, i) => (
+              <div key={i} className={`cr-item rar-${rarity(it.price).id} ${done && i === WIN ? "win" : ""}`}>
+                <div className="cr-art"><ItemArt it={it} name={name} avatar={avatar} /></div>
+                <span>{it.name}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <small className="cr-hint">{done ? "Есть!" : "Крутим…"}</small>
+      </div>
+    </div>
+  );
 }

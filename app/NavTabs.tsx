@@ -11,6 +11,18 @@ export function NavTabs({ me }: { me: Profile }) {
   const params = useSearchParams();
   const [unread, setUnread] = useState(0);
   const [requests, setRequests] = useState(0);
+  const [modCount, setModCount] = useState(0);
+  // Модераторам — сколько бейджей и жалоб ждут
+  useEffect(() => {
+    if (me.role !== "owner" && me.role !== "founder") return;
+    const tick = () => Promise.all([
+      supabase.from("jobs").select("id", { count: "exact", head: true }).eq("mod_status", "pending"),
+      supabase.from("reports").select("id", { count: "exact", head: true }).eq("status", "open"),
+    ]).then(([b, r]) => setModCount((b.count ?? 0) + (r.count ?? 0)));
+    tick();
+    const t = setInterval(tick, 30000);
+    return () => clearInterval(t);
+  }, [me.role]);
 
   // Счётчики непрочитанных и заявок обновляются сами
   useEffect(() => {
@@ -45,6 +57,7 @@ export function NavTabs({ me }: { me: Profile }) {
     { href: "/aura/", label: "AURA", active: path.startsWith("/aura") },
     { href: "/messages/", label: "Чаты", active: path.startsWith("/messages"), count: unread },
     { href: "/settings/", label: "Settings", active: path.startsWith("/settings") },
+    ...(me.role === "owner" || me.role === "founder" ? [{ href: "/moderation/", label: "Модерация", active: path.startsWith("/moderation"), count: modCount }] : []),
   ];
 
   // В фокусе виден только Workspace

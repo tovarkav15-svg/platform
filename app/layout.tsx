@@ -7,6 +7,7 @@ import { Suspense } from "react";
 import "./globals.css";
 import { PREFS_BOOT } from "@/lib/prefs-boot";
 import { PrefsSync } from "./PrefsSync";
+import { BanGate } from "./BanGate";
 
 export const metadata: Metadata = {
   title: "Relic",
@@ -26,7 +27,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body>
-        <PrefsSync /><SessionProvider><CallLayer><FocusGuard>{children}</FocusGuard><Suspense fallback={null}><NotifyLayer /></Suspense></CallLayer></SessionProvider>
+        <PrefsSync /><SessionProvider><BanGate /><CallLayer><FocusGuard>{children}</FocusGuard><Suspense fallback={null}><NotifyLayer /></Suspense></CallLayer></SessionProvider>
       </body>
     </html>
   );

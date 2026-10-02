@@ -26,6 +26,7 @@ export default function JobsPage() {
   const [sort, setSort] = useState<Sort>("new");
   const [edit, setEdit] = useState<Job | null | "new">(null);
   const [open, setOpen] = useState<JobRow | null>(null);
+  const [notice, setNotice] = useState("");
 
   const load = useCallback(async () => {
     const { data } = await supabase.from("jobs").select(`*, author:profiles!jobs_user_id_fkey(${PROFILE_CARD})`).order("updated_at", { ascending: false }).limit(120);
@@ -74,6 +75,8 @@ export default function JobsPage() {
 
         {rows === null ? <div className="skeleton bx-cf-ph" /> : featured.length > 0 && <Coverflow jobs={featured} onOpen={setOpen} />}
 
+        {notice && <div className="bx-notice" role="status">✓ {notice}</div>}
+        {mine.some((r) => r.mod_status === "rejected") && <div className="bx-notice bad" role="status">Один из твоих бейджей отклонён модерацией — открой его, исправь и сохрани заново.</div>}
         <BadgeGuide onCreate={me ? () => setEdit("new") : undefined} />
 
         <div className="bx-tools">
@@ -113,7 +116,7 @@ export default function JobsPage() {
       <JobDetail job={open} onClose={() => setOpen(null)} canWrite={!!me && open?.user_id !== me.id}
         onEdit={open && open.user_id === me?.id ? () => { setEdit(open); setOpen(null); } : undefined}
         onWrite={async () => { if (open) router.push(chatHref(await openDm(open.user_id))); }} />
-      {me && <JobEditor open={edit !== null} onClose={() => setEdit(null)} userId={me.id} job={edit === "new" ? null : edit} onSaved={load}
+      {me && <JobEditor open={edit !== null} onClose={() => setEdit(null)} userId={me.id} job={edit === "new" ? null : edit} onSaved={() => { load(); setNotice("Бейдж отправлен на проверку. Как только модераторы одобрят, его увидят все."); setTimeout(() => setNotice(""), 6000); }}
         author={{ id: me.id, username: me.username, display_name: me.display_name, avatar: me.avatar, accent: me.accent, niches: me.niches, role: me.role, headline: me.headline, open_to_work: me.open_to_work, city: me.city, skills: me.skills }} />}
     </>
   );

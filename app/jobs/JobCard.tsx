@@ -12,6 +12,7 @@ export type JobCase = { title: string; link: string; image_path?: string | null 
 export type Job = {
   id: string; user_id: string; service: string; niche: string; description: string; avg_check: number;
   photo_path: string | null; cases: JobCase[]; active: boolean; created_at: string; updated_at: string;
+  mod_status?: "pending" | "approved" | "rejected"; mod_note?: string;
 };
 export type JobRow = Job & { author: ProfileCard };
 
@@ -58,6 +59,9 @@ export function JobBadge({ job, i, onOpen, onChat, photo: photoOverride, rating 
       <span className="bd-strap" aria-hidden="true" />
       <button type="button" className="bd" onClick={onOpen} aria-label={`${job.service}, ${job.author.display_name}`}>
         <span className="bd-clip" aria-hidden="true" />
+        {job.mod_status && job.mod_status !== "approved" && (
+          <span className={`bd-mod s-${job.mod_status}`}>{job.mod_status === "pending" ? "На проверке" : `Отклонён${job.mod_note ? `: ${job.mod_note}` : ""}`}</span>
+        )}
         <span className="bd-holo" aria-hidden="true" />
         <span className="bd-top">
           <span className="bd-niche"><i />{n?.title ?? "Услуга"}</span>

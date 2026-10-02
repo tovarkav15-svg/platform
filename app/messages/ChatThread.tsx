@@ -14,16 +14,19 @@ import { useSession } from "@/lib/session";
 import { clock, dayLabel } from "./time";
 import { FileMedia, ImageMedia, imageSize, VideoMedia, VoiceMedia, useVoiceRecorder, type MediaMeta } from "./ChatMedia";
 import { readPrefs } from "@/lib/prefs";
+import { MediaLibrary, ReportDialog } from "./ChatTools";
+import { isOwner } from "@/lib/supabase";
 
 type Kind = "text" | "image" | "video" | "voice" | "file" | "system" | "sticker";
 type Msg = {
   id: string; text: string; sender_id: string; created_at: string;
   kind: Kind; media_path: string | null; media_meta: MediaMeta;
+  edited_at?: string | null; deleted_at?: string | null;
   pending?: boolean; failed?: boolean; retry?: () => void;
 };
 type Other = { id: string; username: string; displayName: string; avatar: string | null; accent: string };
 
-const FIELDS = "id, text, sender_id, created_at, kind, media_path, media_meta";
+const FIELDS = "id, text, sender_id, created_at, kind, media_path, media_meta, edited_at, deleted_at";
 const POLL_MS = 5000; // запасной опрос, основная доставка — Realtime
 const MAX_LEN = 2000;
 
@@ -62,6 +65,46 @@ export function ChatThread({ chatId, meId, chat, onSettings, onCall }: { chatId:
   const fileInput = useRef<HTMLInputElement>(null);
   const stick = useRef(true); // держим ленту внизу, пока человек сам не прокрутил вверх
   const lastAt = useRef<string | null>(null);
+  const [menu, setMenu] = useState<string | null>(null);      // id сообщения с открытым меню
+  const [editing, setEditing] = useState<Msg | null>(null);
+  const [library, setLibrary] = useState(false);
+  const [report, setReport] = useState<{ user: string; message?: string | null; name: string } | null>(null);
+  const [headMenu, setHeadMenu] = useState(false);
+  const [block, setBlock] = useState<{ any: boolean; mine: boolean }>({ any: false, mine: false });
+  const moderator = isOwner(me?.role);
+
+  // Блокировка в личке: кто-то из двоих заблокировал другого
+  const loadBlock = useCallback(async () => {
+    if (!isDm || !other.id) return;
+    const [{ data: any }, { data: mine }] = await Promise.all([
+      supabase.rpc("is_blocked_pair", { a: meId, b: other.id }),
+      supabase.from("blocks").select("blocked").eq("blocked", other.id).maybeSingle(),
+    ]);
+    setBlock({ any: !!any, mine: !!mine });
+  }, [isDm, other.id, meId]);
+  useEffect(() => { loadBlock(); }, [loadBlock]);
+  async function toggleBlock() {
+    setHeadMenu(false);
+    if (block.mine) await supabase.from("blocks").delete().eq("blocked", other.id);
+    else {
+      if (!window.confirm(`Заблокировать ${other.displayName}? Он не сможет писать и звонить тебе.`)) return;
+      await supabase.from("blocks").insert({ blocked: other.id });
+    }
+    loadBlock();
+  }
+  async function removeMsg(m: Msg) {
+    setMenu(null);
+    if (!window.confirm("Удалить сообщение у всех?")) return;
+    const { error } = await supabase.rpc("delete_message", { p_id: m.id });
+    if (error) return setNotice(error.message);
+    setMessages((prev) => prev.map((x) => (x.id === m.id ? { ...x, deleted_at: new Date().toISOString(), text: "·", media_path: null, kind: "text" } : x)));
+  }
+  function startEdit(m: Msg) {
+    setMenu(null);
+    setEditing(m);
+    setText(m.text);
+    setTimeout(() => { input.current?.focus(); if (input.current) autosize(input.current); }, 0);
+  }
 
   const merge = useCallback((incoming: Msg[]) => {
     if (!incoming.length) return;
@@ -106,6 +149,11 @@ export function ChatThread({ chatId, meId, chat, onSettings, onCall }: { chatId:
         const m = payload.new as Msg;
         merge([m]);
         if (m.sender_id !== meId && !document.hidden) markRead();
+      })
+      // Изменили или удалили сообщение — обновляем на месте
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "messages", filter: `chat_id=eq.${chatId}` }, (payload) => {
+        const m = payload.new as Msg;
+        setMessages((prev) => prev.map((x) => (x.id === m.id ? { ...x, ...m } : x)));
       })
       // Собеседник прочитал — галочки обновляются сразу
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "chat_members", filter: `chat_id=eq.${chatId}` }, (payload) => {
@@ -214,6 +262,14 @@ export function ChatThread({ chatId, meId, chat, onSettings, onCall }: { chatId:
     if (!body || body.length > MAX_LEN) return;
     setText("");
     if (input.current) input.current.style.height = "";
+    if (editing) {
+      const id = editing.id;
+      setEditing(null);
+      if (body === editing.text) return;
+      setMessages((prev) => prev.map((x) => (x.id === id ? { ...x, text: body, edited_at: new Date().toISOString() } : x)));
+      supabase.rpc("edit_message", { p_id: id, p_text: body }).then(({ error }) => { if (error) setNotice(error.message); });
+      return;
+    }
     sendText(body);
   }
 
@@ -285,7 +341,23 @@ export function ChatThread({ chatId, meId, chat, onSettings, onCall }: { chatId:
               </button>
             </>
           )}
+          <button type="button" className="icon-btn" onClick={() => setLibrary(true)} aria-label="Медиатека" title="Медиатека">
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="2" fill="currentColor" /><rect x="13" y="3" width="8" height="8" rx="2" fill="currentColor" opacity=".55" /><rect x="3" y="13" width="8" height="8" rx="2" fill="currentColor" opacity=".55" /><rect x="13" y="13" width="8" height="8" rx="2" fill="currentColor" /></svg>
+          </button>
           {!isDm && <button type="button" className="icon-btn" onClick={onSettings} aria-label="Настройки чата" title="Настройки">⋯</button>}
+          {isDm && (
+            <span className="head-menu-anchor">
+              <button type="button" className="icon-btn" onClick={() => setHeadMenu((v) => !v)} aria-label="Ещё" aria-expanded={headMenu}>⋯</button>
+              {headMenu && (
+                <div className="head-menu" role="menu" onMouseLeave={() => setHeadMenu(false)}>
+                  <button type="button" role="menuitem" onClick={() => { setHeadMenu(false); setLibrary(true); }}>▦ Медиатека</button>
+                  <Link role="menuitem" href={profileHref(other.username)}>☺ Профиль</Link>
+                  <button type="button" role="menuitem" onClick={() => { setHeadMenu(false); setReport({ user: other.id, name: other.displayName }); }}>⚑ Пожаловаться</button>
+                  <button type="button" role="menuitem" className="danger" onClick={toggleBlock}>{block.mine ? "↺ Разблокировать" : "⊘ Заблокировать"}</button>
+                </div>
+              )}
+            </span>
+          )}
         </span>
       </header>
 
@@ -330,6 +402,8 @@ export function ChatThread({ chatId, meId, chat, onSettings, onCall }: { chatId:
           const groupEnd = !next || next.sender_id !== m.sender_id || dayLabel(next.created_at) !== dayLabel(m.created_at);
           const read = mine && !m.pending && !m.failed && !!otherReadAt && new Date(otherReadAt).getTime() >= new Date(m.created_at).getTime();
           const visual = m.kind === "image" || m.kind === "video";
+          const canEdit = mine && m.kind === "text" && !m.deleted_at && !m.pending && Date.now() - new Date(m.created_at).getTime() < 48 * 3600 * 1000;
+          const canDelete = !m.deleted_at && !m.pending && (mine || moderator || (isAdmin && chat.kind !== "dm" && chat.kind !== "support"));
           if (m.kind === "system") return (
             <div key={m.id} className="msg-wrap">
               {newDay && <div className="day-sep"><span>{dayLabel(m.created_at)}</span></div>}
@@ -350,16 +424,35 @@ export function ChatThread({ chatId, meId, chat, onSettings, onCall }: { chatId:
                 </Link>
               )}
               <div className={`msg kind-${m.kind} ${(visual && !m.text) || m.kind === "sticker" ? "bare" : ""} ${mine ? "mine" : ""} ${groupEnd ? "end" : ""} ${m.pending ? "pending" : ""} ${m.failed ? "failed" : ""}`}>
-                {m.kind === "image" && <ImageMedia path={m.media_path} meta={m.media_meta} />}
-                {m.kind === "video" && <VideoMedia path={m.media_path} meta={m.media_meta} />}
-                {m.kind === "file" && <FileMedia path={m.media_path} meta={m.media_meta} />}
-                {m.kind === "voice" && <VoiceMedia path={m.media_path} meta={m.media_meta} mine={mine} />}
-                {m.kind === "sticker" && <span className="msg-sticker"><StickerArt code={m.text} size={140} /></span>}
-                {m.text && m.kind !== "sticker" && <span className="msg-text">{m.text}</span>}
+                {m.deleted_at ? <span className="msg-deleted">Сообщение удалено</span> : (
+                  <>
+                    {m.kind === "image" && <ImageMedia path={m.media_path} meta={m.media_meta} />}
+                    {m.kind === "video" && <VideoMedia path={m.media_path} meta={m.media_meta} />}
+                    {m.kind === "file" && <FileMedia path={m.media_path} meta={m.media_meta} />}
+                    {m.kind === "voice" && <VoiceMedia path={m.media_path} meta={m.media_meta} mine={mine} />}
+                    {m.kind === "sticker" && <span className="msg-sticker"><StickerArt code={m.text} size={140} /></span>}
+                    {m.text && m.kind !== "sticker" && <span className="msg-text">{m.text}</span>}
+                  </>
+                )}
                 <span className="msg-meta">
+                  {m.edited_at && !m.deleted_at && <em className="msg-edited">изм.</em>}
                   {m.pending && m.kind !== "text" ? "загружаю…" : clock(m.created_at)}
                   {mine && <Ticks state={m.failed ? "failed" : m.pending ? "pending" : read ? "read" : "sent"} />}
                 </span>
+                {!m.deleted_at && !m.pending && !m.failed && (
+                  <span className={`msg-more-anchor ${mine ? "mine" : ""}`}>
+                    <button type="button" className="msg-more" onClick={() => setMenu(menu === m.id ? null : m.id)} aria-label="Действия с сообщением">⋯</button>
+                    {menu === m.id && (
+                      <div className="msg-menu" role="menu" onMouseLeave={() => setMenu(null)}>
+                        {m.kind === "text" && <button type="button" role="menuitem" onClick={() => { navigator.clipboard?.writeText(m.text); setMenu(null); }}>⧉ Копировать</button>}
+                        {canEdit && <button type="button" role="menuitem" onClick={() => startEdit(m)}>✎ Изменить</button>}
+                        {!mine && <button type="button" role="menuitem" onClick={() => { setMenu(null); setReport({ user: m.sender_id, message: m.id, name: people.get(m.sender_id)?.display_name ?? other.displayName }); }}>⚑ Пожаловаться</button>}
+                        {canDelete && <button type="button" role="menuitem" className="danger" onClick={() => removeMsg(m)}>🗑 Удалить</button>}
+                      </div>
+                    )}
+                  </span>
+                )}
+
               </div>
               {isAdmin && chat.kind !== "dm" && chat.kind !== "support" && !m.pending && !m.failed && extra?.pinned_message !== m.id && (
                 <button type="button" className={`pin-btn ${mine ? "mine" : ""}`} onClick={() => pin(m.id)} aria-label="Закрепить">📌</button>
@@ -378,7 +471,12 @@ export function ChatThread({ chatId, meId, chat, onSettings, onCall }: { chatId:
         </div>
       )}
 
-      {!canWrite ? (
+      {isDm && block.any ? (
+        <div className="composer readonly">
+          <span>{block.mine ? `Ты заблокировал ${other.displayName}. Он не может писать и звонить тебе.` : "Переписка недоступна."}</span>
+          {block.mine && <button type="button" className="chip-btn" onClick={toggleBlock}>Разблокировать</button>}
+        </div>
+      ) : !canWrite ? (
         <div className="composer readonly">
           <span>Ты подписан на канал. Писать здесь могут только админы.</span>
           <button type="button" className="chip-btn" onClick={onSettings}>О канале</button>
@@ -394,6 +492,13 @@ export function ChatThread({ chatId, meId, chat, onSettings, onCall }: { chatId:
           </button>
         </div>
       ) : (
+        <>
+        {editing && (
+          <div className="edit-bar">
+            <i>✎</i><span><b>Редактирование</b><small>{editing.text}</small></span>
+            <button type="button" className="icon-btn sm" aria-label="Отменить" onClick={() => { setEditing(null); setText(""); }}>×</button>
+          </div>
+        )}
         <form className="composer" onSubmit={submit}>
           <span className="stk-anchor">
             <button type="button" className={`attach stk-btn ${stickers ? "on" : ""}`} onClick={() => setStickers((v) => !v)} aria-label="Стикеры" title="Стикеры">
@@ -428,7 +533,10 @@ export function ChatThread({ chatId, meId, chat, onSettings, onCall }: { chatId:
             </button>
           )}
         </form>
+        </>
       )}
+      <MediaLibrary chatId={chatId} open={library} onClose={() => setLibrary(false)} meId={meId} />
+      <ReportDialog target={report?.user ?? null} messageId={report?.message} name={report?.name ?? ""} onClose={() => setReport(null)} />
     </div>
   );
 }
