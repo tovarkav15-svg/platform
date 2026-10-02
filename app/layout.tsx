@@ -10,9 +10,24 @@ import { PrefsSync } from "./PrefsSync";
 import { BanGate } from "./BanGate";
 import { JumpLayer } from "./JumpLayer";
 
+const BASE = process.env.NODE_ENV === "production" ? "/platform" : "";
+const DESCRIPTION = "Relic — платформа для фрилансеров: профиль, который продаёт, Workspace, обучение по нишам, биржа заказов и чаты.";
+
 export const metadata: Metadata = {
+  metadataBase: new URL("https://tovarkav15-svg.github.io"),
   title: "Relic",
-  description: "Relic — платформа для фрилансеров и тех, кто растёт",
+  description: DESCRIPTION,
+  icons: { icon: `${BASE}/relic-avatar.png`, apple: `${BASE}/relic-avatar.png` },
+  openGraph: {
+    title: "Relic — платформа для фрилансеров",
+    description: DESCRIPTION,
+    siteName: "Relic",
+    locale: "ru_RU",
+    type: "website",
+    url: `${BASE}/`,
+    images: [{ url: `${BASE}/relic-avatar.png`, width: 1024, height: 1024, alt: "Relic" }],
+  },
+  twitter: { card: "summary", title: "Relic", description: DESCRIPTION, images: [`${BASE}/relic-avatar.png`] },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

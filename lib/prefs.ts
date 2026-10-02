@@ -30,9 +30,19 @@ export function readPrefs(): Prefs {
   }
 }
 
+/** Биржа по умолчанию тёмная; на ней можно переключить на светлую */
+export function jobsDark() {
+  try { return localStorage.getItem("jobs:theme") !== "light"; } catch { return true; }
+}
+export function setJobsTheme(dark: boolean) {
+  try { localStorage.setItem("jobs:theme", dark ? "dark" : "light"); } catch {}
+  applyPrefs(readPrefs());
+}
+
 export function applyPrefs(p: Prefs) {
   const el = document.documentElement;
-  const dark = p.theme === "dark" || (p.theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+  const onJobs = /\/jobs(\/|$)/.test(window.location.pathname);
+  const dark = (onJobs && jobsDark()) || p.theme === "dark" || (p.theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
   el.dataset.theme = dark ? "dark" : p.theme === "warm" ? "warm" : "light";
   el.dataset.text = p.text;
   el.dataset.motion = p.motion;

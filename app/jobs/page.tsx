@@ -15,6 +15,7 @@ import { JobEditor } from "./JobEditor";
 import { BadgeGuide } from "./BadgeGuide";
 import { useRatings } from "../Reviews";
 import { MyOrders, MyResponses, OrderEditor, OrdersBoard, type Order } from "./Orders";
+import { jobsDark, setJobsTheme } from "@/lib/prefs";
 
 type Sort = "new" | "cheap" | "pricey";
 const SIDES = [
@@ -40,6 +41,9 @@ export default function JobsPage() {
   const [orderEdit, setOrderEdit] = useState<Order | null | "new">(null);
   const [ordersKey, setOrdersKey] = useState(0);
   const newOrder = () => (me ? setOrderEdit("new") : router.push("/login"));
+  const [dark, setDark] = useState(true);
+  useEffect(() => { setDark(jobsDark()); }, []);
+  const toggleTheme = () => { setJobsTheme(!dark); setDark(!dark); };
 
   const load = useCallback(async () => {
     const { data } = await supabase.from("jobs").select(`*, author:profiles!jobs_user_id_fkey(${PROFILE_CARD})`).order("updated_at", { ascending: false }).limit(120);
@@ -83,6 +87,7 @@ export default function JobsPage() {
               ? <button type="button" className="btn" onClick={() => setEdit("new")}>+ Мой бейдж</button>
               : <Link className="btn" href="/register">Разместить себя</Link>}
             <button type="button" className="btn ghost" onClick={newOrder}>+ Заказ</button>
+            <button type="button" className="bx-theme" onClick={toggleTheme} aria-label={dark ? "Светлая тема" : "Тёмная тема"} title={dark ? "Светлая тема" : "Тёмная тема"}>{dark ? "☀" : "☾"}</button>
             {mine.length > 0 && <small className="hint">Твоих на бирже: {mine.length}</small>}
           </div>
         </header>
