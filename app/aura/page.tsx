@@ -15,6 +15,7 @@ import { CountUp } from "../CountUp";
 import { RoleBadge } from "../ProfileHeader";
 import { TitleChip, WithRing } from "../Deco";
 import { Shop } from "./Shop";
+import { useLive } from "@/lib/live";
 
 export type Row = {
   rank: number; user_id: string; username: string; display_name: string; avatar: string | null; accent: string; niches: string; role: string; is_support: boolean;
@@ -36,12 +37,14 @@ export default function AuraPage() {
   const [niche, setNiche] = useState("");
   const [open, setOpen] = useState<string | null>(null);
 
+  const [tick, setTick] = useState(0);
+  useLive(["profiles", "works", "projects", "friendships", "goals", "project_milestones"], () => setTick((t) => t + 1), { poll: 60000 });
+  useEffect(() => { setRows(null); }, [niche]);
   useEffect(() => {
     document.title = "AURA · лидерборд";
     if (!ready) return;
-    setRows(null);
     supabase.rpc("leaderboard", { p_niche: niche || null, p_limit: 200 }).then(({ data }) => setRows((data as Row[]) ?? []));
-  }, [ready, niche]);
+  }, [ready, niche, tick]);
 
   const decos = useDecos((rows ?? []).slice(0, 60).map((r) => r.user_id));
   const top = (rows ?? []).slice(0, 3);

@@ -12,6 +12,7 @@ import { JobBadge, rub, type JobRow } from "../jobs/JobCard";
 import { UserPanel } from "./UserPanel";
 import { budgetText, type Order } from "../jobs/Orders";
 import { NICHES } from "@/lib/niches";
+import { useLive } from "@/lib/live";
 
 type Report = { id: string; reporter: string; target_user: string; message_id: string | null; reason: string; details: string; status: string; created_at: string; r: ProfileCard; t: ProfileCard & { banned_until: string | null } };
 type Banned = ProfileCard & { banned_until: string; ban_reason: string };
@@ -49,9 +50,8 @@ export default function ModerationPage() {
     document.title = "Модерация";
     if (!allowed) return;
     loadCounts();
-    const t = setInterval(loadCounts, 20000); // новые бейджи, заказы и жалобы подтягиваются сами
-    return () => clearInterval(t);
   }, [allowed, loadCounts]);
+  useLive(["jobs", "orders", "reports"], loadCounts, { enabled: allowed });
 
   if (me && !allowed) return (<><TopBar /><main className="page"><div className="pf-empty"><p className="lead">Эта страница только для модераторов Relic.</p><Link className="btn" href="/">На главную</Link></div></main></>);
 
@@ -92,6 +92,7 @@ function Badges({ onChange }: { onChange: () => void }) {
     setRows(((data as unknown as JobRow[]) ?? []).map((r) => ({ ...r, cases: Array.isArray(r.cases) ? r.cases : [] })));
   }, [filter]);
   useEffect(() => { load(); }, [load]);
+  useLive(["jobs"], load);
   async function decide(job: JobRow, approve: boolean) {
     const note = notes[job.id]?.trim() ?? "";
     if (!approve && !note && !window.confirm("Отклонить без причины? Автор не узнает, что исправить.")) return;
@@ -174,6 +175,7 @@ function Reports({ onChange }: { onChange: () => void }) {
     }
   }, [status]);
   useEffect(() => { load(); }, [load]);
+  useLive(["reports", "profiles"], load);
   async function close(r: Report, st: "resolved" | "dismissed") {
     await supabase.from("reports").update({ status: st }).eq("id", r.id);
     load(); onChange();
@@ -230,13 +232,22 @@ function Users({ initial }: { initial: string | null }) {
     setFound((data as unknown as typeof found) ?? []);
   }, []);
   useEffect(() => { loadBanned(); }, [loadBanned]);
+  // Новые регистрации — сразу в списке
+  const [fresh, setFresh] = useState<(ProfileCard & { banned_until: string | null; ban_reason: string; created_at: string })[] | null>(null);
+  const loadFresh = useCallback(async () => {
+    const { data } = await supabase.from("profiles").select(`${PROFILE_CARD}, banned_until, ban_reason, created_at`).order("created_at", { ascending: false }).limit(30);
+    setFresh((data as unknown as typeof fresh) ?? []);
+  }, []);
+  useEffect(() => { loadFresh(); }, [loadFresh]);
+  useLive(["profiles"], () => { loadFresh(); loadBanned(); });
   useEffect(() => { const t = setTimeout(() => search(q), 300); return () => clearTimeout(t); }, [q, search]);
   const refresh = () => { loadBanned(); search(q); };
-  const row = (p: ProfileCard & { banned_until: string | null; ban_reason?: string }) => {
+  const row = (p: ProfileCard & { banned_until: string | null; ban_reason?: string }, when?: string) => {
     const ban = banInfo(p.banned_until);
     const isBanned = ban.banned;
     return (
       <li key={p.id} className={`md-user ${isBanned ? "is-banned" : ""}`}>
+        {when && <small className="md-when">{new Date(when).toLocaleString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</small>}
         <Link href={profileHref(p.username)} className="md-who"><Avatar name={p.display_name} avatar={p.avatar} accent={p.accent} size={36} /><span><b>{p.display_name}</b><small>@{p.username}</small></span></Link>
         {isBanned && <span className="md-ban-info">{ban.forever ? "навсегда" : `до ${ban.date!.toLocaleDateString("ru-RU", { day: "numeric", month: "short" })}`}{p.ban_reason ? ` · ${p.ban_reason}` : ""}</span>}
         {isOwner(p.role) ? <span className="md-ban-info">модератор</span> : <><button type="button" className="chip-btn" onClick={() => setPanel(p.username)}>Контент</button><BanButton user={p} onDone={refresh} /></>}
@@ -246,9 +257,11 @@ function Users({ initial }: { initial: string | null }) {
   return (
     <section className="md-section">
       <div className="pp-input"><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Найти пользователя: имя или @юзернейм" aria-label="Поиск" /></div>
-      {found.length > 0 && <ul className="md-list">{found.map(row)}</ul>}
+      {found.length > 0 && <ul className="md-list">{found.map((p) => row(p))}</ul>}
+      <h3 className="md-h">Новые пользователи{fresh ? ` · последние ${fresh.length}` : ""}</h3>
+      {fresh === null ? <div className="skeleton list-skeleton" /> : <ul className="md-list">{fresh.map((p) => row(p, p.created_at))}</ul>}
       <h3 className="md-h">Забанены сейчас{banned ? ` · ${banned.length}` : ""}</h3>
-      {banned === null ? <div className="skeleton list-skeleton" /> : banned.length === 0 ? <p className="md-empty">Никого.</p> : <ul className="md-list">{banned.map(row)}</ul>}
+      {banned === null ? <div className="skeleton list-skeleton" /> : banned.length === 0 ? <p className="md-empty">Никого.</p> : <ul className="md-list">{banned.map((p) => row(p))}</ul>}
       <UserPanel username={panel} onClose={() => { setPanel(null); refresh(); }} />
     </section>
   );
@@ -286,6 +299,7 @@ function OrdersQueue({ onChange }: { onChange: () => void }) {
     setRows((data as unknown as Order[]) ?? []);
   }, [filter]);
   useEffect(() => { load(); }, [load]);
+  useLive(["orders"], load);
   async function decide(o: Order, approve: boolean) {
     const note = notes[o.id]?.trim() ?? "";
     if (!approve && !note && !window.confirm("Отклонить без причины?")) return;

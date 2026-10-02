@@ -10,6 +10,7 @@ import { Modal } from "../Modal";
 import { Avatar } from "../Avatar";
 import { RoleBadge } from "../ProfileHeader";
 import { Stars, useRatings } from "../Reviews";
+import { useLive } from "@/lib/live";
 
 export type Order = {
   id: string; client_id: string; title: string; niche: string; description: string; budget_from: number; budget_to: number;
@@ -58,6 +59,7 @@ export function OrdersBoard({ me, onNew }: { me: Profile | null; onNew: () => vo
     }
   }, [me]);
   useEffect(() => { load(); }, [load]);
+  useLive(["orders", "order_responses"], load);
 
   const myNiches = useMemo(() => new Set((me?.niches ?? "").split(",").filter(Boolean)), [me]);
   const view = (rows ?? []).filter((o) => (!niche || o.niche === niche) && (!q.trim() || (o.title + " " + o.description).toLowerCase().includes(q.trim().toLowerCase())) && Math.max(o.budget_to, o.budget_from) >= minBudget);
@@ -249,11 +251,8 @@ export function MyOrders({ me, onNew, onEdit }: { me: Profile; onNew: () => void
     }
   }, [me.id]);
   useEffect(() => { load(); }, [load]);
-  // Новые отклики прилетают сразу
-  useEffect(() => {
-    const ch = supabase.channel(`my-orders:${me.id}`).on("postgres_changes", { event: "INSERT", schema: "public", table: "order_responses" }, () => load()).subscribe();
-    return () => { supabase.removeChannel(ch); };
-  }, [me.id, load]);
+  // Новые отклики и изменения заказов прилетают сразу
+  useLive(["orders", "order_responses"], load);
   const ratings = useRatings(resp.map((r) => r.freelancer_id));
 
   async function accept(r: Response) {
@@ -333,6 +332,7 @@ export function MyResponses({ me }: { me: Profile }) {
     setRows((data as unknown as Response[]) ?? []);
   }, [me.id]);
   useEffect(() => { load(); }, [load]);
+  useLive(["order_responses", "orders"], load);
   if (rows === null) return <div className="skeleton list-skeleton" />;
   if (!rows.length) return <div className="pf-empty"><p className="lead">Ты ещё не откликался на заказы. Загляни во вкладку «Заказы» — там есть подборка под твои ниши.</p></div>;
   return (

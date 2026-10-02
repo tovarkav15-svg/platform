@@ -16,6 +16,7 @@ import { BadgeGuide } from "./BadgeGuide";
 import { useRatings } from "../Reviews";
 import { MyOrders, MyResponses, OrderEditor, OrdersBoard, type Order } from "./Orders";
 import { jobsDark, setJobsTheme } from "@/lib/prefs";
+import { useLive } from "@/lib/live";
 
 type Sort = "new" | "cheap" | "pricey";
 const SIDES = [
@@ -51,6 +52,7 @@ export default function JobsPage() {
   }, []);
 
   useEffect(() => { document.title = "Биржа вакансий"; if (ready) load(); }, [ready, load]);
+  useLive(["jobs"], () => { if (ready) load(); });
 
   const active = useMemo(() => (rows ?? []).filter((r) => r.active || r.user_id === me?.id), [rows, me]);
   const view = useMemo(() => {

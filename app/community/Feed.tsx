@@ -8,6 +8,7 @@ import { NICHES } from "@/lib/niches";
 import { profileHref, projectHref } from "@/lib/links";
 import { Avatar } from "../Avatar";
 import { CountUp } from "../CountUp";
+import { useLive } from "@/lib/live";
 
 type Kind = "all" | "projects" | "work" | "looking";
 type Item =
@@ -40,6 +41,8 @@ export function Feed() {
   const [niche, setNiche] = useState("");
 
 
+  const [tick, setTick] = useState(0);
+  useLive(["projects", "works"], () => setTick((t) => t + 1));
   useEffect(() => {
     if (!ready) return;
     (async () => {
@@ -52,7 +55,7 @@ export function Feed() {
         ...((w.data as unknown as (Work & { author: ProfileCard })[]) ?? []).map(({ author, ...work }) => ({ type: "work" as const, at: work.created_at, work, author })),
       ].sort((a, b) => b.at.localeCompare(a.at)));
     })();
-  }, [ready]);
+  }, [ready, tick]);
 
   const all = items ?? [];
   const byKind = (k: Kind) => all.filter((it) => k === "all" || (k === "projects" && it.type === "project") || (k === "work" && it.type === "work") || (k === "looking" && it.type === "project" && !!it.project.looking_for));

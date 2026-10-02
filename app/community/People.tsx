@@ -14,6 +14,7 @@ import { Avatar } from "../Avatar";
 import { FriendActions } from "../FriendActions";
 import { CountUp } from "../CountUp";
 import { Grid } from "../people/PersonCard";
+import { useLive } from "@/lib/live";
 
 const SKILLS = ["Premiere Pro", "After Effects", "Figma", "Reels", "Telegram", "Next.js", "Midjourney", "Таргет", "Копирайтинг"];
 
@@ -48,13 +49,16 @@ export function People() {
   };
 
   // Сколько людей в каждой нише — для плиток «Кого ищешь»
+  const [tick, setTick] = useState(0);
+  useLive(["profiles", "friendships"], () => { setTick((t) => t + 1); fl.reload(); });
   useEffect(() => {
     supabase.from("profiles").select("niches, open_to_work").eq("discoverable", true).limit(2000).then(({ data }) => setPool((data as typeof pool) ?? []));
-  }, []);
+  }, [tick]);
+  // Скелетон только при смене фильтров, живые обновления подменяют список тихо
+  useEffect(() => { setFound(null); }, [q, niche, open]);
 
   useEffect(() => {
     if (!me) { setFound([]); return; }
-    setFound(null);
     let query = supabase.from("profiles").select(PROFILE_CARD).neq("id", me.id).eq("discoverable", true).order("created_at", { ascending: false }).limit(90);
     if (q) {
       const safe = q.replace(/[%,()*]/g, "");
@@ -63,7 +67,7 @@ export function People() {
     if (niche) query = query.ilike("niches", `%${niche}%`);
     if (open) query = query.eq("open_to_work", true);
     query.then(({ data }) => setFound((data as ProfileCard[]) ?? []));
-  }, [me, q, niche, open]);
+  }, [me, q, niche, open, tick]);
 
   const decos = useDecos((found ?? []).map((p) => p.id));
   const myNiches = useMemo(() => new Set((me?.niches ?? "").split(",").filter(Boolean)), [me]);

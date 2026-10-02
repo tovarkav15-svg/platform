@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase, PROFILE_CARD, type ProfileCard } from "@/lib/supabase";
 import { profileHref } from "@/lib/links";
 import { Avatar } from "./Avatar";
+import { useLive } from "@/lib/live";
 
 type Review = { id: string; author_id: string; target_id: string; rating: number; text: string; created_at: string; author: ProfileCard };
 
@@ -39,6 +40,7 @@ export function Reviews({ userId, meId, name }: { userId: string; meId: string |
     if (meId && meId !== userId) supabase.rpc("can_review", { p_target: userId }).then(({ data }) => setCan(!!data));
   }, [load, meId, userId]);
 
+  useLive(["reviews"], load);
   const mine = list?.find((r) => r.author_id === meId);
   const avg = list?.length ? list.reduce((s, r) => s + r.rating, 0) / list.length : 0;
 

@@ -27,6 +27,7 @@ import type { Deco } from "@/lib/shop";
 import { PageFx } from "../Deco";
 import { Reviews } from "../Reviews";
 import { ReportDialog } from "../messages/ChatTools";
+import { useLive } from "@/lib/live";
 
 const fmt = (n: number) => Math.round(n).toLocaleString("ru-RU").replace(/ /g, " ");
 const plural = (n: number, one: string, few: string, many: string) => {
@@ -73,6 +74,7 @@ export default function ProfilePage() {
     if (!username) return setData("missing");
     load();
   }, [ready, username, load]);
+  useLive(["profiles", "works", "projects", "jobs", "profile_deco", "friendships"], () => { if (ready && username) load(); });
 
   useEffect(() => {
     if (data && data !== "missing") document.title = `${data.user.display_name} (@${data.user.username})`;

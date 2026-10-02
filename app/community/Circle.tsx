@@ -9,6 +9,7 @@ import { useFriendLinks } from "@/lib/useFriendLinks";
 import { Empty, PeopleList } from "../PeopleList";
 import { ProjectCard } from "../Cards";
 import { Orbit, SpaceHero } from "../SpaceHero";
+import { useLive } from "@/lib/live";
 
 type Tab = "friends" | "requests" | "teams";
 type Team = { project: Project; author: ProfileCard };
@@ -18,6 +19,8 @@ export function Circle() {
   const sp = useSearchParams();
   const tab: Tab = sp.get("c") === "requests" || sp.get("c") === "teams" ? (sp.get("c") as Tab) : "friends";
   const fl = useFriendLinks(me?.id);
+  const [tick, setTick] = useState(0);
+  useLive(["friendships", "projects"], () => { fl.reload(); setTick((t) => t + 1); });
   const [teams, setTeams] = useState<Team[] | null>(null);
 
 
@@ -34,7 +37,7 @@ export function Circle() {
         .order("updated_at", { ascending: false });
       setTeams(((data as unknown as (Project & { author: ProfileCard })[]) ?? []).map(({ author, ...project }) => ({ project, author })));
     })();
-  }, [me]);
+  }, [me, tick]);
 
   const tabs: { id: Tab; label: string; count?: number; hot?: boolean }[] = [
     { id: "friends", label: "Друзья", count: fl.friends.length },

@@ -5,6 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { supabase, type Profile } from "@/lib/supabase";
 import { profileHref } from "@/lib/links";
+import { useLive } from "@/lib/live";
 
 export function NavTabs({ me }: { me: Profile }) {
   const path = usePathname();
@@ -12,6 +13,9 @@ export function NavTabs({ me }: { me: Profile }) {
   const [unread, setUnread] = useState(0);
   const [requests, setRequests] = useState(0);
   const [modCount, setModCount] = useState(0);
+  // Счётчики в меню пересчитываются, как только что-то изменилось
+  const [navTick, setNavTick] = useState(0);
+  useLive(["order_responses", "orders", "jobs", "reports", "friendships"], () => setNavTick((t) => t + 1), { poll: 60000 });
   const [jobCount, setJobCount] = useState(0);
   // Заказчику — сколько новых откликов ждут ответа
   useEffect(() => {
@@ -20,7 +24,7 @@ export function NavTabs({ me }: { me: Profile }) {
     tick();
     const t = setInterval(tick, 30000);
     return () => clearInterval(t);
-  }, [me.id]);
+  }, [me.id, navTick]);
   // Модераторам — сколько бейджей и жалоб ждут
   useEffect(() => {
     if (me.role !== "owner" && me.role !== "founder") return;
@@ -32,7 +36,7 @@ export function NavTabs({ me }: { me: Profile }) {
     tick();
     const t = setInterval(tick, 30000);
     return () => clearInterval(t);
-  }, [me.role]);
+  }, [me.role, navTick]);
 
   // Счётчики непрочитанных и заявок обновляются сами
   useEffect(() => {
@@ -55,7 +59,7 @@ export function NavTabs({ me }: { me: Profile }) {
       window.removeEventListener("chats:refresh", tick);
       window.removeEventListener("friends:refresh", tick);
     };
-  }, [me.id]);
+  }, [me.id, navTick]);
 
   const isMyProfile = path.startsWith("/u") && params.get("n") === me.username;
   const tabs = [
