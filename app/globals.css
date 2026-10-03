@@ -4849,3 +4849,9 @@ html[data-taskw="bold"] :is(.plan-task-title, .quad-title, .gs-step-title) { fon
 .ne-doc a.nt-file::before { content: "📎"; }
 .ne-doc a.nt-file:hover { background: #FFF4D1; }
 .nt-paper .ne { margin-top: 0; }
+/* Ссылки и упоминания в сообщениях */
+.msg-link { color: #0A84FF; text-decoration: underline; text-underline-offset: 2px; overflow-wrap: anywhere; }
+.msg.mine .msg-link, .msg.mine .msg-mention { color: inherit; text-decoration-color: currentColor; opacity: .95; }
+.msg-link:hover { text-decoration-thickness: 2px; }
+.msg-mention { color: #7B61FF; font-weight: 700; text-decoration: none; }
+.msg-mention:hover { text-decoration: underline; }

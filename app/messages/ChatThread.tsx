@@ -15,6 +15,7 @@ import { clock, dayLabel } from "./time";
 import { FileMedia, ImageMedia, imageSize, VideoMedia, VoiceMedia, useVoiceRecorder, type MediaMeta } from "./ChatMedia";
 import { readPrefs } from "@/lib/prefs";
 import { MediaLibrary, ReportDialog } from "./ChatTools";
+import { Linkify } from "./Linkify";
 import { isOwner } from "@/lib/supabase";
 
 type Kind = "text" | "image" | "video" | "voice" | "file" | "system" | "sticker";
@@ -431,7 +432,7 @@ export function ChatThread({ chatId, meId, chat, onSettings, onCall }: { chatId:
                     {m.kind === "file" && <FileMedia path={m.media_path} meta={m.media_meta} />}
                     {m.kind === "voice" && <VoiceMedia path={m.media_path} meta={m.media_meta} mine={mine} />}
                     {m.kind === "sticker" && <span className="msg-sticker"><StickerArt code={m.text} size={140} /></span>}
-                    {m.text && m.kind !== "sticker" && <span className="msg-text">{m.text}</span>}
+                    {m.text && m.kind !== "sticker" && <span className="msg-text"><Linkify text={m.text} /></span>}
                   </>
                 )}
                 <span className="msg-meta">
