@@ -129,6 +129,7 @@ function General() {
   const [theme, setTheme] = usePref("theme");
   const [text, setText] = usePref("text");
   const [motion, setMotion] = usePref("motion");
+  const [taskW, setTaskW] = usePref("taskWeight");
   return (
     <>
       <Group title="Тема" hint="Сохраняется на этом устройстве">
@@ -152,6 +153,13 @@ function General() {
         <div className="st-seg">
           <button type="button" aria-pressed={motion === "full"} onClick={() => setMotion("full")}>Все<small>как задумано</small></button>
           <button type="button" aria-pressed={motion === "reduce"} onClick={() => setMotion("reduce")}>Минимум<small>без движения</small></button>
+        </div>
+      </Group>
+      <Group title="Названия задач в Plans" hint="Если на тёмной теме текст кажется тонким">
+        <div className="st-seg">
+          {([["regular", "Обычный", 400], ["medium", "Полужирный", 600], ["bold", "Жирный", 800]] as const).map(([id, l, w]) => (
+            <button key={id} type="button" aria-pressed={taskW === id} onClick={() => setTaskW(id)} style={{ fontWeight: w }}>Задача<small>{l}</small></button>
+          ))}
         </div>
       </Group>
       <Group title="Детали">

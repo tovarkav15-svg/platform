@@ -111,7 +111,7 @@ export function Shop() {
             return (
               <li key={t.name} className={got ? "got" : ""} style={{ "--t": t.color, "--i": i } as React.CSSProperties}>
                 <i />
-                <b>{t.name}</b>
+                <b>{t.icon} {t.name}</b>
                 <span className="mono">{t.min}+ AURA</span>
                 <em className="mono">+{TIER_COINS[i]}</em>
               </li>

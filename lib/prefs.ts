@@ -16,9 +16,10 @@ export type Prefs = {
   chatBg: "plain" | "dots" | "grad" | "paper";
   chatText: "sm" | "md" | "lg";
   communityTab: "feed" | "people" | "circle";
+  taskWeight: "regular" | "medium" | "bold";
 };
 
-export const DEFAULT_PREFS: Prefs = { theme: "light", text: "md", motion: "full", popups: true, sound: true, showOnline: true, enterSend: true, contrast: false, dots: true, quietNight: false, notifyText: true, chatBg: "plain", chatText: "md", communityTab: "feed" };
+export const DEFAULT_PREFS: Prefs = { theme: "light", text: "md", motion: "full", popups: true, sound: true, showOnline: true, enterSend: true, contrast: false, dots: true, quietNight: false, notifyText: true, chatBg: "plain", chatText: "md", communityTab: "feed", taskWeight: "medium" };
 const KEY = "prefs:v1";
 
 export function readPrefs(): Prefs {
@@ -50,6 +51,7 @@ export function applyPrefs(p: Prefs) {
   el.dataset.dots = p.dots ? "" : "off";
   el.dataset.chatbg = p.chatBg;
   el.dataset.chattext = p.chatText;
+  el.dataset.taskw = p.taskWeight;
 }
 
 export function savePrefs(p: Prefs) {

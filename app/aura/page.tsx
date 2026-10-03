@@ -91,7 +91,7 @@ export default function AuraPage() {
                       <b className="pod-name">{r.display_name}</b>
                       <TitleChip id={decos[r.user_id]?.title} small />
                       <span className="pod-aura mono"><CountUp value={r.aura} /></span>
-                      <span className="pod-tier">{tierOf(r.aura).name}</span>
+                      <span className="pod-tier">{tierOf(r.aura).icon} {tierOf(r.aura).fullName}</span>
                       <span className="pod-step"><i className="pod-shine" aria-hidden="true" /><b className="mono">{r.rank}</b><small>{r.rank === 1 ? "золото" : r.rank === 2 ? "серебро" : "бронза"}</small></span>
                     </Link>
                   ))}
@@ -107,7 +107,7 @@ export default function AuraPage() {
                           <span className="au-rank mono">{r.rank}</span>
                           <WithRing id={decos[r.user_id]?.ring}><Avatar name={r.display_name} avatar={r.avatar} accent={r.accent} size={40} userId={r.user_id} /></WithRing>
                           <span className="au-who"><b>{r.display_name}{isMe && <em> · это ты</em>}<RoleBadge role={r.role} small support={r.is_support} /><TitleChip id={decos[r.user_id]?.title} small /></b><small>@{r.username}</small></span>
-                          <span className="au-tier"><i />{t.name}</span>
+                          <span className="au-tier"><i />{t.fullName}</span>
                           <span className="au-bar"><i style={{ width: `${Math.min(100, (r.aura / Math.max(1, rows[0].aura)) * 100)}%` }} /></span>
                           <b className="au-score mono">{r.aura}</b>
                         </button>
@@ -142,9 +142,10 @@ function MyCard({ r, total }: { r: Row; total: number }) {
     <div className="au-me" style={{ "--t": t.color } as React.CSSProperties}>
       <span className="label">Твоя аура</span>
       <b className="mono"><CountUp value={r.aura} /></b>
-      <span className="au-me-tier"><i />{t.name} · место {r.rank} из {total}</span>
-      {t.next && <span className="au-me-next"><i style={{ width: `${Math.round(t.progress * 100)}%` }} /></span>}
-      {t.next && <small>Ещё {t.next.min - r.aura} до «{t.next.name}»</small>}
+      <span className="au-me-tier"><em className="au-ico">{t.icon}</em>{t.fullName} · место {r.rank} из {total}</span>
+      <span className="au-pips" aria-hidden="true">{["I", "II", "III"].map((d) => <i key={d} className={["I", "II", "III"].indexOf(d) <= ["I", "II", "III"].indexOf(t.division) ? "on" : ""}>{d}</i>)}</span>
+      {t.stepNext && <span className="au-me-next"><i style={{ width: `${Math.round(t.stepProgress * 100)}%` }} /></span>}
+      {t.stepNext && <small>Ещё {t.stepNext - r.aura} до {t.division === "III" && t.next ? `«${t.next.name} I»` : `«${t.name} ${t.division === "I" ? "II" : "III"}»`}</small>}
     </div>
   );
 }
@@ -218,13 +219,7 @@ function Quests({ mine, me, canWrite, loggedIn }: { mine: Row | null; me: Profil
           );
         })}
       </div>
-      <div className="qx-tiers">
-        {TIERS.map((t, i) => (
-          <div key={t.name} className="qx-tier" style={{ "--t": t.color, "--i": i } as React.CSSProperties}>
-            <i /><b>{t.name}</b><span className="mono">{t.min}+</span>
-          </div>
-        ))}
-      </div>
+      <TierPath aura={mine?.aura ?? null} />
       <p className="hint">С уровня «Сияние» открываются премиум-стикеры в чатах.</p>
     </section>
   );
@@ -266,5 +261,38 @@ function BoardPicker({ niche, onPick }: { niche: string; onPick: (id: string) =>
         </ul>
       )}
     </div>
+  );
+}
+
+/** Путь AURA: 12 уровней по 3 ступени. Видно, где ты и что дальше */
+function TierPath({ aura }: { aura: number | null }) {
+  const cur = aura === null ? null : tierOf(aura);
+  return (
+    <section className="tp">
+      <div className="tp-head"><b>Путь AURA</b><small>12 уровней, в каждом три ступени: I → II → III{cur ? ` · ты сейчас: ${cur.fullName}` : ""}</small></div>
+      <ol className="tp-list">
+        {TIERS.map((t, i) => {
+          const next = TIERS[i + 1];
+          const span = next ? (next.min - t.min) / 3 : 1500;
+          const steps = [0, 1, 2].map((d) => Math.round(t.min + span * d));
+          const here = cur?.index === i;
+          const passed = cur ? cur.index > i : false;
+          return (
+            <li key={t.name} className={`${here ? "here" : ""} ${passed ? "passed" : ""}`} style={{ "--t": t.color, "--i": i } as React.CSSProperties}>
+              <span className="tp-ico">{t.icon}</span>
+              <span className="tp-name"><b>{t.name}</b><small className="mono">{t.min}+ AURA</small></span>
+              <span className="tp-steps">
+                {steps.map((m, d) => {
+                  const on = aura !== null && aura >= m;
+                  const now = here && cur?.division === ["I", "II", "III"][d];
+                  return <i key={d} className={`${on ? "on" : ""} ${now ? "now" : ""}`} title={`${t.name} ${["I", "II", "III"][d]} — от ${m}`}>{["I", "II", "III"][d]}</i>;
+                })}
+              </span>
+              {here && <em className="tp-you">ты здесь</em>}
+            </li>
+          );
+        })}
+      </ol>
+    </section>
   );
 }

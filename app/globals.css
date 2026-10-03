@@ -4745,3 +4745,33 @@ html[data-theme="dark"][data-contrast="hi"] dialog { filter: invert(.92) hue-rot
 html[data-theme="dark"] dialog::backdrop { background: rgba(0, 0, 0, .62); }
 html[data-theme="warm"] dialog { filter: sepia(.14) saturate(1.06); }
 html[data-contrast="hi"]:not([data-theme="dark"]):not([data-theme="warm"]) dialog { filter: contrast(1.14); }
+
+/* ===== AURA: 12 уровней и ступени ===== */
+.au-ico { font-style: normal; display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 6px; background: var(--t); color: #fff; font-size: 11px; margin-right: 2px; }
+.au-pips { display: flex; gap: 4px; margin-top: 4px; }
+.au-pips i { flex: 1; text-align: center; font-style: normal; font-size: 10px; font-weight: 800; padding: 3px 0; border-radius: 6px; background: rgba(20,20,20,.06); color: var(--mute); }
+.au-pips i.on { background: color-mix(in srgb, var(--t) 22%, #fff); color: color-mix(in srgb, var(--t) 70%, #141414); }
+.tp { display: flex; flex-direction: column; gap: 12px; padding: 18px; border-radius: 22px; background: rgba(255,255,255,.92); border: 1px solid rgba(20,20,20,.07); }
+.tp-head { display: flex; flex-direction: column; gap: 2px; }
+.tp-head b { font-size: 18px; letter-spacing: -.02em; }
+.tp-head small { color: var(--mute); font-size: 13px; }
+.tp-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 8px; }
+.tp-list li { position: relative; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 16px; border: 1px solid rgba(20,20,20,.06); background: #fff; animation: fadeUp .4s var(--ease) both; animation-delay: calc(var(--i) * 30ms); }
+.tp-list li.passed { background: color-mix(in srgb, var(--t) 6%, #fff); }
+.tp-list li.here { border-color: var(--t); box-shadow: 0 0 0 2px color-mix(in srgb, var(--t) 35%, transparent), 0 14px 30px -18px var(--t); }
+.tp-ico { width: 34px; height: 34px; flex: none; display: grid; place-items: center; border-radius: 11px; background: color-mix(in srgb, var(--t) 14%, #fff); color: var(--t); font-size: 16px; font-weight: 800; }
+.tp-list li.passed .tp-ico, .tp-list li.here .tp-ico { background: var(--t); color: #fff; }
+.tp-name { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.tp-name b { font-size: 14.5px; } .tp-name small { font-size: 11px; color: var(--mute); }
+.tp-steps { display: flex; gap: 3px; }
+.tp-steps i { width: 26px; text-align: center; font-style: normal; font-size: 10px; font-weight: 800; padding: 3px 0; border-radius: 6px; background: rgba(20,20,20,.05); color: var(--mute); }
+.tp-steps i.on { background: color-mix(in srgb, var(--t) 22%, #fff); color: color-mix(in srgb, var(--t) 75%, #141414); }
+.tp-steps i.now { background: var(--t); color: #fff; animation: pulseRing 2s ease-in-out infinite; }
+.tp-you { position: absolute; top: -9px; right: 10px; font-style: normal; font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; padding: 2px 8px; border-radius: 99px; background: var(--t); color: #fff; }
+.sh-ladder { grid-template-columns: repeat(6, minmax(0, 1fr)) !important; }
+@media (max-width: 640px) { .sh-ladder { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; } }
+.hm-tiers { display: grid !important; grid-template-columns: 1fr 1fr; }
+/* Толщина названий задач в Plans (Settings → Внешний вид) */
+.plan-task-title, .quad-title, .gs-step-title { font-weight: 600; }
+html[data-taskw="regular"] :is(.plan-task-title, .quad-title, .gs-step-title) { font-weight: 400; }
+html[data-taskw="bold"] :is(.plan-task-title, .quad-title, .gs-step-title) { font-weight: 800; }

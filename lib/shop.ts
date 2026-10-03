@@ -107,7 +107,7 @@ export function rarity(price: number) {
 }
 
 /** Сколько Coins даёт каждый уровень (как в базе: coins_earned) */
-export const TIER_COINS = [100, 250, 500, 900, 1600, 3000];
+export const TIER_COINS = [100, 170, 250, 370, 500, 700, 900, 1250, 1600, 2300, 3000, 5000];
 
 let catalogCache: ShopItem[] | null = null;
 export async function loadCatalog() {

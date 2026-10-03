@@ -355,10 +355,10 @@ function AuraCard({ aura, isMe }: { aura: number; isMe: boolean }) {
     <Link href="/aura/" className="pf-aura" style={{ "--t": t.color } as React.CSSProperties}>
       <span className="pf-aura-orb" aria-hidden="true" />
       <span className="pf-aura-text">
-        <span className="label">AURA · {t.name}</span>
+        <span className="label">AURA · {t.icon} {t.fullName}</span>
         <b className="mono"><CountUp value={aura} /></b>
         {t.next
-          ? <span className="pf-aura-next"><i style={{ width: `${Math.round(t.progress * 100)}%` }} /><em>{isMe ? `ещё ${t.next.min - aura} до «${t.next.name}»` : `до «${t.next.name}» ${t.next.min - aura}`}</em></span>
+          ? <span className="pf-aura-next"><i style={{ width: `${Math.round(t.stepProgress * 100)}%` }} /><em>{t.stepNext ? (isMe ? `ещё ${t.stepNext - aura} до следующей ступени` : `до следующей ступени ${t.stepNext - aura}`) : ""}</em></span>
           : <span className="pf-aura-next"><em>Высший уровень</em></span>}
       </span>
     </Link>
