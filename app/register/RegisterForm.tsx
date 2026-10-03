@@ -7,6 +7,8 @@ import { NICHES } from "@/lib/niches";
 import { isUsernameTaken, signUp } from "@/lib/api";
 import { profileHref } from "@/lib/links";
 import { useSession } from "@/lib/session";
+import { supabase } from "@/lib/supabase";
+import { savedRef } from "../RefCatcher";
 import { normalizeUsername, validateUsername, USERNAME_MAX } from "@/lib/username";
 
 type Errors = Partial<Record<"displayName" | "username" | "email" | "password" | "form", string>>;
@@ -23,6 +25,14 @@ export function RegisterForm() {
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
   const [picked, setPicked] = useState<string[]>([]);
+  // Кто пригласил: из ссылки ?ref= или запомненный раньше
+  const [ref, setRef] = useState<{ username: string; name: string } | null>(null);
+  useEffect(() => {
+    const u = new URLSearchParams(window.location.search).get("ref")?.toLowerCase() || savedRef();
+    if (!u) return;
+    supabase.from("profiles").select("username, display_name").eq("username", u).maybeSingle()
+      .then(({ data }) => { if (data) setRef({ username: data.username, name: data.display_name }); });
+  }, []);
   const steps = [name.trim().length >= 2, check.cls === "good", /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email), pass.length >= 8 && /\d/.test(pass)];
   const doneSteps = steps.filter(Boolean).length;
   const strength = !pass ? 0 : Math.min(4, (pass.length >= 8 ? 1 : 0) + (/\d/.test(pass) ? 1 : 0) + (/[A-ZА-Я]/.test(pass) ? 1 : 0) + (/[^a-zA-Zа-яА-Я0-9]/.test(pass) || pass.length >= 12 ? 1 : 0));
@@ -66,7 +76,7 @@ export function RegisterForm() {
       setPending(false);
       return setErrors({ username: "Этот юзернейм уже занят" });
     }
-    const { data, error } = await signUp({ username: u, displayName, email, password, niches });
+    const { data, error } = await signUp({ username: u, displayName, email, password, niches, ref: ref?.username ?? null });
     if (error || !data.session) {
       setPending(false);
       return setErrors({ form: error?.message.includes("weak") ? "Пароль слишком простой" : "Не получилось создать аккаунт. Попробуй ещё раз." });
@@ -104,6 +114,7 @@ export function RegisterForm() {
       <div className="label">Регистрация · {doneSteps}/4</div>
       <h1 className="rg-title">Добро пожаловать в Relic</h1>
       <p className="rg-sub">Минута на старт. Дальше — профиль, Workspace, люди твоей ниши и обучение.</p>
+      {ref && <div className="rg-ref">🎁 Тебя пригласил <b>{ref.name}</b> <span>@{ref.username}</span></div>}
 
       {errors.form && <div className="form-error">{errors.form}</div>}
 

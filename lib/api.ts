@@ -6,14 +6,14 @@ export async function isUsernameTaken(username: string) {
   return !!data;
 }
 
-export async function signUp(p: { username: string; displayName: string; email: string; password: string; niches: string[] }) {
+export async function signUp(p: { username: string; displayName: string; email: string; password: string; niches: string[]; ref?: string | null }) {
   // Технический адрес аккаунта: вход идёт по юзернейму, настоящая почта хранится отдельно и видна только владельцу
   const authEmail = `u${crypto.randomUUID().replace(/-/g, "").slice(0, 20)}@${AUTH_EMAIL_DOMAIN}`;
   return supabase.auth.signUp({
     email: authEmail,
     password: p.password,
     options: {
-      data: { username: p.username, display_name: p.displayName, niches: p.niches.join(","), contact_email: p.email.toLowerCase() },
+      data: { username: p.username, display_name: p.displayName, niches: p.niches.join(","), contact_email: p.email.toLowerCase(), ref: p.ref ?? "" },
     },
   });
 }

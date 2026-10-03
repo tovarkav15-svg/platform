@@ -117,7 +117,7 @@ export function Shop() {
               </li>
             );
           })}
-          <li className="sh-ladder-note">и ещё +1 Coin за каждые 5 AURA</li>
+          <li className="sh-ladder-note">и ещё +1 Coin за каждые 5 AURA · до 100 Coins за каждого приглашённого друга — во вкладке «Задания»</li>
         </ol>
       </div>
 

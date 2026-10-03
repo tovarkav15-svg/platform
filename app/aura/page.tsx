@@ -15,6 +15,7 @@ import { CountUp } from "../CountUp";
 import { RoleBadge } from "../ProfileHeader";
 import { TitleChip, WithRing } from "../Deco";
 import { Shop } from "./Shop";
+import { Referrals } from "./Referrals";
 import { useLive } from "@/lib/live";
 
 export type Row = {
@@ -193,6 +194,7 @@ function Quests({ mine, me, canWrite, loggedIn }: { mine: Row | null; me: Profil
         <h2 className="qx-h">Задания</h2>
         <p>У каждого задания есть потолок, накрутить нельзя. Каждый новый уровень приносит Coins для <Link href="/aura/?tab=shop" replace scroll={false}>AURA Shop</Link>.</p>
       </div>
+      <Referrals me={me} />
       <div className="qx-grid">
         {list.map((q, i) => {
           const n = mine ? (mine[q.key] as number) : 0;

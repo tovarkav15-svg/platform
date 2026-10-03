@@ -4776,3 +4776,37 @@ html[data-contrast="hi"]:not([data-theme="dark"]):not([data-theme="warm"]) dialo
 .plan-task-title, .quad-title, .gs-step-title { font-weight: 600; }
 html[data-taskw="regular"] :is(.plan-task-title, .quad-title, .gs-step-title) { font-weight: 400; }
 html[data-taskw="bold"] :is(.plan-task-title, .quad-title, .gs-step-title) { font-weight: 800; }
+
+/* ===== Рефералы ===== */
+.rf { display: flex; flex-direction: column; gap: 14px; padding: 20px; border-radius: 24px; background: radial-gradient(80% 120% at 0% 0%, #FFF1D6, transparent 60%), radial-gradient(60% 100% at 100% 100%, #F1ECFF, transparent 60%), #fff; border: 1px solid rgba(201,138,0,.2); animation: fadeUp .5s var(--ease) both; }
+.rf-head { display: flex; gap: 14px; align-items: flex-start; }
+.rf-gift { width: 48px; height: 48px; flex: none; display: grid; place-items: center; border-radius: 16px; background: linear-gradient(135deg, #FFE08A, #F2B400); font-size: 24px; box-shadow: 0 12px 24px -12px rgba(201,138,0,.8); animation: chestIdle 3s ease-in-out infinite; }
+.rf-head b { font-size: 19px; letter-spacing: -.02em; }
+.rf-head p { margin: 4px 0 0; color: var(--graphite); font-size: 14px; line-height: 1.5; max-width: 70ch; }
+.rf-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+@media (max-width: 560px) { .rf-steps { grid-template-columns: 1fr 1fr; } }
+.rf-steps li { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: 14px; background: rgba(255,255,255,.8); border: 1px solid rgba(20,20,20,.07); }
+.rf-steps span { font-size: 20px; font-weight: 800; color: #B07A00; }
+.rf-steps small { font-size: 12px; color: var(--mute); }
+.rf-steps li.on { border-color: #F2B400; box-shadow: 0 0 0 2px rgba(242,180,0,.35); background: #FFFBEE; }
+.rf-steps li.done { opacity: .55; }
+.rf-link { display: flex; gap: 6px; flex-wrap: wrap; }
+.rf-link input { flex: 1; min-width: 220px; padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(20,20,20,.12); background: #fff; font: inherit; font-family: var(--mono); font-size: 13px; color: var(--ink); }
+.rf-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-radius: 16px; overflow: hidden; border: 1px solid rgba(20,20,20,.07); background: #fff; }
+@media (max-width: 560px) { .rf-stats { grid-template-columns: 1fr 1fr; } }
+.rf-stats div { display: flex; flex-direction: column; padding: 12px 14px; border-right: 1px solid rgba(20,20,20,.06); }
+.rf-stats b { font-size: 22px; letter-spacing: -.03em; }
+.rf-stats small { font-size: 12px; color: var(--mute); }
+.rf-stats .hot b { color: #B07A00; }
+.rf-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.rf-list li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 12px; border-radius: 14px; background: #fff; border: 1px solid rgba(20,20,20,.06); }
+.rf-who { display: flex; align-items: center; gap: 8px; color: inherit; text-decoration: none; min-width: 0; }
+.rf-who span { display: flex; flex-direction: column; line-height: 1.2; }
+.rf-who small { color: var(--mute); font-size: 12px; }
+.rf-ok { font-size: 13px; font-weight: 800; color: #137A57; white-space: nowrap; }
+.rf-wait { position: relative; width: 130px; height: 22px; border-radius: 99px; background: rgba(20,20,20,.06); overflow: hidden; flex: none; }
+.rf-wait i { position: absolute; inset: 0 auto 0 0; background: #FFE08A; }
+.rf-wait em { position: relative; display: block; text-align: center; line-height: 22px; font-style: normal; font-size: 11.5px; font-weight: 700; }
+.rf-hint { margin: 0; color: var(--graphite); }
+.rg-ref { padding: 10px 14px; border-radius: 14px; background: #FFF4D6; color: #6B4500; font-size: 14px; }
+.rg-ref span { color: #8A6100; opacity: .8; }

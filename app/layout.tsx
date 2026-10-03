@@ -9,6 +9,7 @@ import { PREFS_BOOT } from "@/lib/prefs-boot";
 import { PrefsSync } from "./PrefsSync";
 import { BanGate } from "./BanGate";
 import { JumpLayer } from "./JumpLayer";
+import { RefCatcher } from "./RefCatcher";
 
 const BASE = process.env.NODE_ENV === "production" ? "/platform" : "";
 const DESCRIPTION = "Relic — платформа для фрилансеров: профиль, который продаёт, Workspace, обучение по нишам, биржа заказов и чаты.";
@@ -43,7 +44,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body>
-        <PrefsSync /><SessionProvider><BanGate /><CallLayer><FocusGuard>{children}</FocusGuard><Suspense fallback={null}><NotifyLayer /><JumpLayer /></Suspense></CallLayer></SessionProvider>
+        <PrefsSync /><SessionProvider><BanGate /><CallLayer><FocusGuard>{children}</FocusGuard><Suspense fallback={null}><NotifyLayer /><JumpLayer /><RefCatcher /></Suspense></CallLayer></SessionProvider>
       </body>
     </html>
   );
