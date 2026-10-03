@@ -82,7 +82,7 @@ export function RegisterForm() {
     <aside className="rg-side">
       <Link href="/" className="logo relic-logo"><i aria-hidden="true" />Relic</Link>
       <div className="rg-stage">
-        <span className="rg-orbit" aria-hidden="true">{NICHES.map((n, i) => <i key={n.id} style={{ "--c": n.color, "--i": i } as React.CSSProperties} />)}</span>
+        <span className="rg-orbit" aria-hidden="true">{NICHES.map((n, i) => <i key={n.id} style={{ "--c": n.color, "--i": i, "--a": `${360 / NICHES.length}deg` } as React.CSSProperties} />)}</span>
         <div className="rg-card">
           <div className="rg-banner"><i /><i /><i /></div>
           <div className="rg-ava"><span>{(name.trim() || "?").slice(0, 1).toUpperCase()}</span></div>

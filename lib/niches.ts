@@ -6,6 +6,7 @@ export const NICHES = [
   { id: "producer", title: "Продюсер", color: "var(--c-prod)" },
   { id: "brand", title: "Бренд одежды", color: "var(--c-brand)" },
   { id: "infobiz", title: "Инфобиз", color: "var(--c-info)" },
+  { id: "design", title: "Дизайн", color: "var(--c-design)" },
   { id: "infographics", title: "Инфографика", color: "var(--c-graph)" },
   { id: "scaling", title: "Масштабирование", color: "var(--c-scale)" },
 ] as const;

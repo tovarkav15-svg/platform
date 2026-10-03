@@ -17,6 +17,7 @@
   --c-info: #c2410c;
   --c-graph: #0ea5b7;
   --c-scale: #141414;
+  --c-design: #d946ef;
 
   --good: #1fa67a;
   --bad: #e5484d;
@@ -4249,7 +4250,7 @@ html[data-chattext="lg"] .msg-text { font-size: 17px; }
 .rg-stage { position: relative; display: grid; place-items: center; min-height: 420px; perspective: 1000px; }
 .rg-orbit { position: absolute; width: 420px; height: 420px; max-width: 100%; border-radius: 50%; border: 1px dashed rgba(20,20,20,.1); animation: spin 40s linear infinite; }
 .rg-orbit i { position: absolute; left: 50%; top: 50%; width: 14px; height: 14px; margin: -7px; border-radius: 5px; background: var(--c); box-shadow: 0 0 0 4px #fff, 0 6px 14px -4px var(--c);
-  transform: rotate(calc(var(--i) * 40deg)) translateY(-210px) rotate(calc(var(--i) * -40deg)); }
+  transform: rotate(calc(var(--i) * var(--a, 40deg))) translateY(-210px) rotate(calc(var(--i) * var(--a, 40deg) * -1)); }
 .rg-card { position: relative; z-index: 1; width: 300px; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 0 0 20px; border-radius: 28px; overflow: hidden; background: #fff; text-align: center;
   box-shadow: 0 50px 90px -50px rgba(40,20,90,.45), 0 0 0 1px rgba(20,20,20,.05); animation: rgFloat 7s ease-in-out infinite; transform-style: preserve-3d; }
 @keyframes rgFloat { 0%, 100% { transform: rotateX(6deg) rotateY(-10deg) translateY(0); } 50% { transform: rotateX(-3deg) rotateY(8deg) translateY(-10px); } }
@@ -4291,7 +4292,7 @@ html[data-chattext="lg"] .msg-text { font-size: 17px; }
   .rg-side { margin: 10px 10px 0; }
   .rg-stage { min-height: 300px; }
   .rg-orbit { width: 300px; height: 300px; }
-  .rg-orbit i { transform: rotate(calc(var(--i) * 40deg)) translateY(-150px) rotate(calc(var(--i) * -40deg)); }
+  .rg-orbit i { transform: rotate(calc(var(--i) * var(--a, 40deg))) translateY(-150px) rotate(calc(var(--i) * var(--a, 40deg) * -1)); }
   .rg-card { width: 250px; }
 }
 
