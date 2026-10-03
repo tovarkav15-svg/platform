@@ -126,7 +126,7 @@ export function Shop() {
           <span className="sh-chest-box" aria-hidden="true"><i /><b>?</b></span>
           <div>
             <b>Сундук удачи</b>
-            <small>Случайный предмет до 500 Coins, которого у тебя ещё нет. Бывает, что выпадает вещь дороже сундука.</small>
+            <small>Любой предмет, которого у тебя ещё нет, — даже выше твоего уровня, который не купить. Шанс: обычные 47% · редкие 43% · эпические 9% · легендарные 1–2%.</small>
           </div>
           {me
             ? <button type="button" className="sh-btn" disabled={rolling || !wallet || wallet.balance < CHEST_PRICE} onClick={chest}>{rolling ? "Открываю…" : <>Открыть · <i className="sh-coin sm" aria-hidden="true">C</i>{CHEST_PRICE}</>}</button>
@@ -227,6 +227,7 @@ export function Shop() {
             <div className="sh-item-art"><ItemArt it={won} name={name} avatar={me?.avatar ?? null} /></div>
             <b>{won.name}</b>
             <small>{ABOUT[won.id]}{won.price > CHEST_PRICE ? ` · в магазине стоит ${won.price}` : ""}</small>
+            {won.min_tier > tier && <span className="sh-won-rare">🔓 Выше твоего уровня — в магазине откроется только с «{TIERS[won.min_tier].name}»</span>}
             <div className="save-row">
               <button type="button" className="sh-btn" onClick={async () => { await equip(won, true); setWon(null); }}>Надеть</button>
               <button type="button" className="sh-btn ghost" onClick={() => setWon(null)}>Позже</button>
@@ -256,9 +257,10 @@ export function CaseRoll({ items, winner, name, avatar, onDone }: { items: ShopI
   const W = 142; // ширина карточки + отступ
   const WIN = 42;
   const [strip] = useState(() => {
-    const pool = items.filter((i) => i.price <= 900);
+    const pool = items;
     // дешёвые попадаются чаще — как в настоящем кейсе
-    const pick = () => { const r = Math.random(); const tier = r < .55 ? 200 : r < .85 ? 500 : 900; const p = pool.filter((i) => i.price < tier); return p[Math.floor(Math.random() * p.length)] ?? pool[0]; };
+    // как в базе: дешёвые мелькают чаще, легендарные — изредка
+    const pick = () => { const r = Math.random(); const cap = r < .47 ? 200 : r < .9 ? 500 : r < .985 ? 1000 : Infinity; const lo = cap === 200 ? 0 : cap === 500 ? 200 : cap === 1000 ? 500 : 1000; const p = pool.filter((i) => i.price >= lo && i.price < cap); return p[Math.floor(Math.random() * p.length)] ?? pool[0]; };
     return Array.from({ length: 50 }, (_, i) => (i === WIN ? winner : pick()));
   });
   const box = useRef<HTMLDivElement>(null);
