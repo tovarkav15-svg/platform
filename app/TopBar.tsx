@@ -8,10 +8,10 @@ import { supabase } from "@/lib/supabase";
 import { profileHref, chatHref } from "@/lib/links";
 import { NavTabs } from "./NavTabs";
 import { Avatar, PresenceLabel } from "./Avatar";
-import { FocusButton } from "./focus/Focus";
+import { FocusButton, focusLeft } from "./focus/Focus";
 
 export function TopBar() {
-  const { ready, me } = useSession();
+  const { ready, me, refreshMe } = useSession();
   const router = useRouter();
   const [menu, setMenu] = useState(false);
   const [confirmOut, setConfirmOut] = useState(false);
@@ -44,6 +44,13 @@ export function TopBar() {
                   </div>
                   <Link role="menuitem" href={profileHref(me.username)} onClick={() => setMenu(false)}><i>◉</i>Мой профиль</Link>
                   <Link role="menuitem" href="/settings/" onClick={() => setMenu(false)}><i>✎</i>Настройки и оформление</Link>
+                  {focusLeft(me.focus_until) > 0 && (
+                    <button role="menuitem" type="button" onClick={async () => {
+                      setMenu(false);
+                      await supabase.from("profiles").update({ focus_until: null }).eq("id", me.id);
+                      await refreshMe();
+                    }}><i>◎</i>Выйти из фокуса</button>
+                  )}
                   <button role="menuitem" type="button" onClick={async () => {
                     setMenu(false);
                     const { data } = await supabase.rpc("open_support");

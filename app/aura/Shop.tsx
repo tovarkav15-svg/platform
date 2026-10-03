@@ -80,7 +80,7 @@ export function Shop() {
   }
 
   const shown = items
-    .filter((i) => i.kind === kind)
+    .filter((i) => i.kind === kind && (!i.hidden || owned.has(i.id)))
     .filter((i) => rar === "all" || rarity(i.price).id === rar)
     .filter((i) => onlyMine === "all" || (onlyMine === "owned" ? owned.has(i.id) : !owned.has(i.id) && tier >= i.min_tier && (!wallet || wallet.balance >= i.price)))
     .sort((a, b) => (sort === "cheap" ? a.price - b.price : sort === "pricey" ? b.price - a.price : a.sort - b.sort));
@@ -194,11 +194,11 @@ export function Shop() {
               const locked = tier < it.min_tier;
               const poor = !!wallet && wallet.balance < it.price;
               return (
-                <article key={it.id} className={`sh-item rar-${r.id} ${preview === it.id ? "on" : ""} ${worn ? "worn" : ""}`} style={{ "--i": i } as React.CSSProperties}
+                <article key={it.id} className={`sh-item rar-${it.hidden ? "excl" : r.id} ${preview === it.id ? "on" : ""} ${worn ? "worn" : ""}`} style={{ "--i": i } as React.CSSProperties}
                   onClick={() => setPreview(preview === it.id ? null : it.id)}>
                   <div className="sh-item-art"><ItemArt it={it} name={name} avatar={me?.avatar ?? null} banner={publicMedia(me?.banner_path ?? null)} /></div>
                   <div className="sh-item-info">
-                    <span className="sh-rar">{r.label}</span>
+                    <span className="sh-rar">{it.hidden ? "✦ Эксклюзив" : r.label}</span>
                     <b>{it.name}</b>
                     <small>{ABOUT[it.id]}</small>
                   </div>

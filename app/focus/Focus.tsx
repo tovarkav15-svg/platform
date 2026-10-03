@@ -75,7 +75,7 @@ export function FocusButton() {
       <span className="focus-pill" role="status">
         <i className="focus-orb" />
         <span className="mono">{fmt(left)}</span>
-        <button type="button" onClick={stop}>Выйти из фокуса</button>
+        <button type="button" onClick={stop} aria-label="Выйти из фокуса" title="Выйти из фокуса"><span className="fp-x" aria-hidden="true">✕</span><span className="fp-label">Выйти из фокуса</span></button>
       </span>
     );
   }

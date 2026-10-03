@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
 
 export type ShopKind = "banner" | "ring" | "name" | "title" | "bg" | "overlay" | "scene";
-export type ShopItem = { id: string; kind: ShopKind; name: string; price: number; min_tier: number; sort: number };
+export type ShopItem = { id: string; kind: ShopKind; name: string; price: number; min_tier: number; sort: number; hidden?: boolean };
 export type Deco = { user_id: string; banner: string | null; ring: string | null; name_fx: string | null; title: string | null; page_bg: string | null; overlay: string | null; scene: string | null };
 export type Wallet = { aura: number; peak: number; tier: number; earned: number; spent: number; balance: number };
 
@@ -75,6 +75,7 @@ export const ABOUT: Record<string, string> = {
   "t-marathon": "Доводит до конца",
   "t-boss": "Строит своё дело",
   "p-dots": "Мягкие точки плывут по странице",
+  "b-alpine": "Рассвет над горами, сосны и луговые цветы. Эксклюзив, не продаётся",
   "o-mist": "Туман стелется по низу баннера",
   "o-sakura": "Розовые лепестки летят поверх твоего фото",
   "o-snow": "Снег падает на баннер",
