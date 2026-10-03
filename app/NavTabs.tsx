@@ -47,7 +47,8 @@ export function NavTabs({ me }: { me: Profile }) {
         supabase.from("friendships").select("id", { count: "exact", head: true }).eq("addressee", me.id).eq("status", "pending"),
       ]);
       if (!alive) return;
-      if (chats.data) setUnread(chats.data.reduce((s: number, c: { unread: number }) => s + c.unread, 0));
+      // Обращения в поддержку не входят в общий счётчик — их видно во вкладке «Обращения»
+      if (chats.data) setUnread(chats.data.reduce((s: number, c: { unread: number; kind: string; support_for: string | null }) => s + (c.kind === "support" && c.support_for !== me.id ? 0 : c.unread), 0));
       setRequests(reqs.count ?? 0);
     };
     tick();

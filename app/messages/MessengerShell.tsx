@@ -33,7 +33,8 @@ export function MessengerShell({ chats, activeId, meId, children, onChanged }: P
   const shown = useMemo(() => {
     const s = q.trim().toLowerCase();
     const isTicket = (c: ChatListItem) => c.kind === "support" && c.support_for !== meId;
-    return list.filter((c) => (filter === "all" || (filter === "tickets" ? isTicket(c) : c.kind === filter || (filter === "dm" && c.kind === "support" && !isTicket(c))))
+    // Обращения людей в поддержку — только во вкладке «Обращения», не в общем списке
+    return list.filter((c) => ((filter === "all" && !isTicket(c)) || (filter === "tickets" ? isTicket(c) : c.kind === filter || (filter === "dm" && c.kind === "support" && !isTicket(c))))
       && (!s || chatTitle(c).toLowerCase().includes(s) || (c.other_username ?? "").includes(s)));
   }, [list, q, filter]);
   const hasSupport = list.some((c) => c.kind === "support" && c.support_for === meId);

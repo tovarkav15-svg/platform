@@ -57,6 +57,7 @@ export function NotifyLayer() {
         if (!chats.current.has(m.chat_id)) await loadChats();
         const chat = chats.current.get(m.chat_id);
         if (!chat) return;
+        if (chat.kind === "support" && chat.support_for !== me.id) return; // обращения не всплывают — они во вкладке «Обращения»
         let sender = names.current.get(m.sender_id);
         if (!sender) {
           const { data } = await supabase.from("profiles").select("display_name").eq("id", m.sender_id).maybeSingle();
