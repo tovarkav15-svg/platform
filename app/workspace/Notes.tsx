@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { mediaPaths, plainText } from "@/lib/noteHtml";
+import { NoteEditor } from "./NoteEditor";
 
 type Note = { id: string; folder: string; title: string; body: string; pinned: boolean; created_at: string; updated_at: string };
 const ALL = "__all";
@@ -15,7 +17,7 @@ const store = {
 
 /** Заголовок — первая строка, превью — следующая непустая (как в Заметках на iPhone) */
 const split = (body: string) => {
-  const lines = body.split("\n").map((l) => l.trim()).filter(Boolean);
+  const lines = plainText(body).split("\n").map((l) => l.trim()).filter(Boolean);
   return { title: (lines[0] ?? "").replace(/^[☐☑•]\s*/, "").slice(0, 200), preview: (lines[1] ?? "").replace(/^[☐☑•]\s*/, "") };
 };
 const when = (iso: string) => {
@@ -46,7 +48,6 @@ export function Notes({ userId }: { userId: string }) {
   const [custom, setCustom] = useState<string[]>([]);
   const [saved, setSaved] = useState<"" | "saving" | "saved">("");
   const timers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
-  const area = useRef<HTMLTextAreaElement>(null);
 
   const load = useCallback(async () => {
     const { data } = await supabase.from("notes").select("*").eq("user_id", userId).order("pinned", { ascending: false }).order("updated_at", { ascending: false });
@@ -58,7 +59,7 @@ export function Notes({ userId }: { userId: string }) {
   const count = (f: string) => (notes ?? []).filter((n) => f === ALL || n.folder === f).length;
   const list = useMemo(() => {
     const s = q.trim().toLowerCase();
-    return (notes ?? []).filter((n) => (folder === ALL || n.folder === folder) && (!s || n.body.toLowerCase().includes(s)))
+    return (notes ?? []).filter((n) => (folder === ALL || n.folder === folder) && (!s || plainText(n.body).toLowerCase().includes(s)))
       .sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.updated_at.localeCompare(a.updated_at));
   }, [notes, folder, q]);
   const open = notes?.find((n) => n.id === openId) ?? null;
@@ -84,12 +85,13 @@ export function Notes({ userId }: { userId: string }) {
     setNotes((all) => [data as Note, ...(all ?? [])]);
     setOpenId((data as Note).id);
     setStage("editor");
-    setTimeout(() => area.current?.focus(), 50);
   }
 
   async function remove(n: Note) {
     if (n.body.trim() && !window.confirm("Удалить заметку?")) return;
     await supabase.from("notes").delete().eq("id", n.id);
+    const files = mediaPaths(n.body);
+    if (files.length) supabase.storage.from("notes-media").remove(files).then(() => {});
     setNotes((all) => (all ?? []).filter((x) => x.id !== n.id));
     setOpenId(null);
     setStage("list");
@@ -98,7 +100,7 @@ export function Notes({ userId }: { userId: string }) {
   // Пустую заметку, из которой ушли, убираем — как на iPhone
   function leave(next: string | null) {
     const cur = open;
-    if (cur && cur.id !== next && !cur.body.trim()) { supabase.from("notes").delete().eq("id", cur.id).then(() => {}); setNotes((all) => (all ?? []).filter((x) => x.id !== cur.id)); }
+    if (cur && cur.id !== next && !plainText(cur.body).trim() && !mediaPaths(cur.body).length) { supabase.from("notes").delete().eq("id", cur.id).then(() => {}); setNotes((all) => (all ?? []).filter((x) => x.id !== cur.id)); }
     setOpenId(next);
   }
 
@@ -109,53 +111,8 @@ export function Notes({ userId }: { userId: string }) {
     setCustom(next); store.set(next); setFolder(name); setStage("list");
   }
 
-  // Чек-листы: клик по ☐ ставит галочку, Enter продолжает список
-  function onClickArea(e: React.MouseEvent<HTMLTextAreaElement>) {
-    if (!open) return;
-    const el = e.currentTarget, pos = el.selectionStart, text = el.value;
-    const start = text.lastIndexOf("\n", pos - 1) + 1;
-    if (pos - start > 2) return;
-    const ch = text[start];
-    if (ch !== "☐" && ch !== "☑") return;
-    const body = text.slice(0, start) + (ch === "☐" ? "☑" : "☐") + text.slice(start + 1);
-    patch(open.id, { body });
-    requestAnimationFrame(() => el.setSelectionRange(pos, pos));
-  }
-  function onKeyArea(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (!open || e.key !== "Enter" || e.shiftKey || e.nativeEvent.isComposing) return;
-    const el = e.currentTarget, pos = el.selectionStart, text = el.value;
-    const start = text.lastIndexOf("\n", pos - 1) + 1;
-    const line = text.slice(start, pos);
-    const m = line.match(/^([☐☑•])\s?/);
-    if (!m) return;
-    e.preventDefault();
-    const marker = m[1] === "•" ? "• " : "☐ ";
-    // пустой пункт + Enter — выходим из списка
-    const body = line.trim() === m[1] ? text.slice(0, start) + text.slice(pos) : text.slice(0, pos) + "\n" + marker + text.slice(pos);
-    const caret = line.trim() === m[1] ? start : pos + 1 + marker.length;
-    patch(open.id, { body });
-    requestAnimationFrame(() => el.setSelectionRange(caret, caret));
-  }
-  function insertMarker(marker: string) {
-    if (!open || !area.current) return;
-    const el = area.current, pos = el.selectionStart, text = el.value;
-    const start = text.lastIndexOf("\n", pos - 1) + 1;
-    const has = /^[☐☑•]\s?/.test(text.slice(start));
-    const body = has ? text.slice(0, start) + text.slice(start).replace(/^[☐☑•]\s?/, "") : text.slice(0, start) + marker + text.slice(start);
-    patch(open.id, { body });
-    const caret = pos + (has ? -2 : marker.length);
-    requestAnimationFrame(() => { el.focus(); el.setSelectionRange(caret, caret); });
-  }
-  function insertDate() {
-    if (!open || !area.current) return;
-    const el = area.current, pos = el.selectionStart;
-    const stamp = new Date().toLocaleString("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
-    patch(open.id, { body: el.value.slice(0, pos) + stamp + el.value.slice(pos) });
-    requestAnimationFrame(() => { el.focus(); el.setSelectionRange(pos + stamp.length, pos + stamp.length); });
-  }
-
-  const words = open ? open.body.trim().split(/\s+/).filter(Boolean).length : 0;
-  const todo = open ? { all: (open.body.match(/[☐☑]/g) ?? []).length, done: (open.body.match(/☑/g) ?? []).length } : { all: 0, done: 0 };
+  const words = open ? plainText(open.body).trim().split(/\s+/).filter(Boolean).length : 0;
+  const todo = open ? { all: (open.body.match(/data-done="(true|false)"/g) ?? []).length + (open.body.match(/[☐☑]/g) ?? []).length, done: (open.body.match(/data-done="true"/g) ?? []).length + (open.body.match(/☑/g) ?? []).length } : { all: 0, done: 0 };
   const grouped = GROUPS.map((g) => ({ g, items: list.filter((n) => group(n) === g) })).filter((x) => x.items.length);
 
   return (
@@ -220,20 +177,16 @@ export function Notes({ userId }: { userId: string }) {
             <div className="nt-bar nt-tools">
               <button type="button" className="nt-back" onClick={() => { leave(null); setStage("list"); }}>‹ {folder === ALL ? "Заметки" : folder}</button>
               <span className="nt-status">{saved === "saving" ? "Сохраняю…" : saved === "saved" ? "Сохранено" : ""}</span>
-              <button type="button" className="nt-tool" onClick={() => insertMarker("☐ ")} title="Чек-лист">☑</button>
-              <button type="button" className="nt-tool" onClick={() => insertMarker("• ")} title="Список">•≡</button>
-              <button type="button" className="nt-tool" onClick={insertDate} title="Вставить дату">🗓</button>
               <button type="button" className={`nt-tool ${open.pinned ? "on" : ""}`} onClick={() => patch(open.id, { pinned: !open.pinned })} title={open.pinned ? "Открепить" : "Закрепить"}>📌</button>
               <select className="nt-move" value={open.folder} onChange={(e) => patch(open.id, { folder: e.target.value })} aria-label="Папка">
                 {folders.map((f) => <option key={f} value={f}>{f}</option>)}
               </select>
-              <button type="button" className="nt-tool" onClick={() => { navigator.clipboard?.writeText(open.body); setSaved("saved"); }} title="Скопировать текст">⧉</button>
+              <button type="button" className="nt-tool" onClick={() => { navigator.clipboard?.writeText(plainText(open.body)); setSaved("saved"); }} title="Скопировать текст">⧉</button>
               <button type="button" className="nt-tool danger" onClick={() => remove(open)} title="Удалить">🗑</button>
             </div>
             <div className="nt-paper">
               <span className="nt-date">{new Date(open.updated_at).toLocaleString("ru-RU", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
-              <textarea ref={area} className="nt-area" value={open.body} placeholder={"Заголовок\nТекст заметки…"} spellCheck
-                onChange={(e) => patch(open.id, { body: e.target.value })} onClick={onClickArea} onKeyDown={onKeyArea} />
+              <NoteEditor noteId={open.id} body={open.body} userId={userId} onChange={(html) => patch(open.id, { body: html })} />
             </div>
             <div className="nt-meta">
               <span>{words} {words % 10 === 1 && words % 100 !== 11 ? "слово" : [2, 3, 4].includes(words % 10) && ![12, 13, 14].includes(words % 100) ? "слова" : "слов"}</span>
