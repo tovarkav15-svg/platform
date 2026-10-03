@@ -10,6 +10,7 @@ import { NICHES } from "@/lib/niches";
 import { LEVELS, articleHref, readMinutes, renderMarkdown, slugify, type Article } from "@/lib/learn";
 import { TopBar } from "../../TopBar";
 import { ImagePicker } from "../../ImagePicker";
+import { MdEditor } from "../MdEditor";
 
 const SAMPLE = `Короткое вступление: о чём статья и что человек получит.
 
@@ -97,10 +98,9 @@ export default function EditArticle() {
             <label className="field"><span>Адрес <span className="count">…/learn/article/?a=</span></span><div className="input"><input value={f.slug} onChange={(e) => { setSlugTouched(true); setF({ ...f, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-") }); }} /></div></label>
             <label className="field"><span>Анонс <span className="count">{f.summary.length}/300</span></span><div className="input"><textarea rows={2} maxLength={300} value={f.summary} onChange={(e) => setF({ ...f, summary: e.target.value })} placeholder="Одно-два предложения: что человек узнает" /></div></label>
             <div className="field"><span>Обложка</span><ImagePicker preview={cover} onPick={setFile} onClear={() => { setFile(null); setCoverPath(null); }} /></div>
-            <label className="field"><span>Текст <span className="count">Markdown · {readMinutes(f.body)} мин чтения</span></span>
-              <div className="input"><textarea className="ae-body" rows={18} value={f.body} onChange={(e) => setF({ ...f, body: e.target.value })} /></div>
-            </label>
-            <p className="hint"># Заголовок раздела · **жирный** · *курсив* · - список · 1. шаги · &gt; цитата · &gt; ! выноска · ![подпись](https://…картинка)</p>
+            <div className="field"><span>Текст <span className="count">{readMinutes(f.body)} мин чтения</span></span>
+              <MdEditor value={f.body} onChange={(body) => setF({ ...f, body })} />
+            </div>
             {orig && (confirmDel
               ? <button type="button" className="btn danger" onClick={async () => { await supabase.from("articles").delete().eq("id", orig.id); router.push(`/learn/niche/?n=${orig.niche}`); }}>Точно удалить статью</button>
               : <button type="button" className="btn ghost" onClick={() => setConfirmDel(true)}>Удалить статью</button>)}

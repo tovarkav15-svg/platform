@@ -4855,3 +4855,23 @@ html[data-taskw="bold"] :is(.plan-task-title, .quad-title, .gs-step-title) { fon
 .msg-link:hover { text-decoration-thickness: 2px; }
 .msg-mention { color: #7B61FF; font-weight: 700; text-decoration: none; }
 .msg-mention:hover { text-decoration: underline; }
+
+/* ===== Редактор статей как в Telegram ===== */
+.md { display: flex; flex-direction: column; gap: 8px; }
+.md-bar { position: sticky; top: 64px; z-index: 3; display: flex; flex-wrap: wrap; align-items: center; gap: 2px; padding: 6px; border-radius: 14px; background: rgba(255,255,255,.96); border: 1px solid rgba(20,20,20,.08); box-shadow: 0 10px 24px -20px rgba(0,0,0,.4); }
+.md-btn { min-width: 34px; height: 32px; padding: 0 8px; border: 0; border-radius: 9px; background: none; font: inherit; font-size: 14px; color: var(--ink); cursor: pointer; transition: background .2s; }
+.md-btn:hover { background: var(--paper); }
+.md-btn code { font-family: var(--mono); font-size: 12px; }
+.md-sep { width: 1px; height: 18px; margin: 0 4px; background: rgba(20,20,20,.12); }
+.md-wrap { position: relative; }
+.md-float { position: absolute; z-index: 4; top: -46px; left: 50%; transform: translateX(-50%); display: flex; gap: 2px; padding: 4px; border-radius: 12px; background: #1c1c1e; box-shadow: 0 14px 30px -12px rgba(0,0,0,.55); animation: lbIn .18s var(--ease) both; }
+.md-float .md-btn { color: #fff; height: 30px; min-width: 32px; }
+.md-float .md-btn:hover { background: rgba(255,255,255,.14); }
+.md-area { width: 100%; min-height: 420px; padding: 14px 16px; border-radius: 14px; border: 1px solid rgba(20,20,20,.12); background: #fff; font: inherit; font-size: 15px; line-height: 1.6; resize: vertical; }
+.md-area:focus { outline: 0; border-color: var(--ink); box-shadow: 0 0 0 4px rgba(20,20,20,.05); }
+.md-keys { margin: 0; font-size: 12px; color: var(--mute); line-height: 1.9; }
+.md-keys kbd { font-family: var(--mono); font-size: 11px; padding: 1px 6px; border-radius: 6px; background: var(--paper); border: 1px solid rgba(20,20,20,.1); color: var(--graphite); }
+/* спойлер, подчёркнутый и зачёркнутый в статье */
+.ar-body .spoiler { border-radius: 4px; background: #c9c9cf; color: transparent; cursor: pointer; transition: color .3s, background .3s; background-image: radial-gradient(rgba(255,255,255,.55) 1px, transparent 1.2px); background-size: 4px 4px; }
+.ar-body .spoiler:hover, .ar-body .spoiler:focus { color: inherit; background: rgba(20,20,20,.06); }
+.ar-body u { text-decoration-thickness: 1.5px; text-underline-offset: 3px; }

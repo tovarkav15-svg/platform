@@ -33,6 +33,9 @@ const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replac
 function inline(raw: string) {
   let s = esc(raw);
   s = s.replace(/`([^`]+)`/g, "<code>$1</code>");
+  s = s.replace(/\|\|([^|]+)\|\|/g, '<span class="spoiler" tabindex="0">$1</span>');
+  s = s.replace(/~~([^~]+)~~/g, "<s>$1</s>");
+  s = s.replace(/__([^_]+)__/g, "<u>$1</u>");
   s = s.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
   s = s.replace(/(^|[^*])\*([^*]+)\*/g, "$1<em>$2</em>");
   s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer nofollow">$1</a>');
