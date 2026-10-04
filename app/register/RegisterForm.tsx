@@ -77,6 +77,10 @@ export function RegisterForm() {
       return setErrors({ username: "Этот юзернейм уже занят" });
     }
     const { data, error } = await signUp({ username: u, displayName, email, password, niches, ref: ref?.username ?? null });
+    if (error && /already|registered|exists/i.test(error.message)) {
+      setPending(false);
+      return setErrors({ email: "Эта почта уже зарегистрирована. Войди или восстанови пароль на странице входа." });
+    }
     if (error || !data.session) {
       setPending(false);
       return setErrors({ form: error?.message.includes("weak") ? "Пароль слишком простой" : "Не получилось создать аккаунт. Попробуй ещё раз." });

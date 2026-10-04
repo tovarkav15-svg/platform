@@ -1,5 +1,4 @@
 import { supabase, type FriendState } from "./supabase";
-import { AUTH_EMAIL_DOMAIN } from "./config";
 
 export async function isUsernameTaken(username: string) {
   const { data } = await supabase.from("profiles").select("id").eq("username", username).maybeSingle();
@@ -7,10 +6,9 @@ export async function isUsernameTaken(username: string) {
 }
 
 export async function signUp(p: { username: string; displayName: string; email: string; password: string; niches: string[]; ref?: string | null }) {
-  // Технический адрес аккаунта: вход идёт по юзернейму, настоящая почта хранится отдельно и видна только владельцу
-  const authEmail = `u${crypto.randomUUID().replace(/-/g, "").slice(0, 20)}@${AUTH_EMAIL_DOMAIN}`;
+  // Аккаунт создаётся на настоящую почту — на неё приходят письма (сброс пароля). Вход по-прежнему и по юзернейму
   return supabase.auth.signUp({
-    email: authEmail,
+    email: p.email.trim().toLowerCase(),
     password: p.password,
     options: {
       data: { username: p.username, display_name: p.displayName, niches: p.niches.join(","), contact_email: p.email.toLowerCase(), ref: p.ref ?? "" },
