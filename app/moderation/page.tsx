@@ -10,6 +10,7 @@ import { TopBar } from "../TopBar";
 import { Avatar } from "../Avatar";
 import { JobBadge, rub, type JobRow } from "../jobs/JobCard";
 import { UserPanel } from "./UserPanel";
+import { Analytics } from "./Analytics";
 import { budgetText, type Order } from "../jobs/Orders";
 import { NICHES } from "@/lib/niches";
 import { useLive } from "@/lib/live";
@@ -19,6 +20,7 @@ type Banned = ProfileCard & { banned_until: string; ban_reason: string };
 type Log = { id: number; action: string; note: string; created_at: string; m: ProfileCard; u: ProfileCard | null };
 
 const TABS = [
+  { id: "stats", label: "Аналитика", sub: "Рост и активность" },
   { id: "badges", label: "Бейджи", sub: "Новые и изменённые" },
   { id: "orders", label: "Заказы", sub: "От заказчиков" },
   { id: "reports", label: "Жалобы", sub: "От пользователей" },
@@ -71,6 +73,7 @@ export default function ModerationPage() {
         </header>
         {!me ? <div className="skeleton list-skeleton" /> : (
           <div key={tab} className="md-body">
+            {tab === "stats" && <Analytics />}
             {tab === "badges" && <Badges onChange={loadCounts} />}
             {tab === "reports" && <Reports onChange={loadCounts} />}
             {tab === "orders" && <OrdersQueue onChange={loadCounts} />}
