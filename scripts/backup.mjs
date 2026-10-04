@@ -7,7 +7,9 @@ import { cpSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-const stamp = new Date().toISOString().slice(0, 16).replace("T", "_").replace(":", "-");
+const now = new Date();
+const pad = (n) => String(n).padStart(2, "0");
+const stamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}-${pad(now.getMinutes())}`; // местное время
 const root = join(homedir(), "platforma-backups");
 const dir = join(root, `relic-${stamp}`);
 mkdirSync(join(dir, "data"), { recursive: true });
