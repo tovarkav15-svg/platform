@@ -1,4 +1,5 @@
 import { titleName } from "@/lib/shop";
+import { BannerArt } from "./BannerArt";
 
 // Слои декора из AURA Shop. Сами по себе ничего не меняют, пока предмет не надет
 
@@ -17,6 +18,7 @@ export function BannerFx({ id }: { id?: string | null }) {
   return (
     <span className={`fx-banner ${id}`} aria-hidden="true">
       {Array.from({ length: 14 }, (_, i) => <i key={i} style={{ "--k": i } as React.CSSProperties} />)}
+      <BannerArt id={id} />
     </span>
   );
 }

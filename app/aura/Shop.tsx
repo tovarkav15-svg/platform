@@ -198,7 +198,7 @@ export function Shop() {
                   onClick={() => setPreview(preview === it.id ? null : it.id)}>
                   <div className="sh-item-art"><ItemArt it={it} name={name} avatar={me?.avatar ?? null} banner={publicMedia(me?.banner_path ?? null)} /></div>
                   <div className="sh-item-info">
-                    <span className="sh-rar">{it.hidden ? "✦ Эксклюзив" : r.label}</span>
+                    <span className="sh-rar">{it.hidden ? (it.price > 0 ? "Снят с продажи" : "✦ Эксклюзив") : r.label}</span>
                     <b>{it.name}</b>
                     <small>{ABOUT[it.id]}</small>
                   </div>
