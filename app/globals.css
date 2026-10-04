@@ -5161,3 +5161,11 @@ html[data-taskw="bold"] :is(.plan-task-title, .quad-title, .gs-step-title) { fon
   .dl-step-edit { grid-template-columns: 16px 1fr 80px auto; }
   .dl-row { flex-wrap: wrap; }
 }
+
+/* Вход: «Забыли пароль?» и восстановление */
+.field-row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.forgot { border: 0; background: none; padding: 0; font: inherit; font-size: 13px; font-weight: 600; color: var(--mute); cursor: pointer; transition: color .2s; }
+.forgot:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.auth-note { margin: -6px 0 0; font-size: 15px; line-height: 1.5; color: var(--graphite); }
+.form-ok { display: grid; gap: 4px; padding: 14px 16px; border-radius: 14px; background: #E3F6EE; color: #0F5E43; font-size: 14px; line-height: 1.5; }
+.form-ok > b { font-size: 15px; }
