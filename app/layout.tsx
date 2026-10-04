@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://tovarkav15-svg.github.io"),
   title: "Relic",
   description: DESCRIPTION,
-  icons: { icon: `${BASE}/relic-avatar.png`, apple: `${BASE}/relic-avatar.png` },
+  icons: { icon: `${BASE}/brand/relic-mark-app.png`, apple: `${BASE}/brand/relic-mark-app.png` },
   openGraph: {
     title: "Relic — платформа для фрилансеров",
     description: DESCRIPTION,
