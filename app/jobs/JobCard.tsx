@@ -6,6 +6,7 @@ import { publicMedia, type ProfileCard } from "@/lib/supabase";
 import { NICHES } from "@/lib/niches";
 import { profileHref } from "@/lib/links";
 import { RoleBadge } from "../ProfileHeader";
+import { dealsWord } from "@/lib/deals";
 import { Modal } from "../Modal";
 
 export type JobCase = { title: string; link: string; image_path?: string | null };
@@ -50,7 +51,7 @@ function useSwing(amp: number) {
 }
 
 /** Бейдж на ленточке: висит, раскачивается при наведении. onChat — сразу написать автору */
-export function JobBadge({ job, i, onOpen, onChat, photo: photoOverride, rating }: { job: JobRow; i: number; onOpen: () => void; onChat?: () => void; photo?: string | null; rating?: { avg: number; n: number } }) {
+export function JobBadge({ job, i, onOpen, onChat, photo: photoOverride, rating, deals }: { job: JobRow; i: number; onOpen: () => void; onChat?: () => void; photo?: string | null; rating?: { avg: number; n: number }; deals?: number }) {
   const n = nicheOf(job.niche);
   const photo = photoOverride ?? photoOf(job);
   const swing = useSwing(2.5 + (i % 3));
@@ -73,6 +74,7 @@ export function JobBadge({ job, i, onOpen, onChat, photo: photoOverride, rating 
         <span className="bd-name"><b>{job.author.display_name}</b><RoleBadge role={job.author.role} small support={job.author.is_support} /></span>
         <span className="bd-handle it">@{job.author.username}</span>
         {rating && <span className="bd-rating"><b>★ {rating.avg.toFixed(1)}</b><small>{rating.n} {rating.n === 1 ? "отзыв" : rating.n < 5 ? "отзыва" : "отзывов"}</small></span>}
+        {!!deals && <span className="bd-deals">✓ {deals} {dealsWord(deals)} через Биржу</span>}
         <span className="bd-service">{job.service}</span>
         <span className="bd-check"><small>средний чек</small><b className="mono">{rub(job.avg_check)}</b></span>
         <span className="bd-foot">

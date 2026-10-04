@@ -5,12 +5,13 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase, PROFILE_CARD, type Profile, type ProfileCard } from "@/lib/supabase";
 import { NICHES } from "@/lib/niches";
-import { chatHref, profileHref } from "@/lib/links";
+import { profileHref } from "@/lib/links";
 import { Modal } from "../Modal";
 import { Avatar } from "../Avatar";
 import { RoleBadge } from "../ProfileHeader";
 import { Stars, useRatings } from "../Reviews";
 import { useLive } from "@/lib/live";
+import { dealHref } from "@/lib/deals";
 
 export type Order = {
   id: string; client_id: string; title: string; niche: string; description: string; budget_from: number; budget_to: number;
@@ -254,12 +255,14 @@ export function MyOrders({ me, onNew, onEdit }: { me: Profile; onNew: () => void
   // Новые отклики и изменения заказов прилетают сразу
   useLive(["orders", "order_responses"], load);
   const ratings = useRatings(resp.map((r) => r.freelancer_id));
+  const deals = useOrderDeals(orders);
 
   async function accept(r: Response) {
     if (!window.confirm(`Выбрать ${r.freelancer?.display_name} исполнителем? Остальным откликам придёт отказ.`)) return;
-    const { data, error } = await supabase.rpc("accept_response", { p_response: r.id });
+    const { error } = await supabase.rpc("accept_response", { p_response: r.id });
     if (error) return window.alert(error.message);
-    router.push(chatHref(data as string));
+    const { data: d } = await supabase.from("deals").select("id").eq("order_id", r.order_id).neq("status", "cancelled").maybeSingle();
+    if (d) router.push(dealHref(d.id)); else load();
   }
   async function decline(r: Response) { await supabase.rpc("decline_response", { p_response: r.id }); load(); }
   async function close(o: Order) { if (window.confirm("Закрыть заказ? Он пропадёт из ленты.")) { await supabase.from("orders").update({ status: "closed" }).eq("id", o.id); load(); } }
@@ -281,7 +284,8 @@ export function MyOrders({ me, onNew, onEdit }: { me: Profile; onNew: () => void
             {o.mod_status === "rejected" && <div className="or-mod m-rejected">{MOD.rejected}{o.mod_note ? `: ${o.mod_note}` : ""} — исправь и сохрани заново</div>}
             <div className="or-own-actions">
               {o.status === "open" && <button type="button" className="chip-btn" onClick={() => onEdit(o)}>Изменить</button>}
-              {o.status !== "closed" && <button type="button" className="chip-btn" onClick={() => close(o)}>{o.status === "in_work" ? "Работа сдана, закрыть" : "Закрыть"}</button>}
+              {o.status === "in_work" && deals[o.id] && <Link className="btn sm" href={dealHref(deals[o.id])}>Открыть сделку →</Link>}
+              {o.status === "open" && <button type="button" className="chip-btn" onClick={() => close(o)}>Закрыть</button>}
               <button type="button" className="chip-btn md-danger" onClick={() => remove(o)}>Удалить</button>
             </div>
             <div className="or-resps">
@@ -333,6 +337,7 @@ export function MyResponses({ me }: { me: Profile }) {
   }, [me.id]);
   useEffect(() => { load(); }, [load]);
   useLive(["order_responses", "orders"], load);
+  const deals = useOrderDeals(rows?.filter((r) => r.status === "accepted").map((r) => ({ id: r.order_id })) ?? null);
   if (rows === null) return <div className="skeleton list-skeleton" />;
   if (!rows.length) return <div className="pf-empty"><p className="lead">Ты ещё не откликался на заказы. Загляни во вкладку «Заказы» — там есть подборка под твои ниши.</p></div>;
   return (
@@ -342,9 +347,23 @@ export function MyResponses({ me }: { me: Profile }) {
           <div><b>{r.order?.title ?? "Заказ удалён"}</b><small>{r.order ? `${budgetText(r.order)} · ` : ""}твоя цена {r.price ? money(r.price) : "—"}{r.days ? ` · ${r.days} дн.` : ""} · {ago(r.created_at)}</small></div>
           <span className={`or-status s-${r.status === "accepted" ? "in_work" : r.status === "declined" ? "closed" : "open"}`}>{r.status === "accepted" ? "🎉 Тебя выбрали" : r.status === "declined" ? "Выбрали другого" : "Ждёт ответа"}</span>
           {r.status === "sent" && <button type="button" className="chip-btn" onClick={async () => { await supabase.from("order_responses").delete().eq("id", r.id); load(); }}>Отозвать</button>}
-          {r.status === "accepted" && <Link className="chip-btn" href="/messages/">Открыть чаты</Link>}
+          {r.status === "accepted" && (deals[r.order_id] ? <Link className="btn sm" href={dealHref(deals[r.order_id])}>Открыть сделку →</Link> : <Link className="chip-btn" href="/messages/">Открыть чаты</Link>)}
         </li>
       ))}
     </ul>
   );
+}
+
+/** id сделки для каждого заказа (последняя неотменённая) */
+function useOrderDeals(orders: { id: string }[] | null) {
+  const [map, setMap] = useState<Record<string, string>>({});
+  const key = (orders ?? []).map((o) => o.id).sort().join(",");
+  const load = useCallback(async () => {
+    if (!key) return setMap({});
+    const { data } = await supabase.from("deals").select("id, order_id").in("order_id", key.split(",")).neq("status", "cancelled");
+    setMap(Object.fromEntries(((data as { id: string; order_id: string }[]) ?? []).map((d) => [d.order_id, d.id])));
+  }, [key]);
+  useEffect(() => { load(); }, [load]);
+  useLive(["deals"], load);
+  return map;
 }

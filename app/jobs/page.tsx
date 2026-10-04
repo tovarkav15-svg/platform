@@ -16,6 +16,8 @@ import { BadgeGuide } from "./BadgeGuide";
 import { useRatings } from "../Reviews";
 import { MyOrders, MyResponses, OrderEditor, OrdersBoard, type Order } from "./Orders";
 import { jobsDark, setJobsTheme } from "@/lib/prefs";
+import { MyDeals } from "./Deals";
+import { useDealsDone } from "@/lib/deals";
 import { useLive } from "@/lib/live";
 
 type Sort = "new" | "cheap" | "pricey";
@@ -24,6 +26,7 @@ const SIDES = [
   { id: "orders", label: "Заказы", sub: "Задачи от заказчиков" },
   { id: "my-orders", label: "Мои заказы", sub: "Я заказчик" },
   { id: "my-responses", label: "Мои отклики", sub: "Я исполнитель" },
+  { id: "deals", label: "Сделки", sub: "Условия, этапы, сдача" },
 ] as const;
 type Side = (typeof SIDES)[number]["id"];
 
@@ -70,6 +73,7 @@ export default function JobsPage() {
   const mine = active.filter((r) => r.user_id === me?.id);
   const specialists = new Set(active.map((r) => r.user_id)).size;
   const ratings = useRatings(active.map((r) => r.user_id));
+  const dealsDone = useDealsDone(active.map((r) => r.user_id));
 
   return (
     <>
@@ -95,7 +99,7 @@ export default function JobsPage() {
         </header>
 
         <nav className="bx-sides" aria-label="Разделы биржи">
-          {SIDES.filter((s) => me || (s.id !== "my-orders" && s.id !== "my-responses")).map((s) => (
+          {SIDES.filter((s) => me || (s.id !== "my-orders" && s.id !== "my-responses" && s.id !== "deals")).map((s) => (
             <Link key={s.id} href={s.id === "pros" ? "/jobs/" : `/jobs/?tab=${s.id}`} replace scroll={false} className="bx-side" aria-current={side === s.id ? "page" : undefined}>
               <b>{s.label}</b><small>{s.sub}</small>
             </Link>
@@ -106,6 +110,7 @@ export default function JobsPage() {
         {side === "orders" && <OrdersBoard key={ordersKey} me={me} onNew={newOrder} />}
         {side === "my-orders" && me && <MyOrders key={ordersKey} me={me} onNew={newOrder} onEdit={(o) => setOrderEdit(o)} />}
         {side === "my-responses" && me && <MyResponses me={me} />}
+        {side === "deals" && me && <MyDeals me={me} />}
         {side === "pros" && (<>
         {rows === null ? <div className="skeleton bx-cf-ph" /> : featured.length > 0 && <Coverflow jobs={featured} onOpen={setOpen} />}
 
@@ -130,7 +135,7 @@ export default function JobsPage() {
         ) : view.length ? (
           <div className="bx-board" key={`${niche}-${sort}`}>
             {view.map((r, i) => (
-              <JobBadge key={r.id} job={r} i={i} onOpen={() => setOpen(r)} rating={ratings[r.user_id]}
+              <JobBadge key={r.id} job={r} i={i} onOpen={() => setOpen(r)} rating={ratings[r.user_id]} deals={dealsDone[r.user_id]}
                 onChat={r.user_id === me?.id ? undefined : async () => {
                   if (!me) return router.push("/login");
                   try { router.push(chatHref(await openDm(r.user_id))); } catch { window.alert("Этот человек принимает сообщения только от друзей. Открой бейдж и отправь заявку в друзья через профиль."); }

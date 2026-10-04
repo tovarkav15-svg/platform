@@ -7,7 +7,7 @@ import { profileHref } from "@/lib/links";
 import { Avatar } from "./Avatar";
 import { useLive } from "@/lib/live";
 
-type Review = { id: string; author_id: string; target_id: string; rating: number; text: string; created_at: string; author: ProfileCard };
+type Review = { id: string; author_id: string; target_id: string; rating: number; text: string; created_at: string; author: ProfileCard; deal_id?: string | null };
 
 export function Stars({ value, size = 14 }: { value: number; size?: number }) {
   return (
@@ -65,6 +65,7 @@ export function Reviews({ userId, meId, name }: { userId: string; meId: string |
           <li key={r.id} style={{ "--i": i } as React.CSSProperties}>
             <Link href={profileHref(r.author.username)} className="rv-who"><Avatar name={r.author.display_name} avatar={r.author.avatar} accent={r.author.accent} size={30} /><span><b>{r.author.display_name}</b><small>{new Date(r.created_at).toLocaleDateString("ru-RU", { day: "numeric", month: "short" })}</small></span></Link>
             <Stars value={r.rating} size={13} />
+            {r.deal_id && <span className="rv-deal" title="Отзыв оставлен после закрытой сделки на Бирже">✓ Сделка на Бирже</span>}
             {r.text && <p>{r.text}</p>}
           </li>
         ))}
