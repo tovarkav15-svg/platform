@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { supabase, type Profile } from "@/lib/supabase";
+import { supabase, type ChatListItem, type Profile } from "@/lib/supabase";
 import { profileHref } from "@/lib/links";
 import { useLive } from "@/lib/live";
+import { MobileDrawer, type NavTab } from "./MobileDrawer";
 
 export function NavTabs({ me }: { me: Profile }) {
   const path = usePathname();
@@ -13,6 +14,7 @@ export function NavTabs({ me }: { me: Profile }) {
   const [unread, setUnread] = useState(0);
   const [requests, setRequests] = useState(0);
   const [modCount, setModCount] = useState(0);
+  const [recent, setRecent] = useState<ChatListItem[]>([]);
   // Счётчики в меню пересчитываются, как только что-то изменилось
   const [navTick, setNavTick] = useState(0);
   useLive(["order_responses", "orders", "jobs", "reports", "friendships"], () => setNavTick((t) => t + 1), { poll: 60000 });
@@ -48,6 +50,7 @@ export function NavTabs({ me }: { me: Profile }) {
       ]);
       if (!alive) return;
       // Обращения в поддержку не входят в общий счётчик — их видно во вкладке «Обращения»
+      if (chats.data) setRecent((chats.data as ChatListItem[]).filter((c) => !(c.kind === "support" && c.support_for !== me.id) && c.last_at).sort((a, b) => (b.last_at ?? "").localeCompare(a.last_at ?? "")).slice(0, 6));
       if (chats.data) setUnread(chats.data.reduce((s: number, c: { unread: number; kind: string; support_for: string | null }) => s + (c.kind === "support" && c.support_for !== me.id ? 0 : c.unread), 0));
       setRequests(reqs.count ?? 0);
     };
@@ -63,16 +66,16 @@ export function NavTabs({ me }: { me: Profile }) {
   }, [me.id, navTick]);
 
   const isMyProfile = path.startsWith("/u") && params.get("n") === me.username;
-  const tabs = [
-    { href: profileHref(me.username), label: "Профиль", active: isMyProfile },
-    { href: "/workspace/", label: "Workspace", active: path.startsWith("/workspace") },
-    { href: "/learn/", label: "Обучение", active: path.startsWith("/learn") },
-    { href: "/community/", label: "Community", active: ["/community", "/people", "/discover", "/project"].some((p) => path.startsWith(p)), count: requests },
-    { href: "/jobs/", label: "Биржа", active: path.startsWith("/jobs"), count: jobCount },
-    { href: "/aura/", label: "AURA", active: path.startsWith("/aura") },
-    { href: "/messages/", label: "Чаты", active: path.startsWith("/messages"), count: unread },
-    { href: "/settings/", label: "Settings", active: path.startsWith("/settings") },
-    ...(me.role === "owner" || me.role === "founder" ? [{ href: "/moderation/", label: "Модерация", active: path.startsWith("/moderation"), count: modCount }] : []),
+  const tabs: NavTab[] = [
+    { href: profileHref(me.username), label: "Профиль", active: isMyProfile, icon: "profile" },
+    { href: "/workspace/", label: "Workspace", active: path.startsWith("/workspace"), icon: "workspace" },
+    { href: "/learn/", label: "Обучение", active: path.startsWith("/learn"), icon: "learn" },
+    { href: "/community/", label: "Community", active: ["/community", "/people", "/discover", "/project"].some((p) => path.startsWith(p)), count: requests, icon: "community" },
+    { href: "/jobs/", label: "Биржа", active: path.startsWith("/jobs") || path.startsWith("/deal"), count: jobCount, icon: "jobs" },
+    { href: "/aura/", label: "AURA", active: path.startsWith("/aura"), icon: "aura" },
+    { href: "/messages/", label: "Чаты", active: path.startsWith("/messages"), count: unread, icon: "chats" },
+    { href: "/settings/", label: "Settings", active: path.startsWith("/settings"), icon: "settings" },
+    ...(me.role === "owner" || me.role === "founder" ? [{ href: "/moderation/", label: "Модерация", active: path.startsWith("/moderation"), count: modCount, icon: "moderation" }] : []),
   ];
 
   // В фокусе виден только Workspace
@@ -80,6 +83,8 @@ export function NavTabs({ me }: { me: Profile }) {
   const visible = inFocus ? tabs.filter((t) => t.href === "/workspace/" || t.href === "/learn/") : tabs;
 
   return (
+    <>
+    <MobileDrawer me={me} tabs={visible} chats={inFocus ? [] : recent} />
     <nav className={`navtabs ${inFocus ? "focus" : ""}`} aria-label="Разделы">
       {visible.map((t) => (
         <Link key={t.label} href={t.href} className="navtab" aria-current={t.active ? "page" : undefined}>
@@ -88,5 +93,6 @@ export function NavTabs({ me }: { me: Profile }) {
         </Link>
       ))}
     </nav>
+    </>
   );
 }

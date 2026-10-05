@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { GoalsSpace } from "./GoalsSpace";
+import { StreakCard } from "./Streak";
 import { supabase } from "@/lib/supabase";
 import { ACCENTS, accentColor } from "@/lib/style";
 import {
@@ -70,11 +71,13 @@ export function Plans({ userId }: { userId: string }) {
     if (!t.done && t.repeat && t.due_date) {
       const due = nextDue(t.due_date, t.repeat);
       await update(t.id, { due_date: due, subtasks: t.subtasks.map((s) => ({ ...s, done: false })) });
+      window.dispatchEvent(new Event("plans:done"));
       setToast({ text: `Готово. Следующий раз: ${dueLabel(due, t.due_time)}`, undo: () => update(t.id, { due_date: t.due_date }) });
       return;
     }
     const done = !t.done;
     await update(t.id, { done, done_at: done ? new Date().toISOString() : null });
+    window.dispatchEvent(new Event("plans:done"));
     if (done) setToast({ text: "Задача выполнена", undo: () => update(t.id, { done: false, done_at: null }) });
   }
 
@@ -152,7 +155,10 @@ export function Plans({ userId }: { userId: string }) {
         </section>
       ) : (
       <section className="plans-main" key="tasks">
-        <PlannerDay done={todayDone} total={todayAll.length} />
+        <div className="pl-top">
+          <PlannerDay done={todayDone} total={todayAll.length} />
+          <StreakCard />
+        </div>
         <header className="plans-head">
           <button type="button" className="icon-btn plans-burger" onClick={() => setSideOpen((v) => !v)} aria-label="Списки">≡</button>
           <h2 className="h-md caps">{title}</h2>

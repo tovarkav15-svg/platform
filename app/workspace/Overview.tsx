@@ -39,6 +39,7 @@ export function Overview({ userId, name }: { userId: string; name: string }) {
     setGone((s) => new Set(s).add(t.id));
     if (t.repeat && t.due_date) await supabase.from("plan_tasks").update({ due_date: nextDue(t.due_date, t.repeat) }).eq("id", t.id);
     else await supabase.from("plan_tasks").update({ done: true, done_at: new Date().toISOString() }).eq("id", t.id);
+    window.dispatchEvent(new Event("plans:done"));
     setTimeout(load, 450);
   }
 
