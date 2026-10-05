@@ -2,10 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useLive } from "@/lib/live";
 
 type StreakData = {
+  frozen: string[];
   current: number; best: number; today_done: boolean; today: string;
   days: { day: string; n: number }[];
   next: { milestone: number; coins: number } | null;
@@ -40,23 +42,18 @@ export function Flame({ size = 64, lit = true }: { size?: number; lit?: boolean 
   );
 }
 
-/** Карточка серии в Plans + праздник, когда день засчитан */
-export function StreakCard() {
+/** Данные серии: грузятся сами и обновляются, когда закрыли задачу */
+function useStreakData(onChange?: (prev: StreakData, next: StreakData) => void) {
   const [s, setS] = useState<StreakData | null>(null);
-  const [party, setParty] = useState<{ from: number; to: number; coins: number; milestone: number } | null>(null);
   const prev = useRef<StreakData | null>(null);
-
+  const cb = useRef(onChange);
+  cb.current = onChange;
   const load = useCallback(async () => {
     const { data } = await supabase.rpc("my_streak");
     if (!data) return;
-    const next = data as StreakData;
-    const p = prev.current;
-    // Первая закрытая задача за день — показываем праздник, как в Duolingo
-    if (p && !p.today_done && next.today_done) {
-      const fresh = next.rewards.filter((r) => !p.rewards.some((x) => x.milestone === r.milestone));
-      const top = fresh[fresh.length - 1];
-      setParty({ from: p.current, to: next.current, coins: fresh.reduce((a, r) => a + r.coins, 0), milestone: top?.milestone ?? 0 });
-    }
+    const raw = data as StreakData;
+    const next = { ...raw, frozen: raw.frozen ?? [] };
+    if (prev.current) cb.current?.(prev.current, next);
     prev.current = next;
     setS(next);
   }, []);
@@ -67,57 +64,108 @@ export function StreakCard() {
     window.addEventListener("plans:done", on);
     return () => window.removeEventListener("plans:done", on);
   }, [load]);
+  return s;
+}
 
-  if (!s) return <div className="sk sk-ph skeleton" />;
+type Cell = "on" | "frz" | "today" | "future" | "miss";
+function cellOf(s: StreakData, d: string, done: Set<string>): Cell {
+  if (done.has(d)) return "on";
+  if (s.frozen.includes(d)) return "frz";
+  return d === s.today ? "today" : d > s.today ? "future" : "miss";
+}
+const CELL_TITLE: Record<Cell, string> = { on: "Задачи закрыты", frz: "Выходной — серия сохранена", today: "Сегодня", future: "", miss: "Пропуск" };
+
+function Week({ s, big = false, pop = false }: { s: StreakData; big?: boolean; pop?: boolean }) {
   const done = new Set(s.days.map((d) => d.day));
-  const week = weekOf(s.today);
+  return (
+    <ol className={`sk-week ${big ? "big" : ""}`} aria-label="Эта неделя">
+      {weekOf(s.today).map((d, i) => {
+        const c = cellOf(s, d, done);
+        return (
+          <li key={d} className={`${c} ${pop && d === s.today ? "pop" : ""}`} style={{ "--i": i } as React.CSSProperties} title={CELL_TITLE[c]}>
+            <span>{WD[i]}</span>
+            <i>{c === "on" ? <Flame size={big ? 18 : 14} /> : c === "frz" ? <em className="sk-ice">❄</em> : null}</i>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+/** Карточка серии в Plans */
+export function StreakCard() {
+  const s = useStreakData();
+  const [how, setHow] = useState(false);
+  if (!s) return <div className="sk sk-ph skeleton" />;
   const lit = s.today_done;
   const prevMs = s.next ? [0, 3, 7, 14, 30, 60, 100, 365].filter((m) => m < s.next!.milestone).pop() ?? 0 : 0;
   const pct = s.next ? Math.min(1, (s.current - prevMs) / (s.next.milestone - prevMs)) : 1;
   const status = lit
     ? s.current > 1 ? "Серия продлена. Возвращайся завтра — огонь ждёт." : "Огонь зажжён! Закрой задачу и завтра."
-    : s.current > 0 ? `Закрой хотя бы одну задачу сегодня, чтобы не потерять ${s.current} ${daysWord(s.current)}.` : "Закрой первую задачу — и огонь загорится.";
+    : s.current > 0 ? `Закрой задачу сегодня, чтобы продлить серию. Пропуск съест выходной ❄, а без них серия сгорит.` : "Закрой первую задачу — и огонь загорится.";
 
   return (
+    <section className={`sk ${lit ? "hot" : "cold"} ${!lit && s.current > 0 ? "risk" : ""}`} aria-label={`Серия: ${s.current} ${daysWord(s.current)} подряд`}>
+      <div className="sk-flame">
+        <span className="sk-glow" aria-hidden="true" />
+        <Flame size={58} lit={lit} />
+      </div>
+      <div className="sk-main">
+        <div className="sk-count">
+          <b key={s.current} className="mono">{s.current}</b>
+          <span>{daysWord(s.current)} подряд</span>
+          {s.best > 0 && <small className="sk-best">рекорд {s.best}</small>}
+          <button type="button" className="sk-how-btn" aria-expanded={how} onClick={() => setHow(!how)} title="Как считается серия">?</button>
+        </div>
+        {how ? (
+          <ul className="sk-how">
+            <li>🔥 День засчитан, если закрыл хотя бы одну задачу (сутки по Москве).</li>
+            <li>❄ Два выходных в неделю: пропуск не обрывает серию, но и не добавляет день.</li>
+            <li>⏱ Задачи, созданные меньше 3 минут назад, не считаются — честная серия.</li>
+            <li>🪙 За 3, 7, 14, 30, 60, 100 и 365 дней — Coins в AURA Shop.</li>
+          </ul>
+        ) : (
+          <>
+            <p className="sk-status">{status}</p>
+            <Week s={s} />
+            {s.next && (
+              <div className="sk-next">
+                <div className="sk-bar"><i style={{ width: `${pct * 100}%` }} /></div>
+                <small>До {s.next.milestone} {daysWord(s.next.milestone)} — ещё {s.next.milestone - s.current} · <b>+{s.next.coins} Coins</b></small>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/** Огонёк в шапке, как в Duolingo: число дней на любой странице. Здесь же живёт праздник «N дней подряд!» */
+export function StreakChip() {
+  const [party, setParty] = useState<{ s: StreakData; from: number; coins: number; milestone: number } | null>(null);
+  const s = useStreakData((p, next) => {
+    if (!p.today_done && next.today_done) {
+      const fresh = next.rewards.filter((r) => !p.rewards.some((x) => x.milestone === r.milestone));
+      setParty({ s: next, from: p.current, coins: fresh.reduce((a, r) => a + r.coins, 0), milestone: fresh[fresh.length - 1]?.milestone ?? 0 });
+    }
+  });
+  if (!s) return null;
+  const risk = !s.today_done && s.current > 0;
+  return (
     <>
-      <section className={`sk ${lit ? "hot" : "cold"} ${!lit && s.current > 0 ? "risk" : ""}`} aria-label={`Серия: ${s.current} ${daysWord(s.current)} подряд`}>
-        <div className="sk-flame">
-          <span className="sk-glow" aria-hidden="true" />
-          <Flame size={58} lit={lit} />
-        </div>
-        <div className="sk-main">
-          <div className="sk-count">
-            <b key={s.current} className="mono">{s.current}</b>
-            <span>{daysWord(s.current)} подряд</span>
-            {s.best > 0 && <small className="sk-best">рекорд {s.best}</small>}
-          </div>
-          <p className="sk-status">{status}</p>
-          <ol className="sk-week" aria-label="Эта неделя">
-            {week.map((d, i) => {
-              const cls = done.has(d) ? "on" : d === s.today ? "today" : d > s.today ? "future" : "miss";
-              return (
-                <li key={d} className={cls} style={{ "--i": i } as React.CSSProperties} title={cls === "on" ? "Задачи закрыты" : cls === "miss" ? "Пропуск" : ""}>
-                  <span>{WD[i]}</span>
-                  <i>{cls === "on" ? <Flame size={14} /> : null}</i>
-                </li>
-              );
-            })}
-          </ol>
-          {s.next && (
-            <div className="sk-next">
-              <div className="sk-bar"><i style={{ width: `${pct * 100}%` }} /></div>
-              <small>До {s.next.milestone} {daysWord(s.next.milestone)} — ещё {s.next.milestone - s.current} · <b>+{s.next.coins} Coins</b></small>
-            </div>
-          )}
-        </div>
-      </section>
-      {party && <StreakParty {...party} week={week} done={done} today={s.today} onClose={() => setParty(null)} />}
+      <Link href="/workspace/?tab=plans" className={`sk-chip ${s.today_done ? "lit" : "out"} ${risk ? "risk" : ""}`}
+        title={s.today_done ? `Серия ${s.current} ${daysWord(s.current)} — сегодня засчитан` : risk ? `Серия ${s.current} ${daysWord(s.current)} — закрой задачу сегодня` : "Закрой задачу, чтобы зажечь огонь"}>
+        <Flame size={16} lit={s.today_done} />
+        <b className="mono">{s.current}</b>
+      </Link>
+      {party && <StreakParty from={party.from} to={party.s.current} coins={party.coins} milestone={party.milestone} s={party.s} onClose={() => setParty(null)} />}
     </>
   );
 }
 
-function StreakParty({ from, to, coins, milestone, week, done, today, onClose }: {
-  from: number; to: number; coins: number; milestone: number; week: string[]; done: Set<string>; today: string; onClose: () => void;
+function StreakParty({ from, to, coins, milestone, s, onClose }: {
+  from: number; to: number; coins: number; milestone: number; s: StreakData; onClose: () => void;
 }) {
   const [n, setN] = useState(from);
   useEffect(() => {
@@ -139,13 +187,7 @@ function StreakParty({ from, to, coins, milestone, week, done, today, onClose }:
         </div>
         <h2>{daysWord(to)} подряд!</h2>
         <p>{to === 1 ? "Огонь зажжён. Закрывай хотя бы одну задачу каждый день, чтобы он не погас." : milestone ? `Отметка ${milestone} ${daysWord(milestone)} — так держать!` : "Серия продлена. Увидимся завтра!"}</p>
-        <ol className="sk-week big">
-          {week.map((d, i) => (
-            <li key={d} className={d === today ? "on pop" : done.has(d) ? "on" : d > today ? "future" : "miss"} style={{ "--i": i } as React.CSSProperties}>
-              <span>{WD[i]}</span><i>{done.has(d) || d === today ? <Flame size={18} /> : null}</i>
-            </li>
-          ))}
-        </ol>
+        <Week s={s} big pop />
         {coins > 0 && <div className="skp-reward">+{coins} Coins <small>за серию {milestone} {daysWord(milestone)}</small></div>}
         <button type="button" className="btn skp-go" autoFocus onClick={onClose}>Продолжить</button>
       </div>

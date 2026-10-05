@@ -9,6 +9,7 @@ import { profileHref, chatHref } from "@/lib/links";
 import { NavTabs } from "./NavTabs";
 import { Avatar, PresenceLabel } from "./Avatar";
 import { FocusButton, focusLeft } from "./focus/Focus";
+import { StreakChip } from "./workspace/Streak";
 
 export function TopBar() {
   const { ready, me, refreshMe } = useSession();
@@ -34,6 +35,7 @@ export function TopBar() {
         <>
           <NavTabs me={me} />
           <div className="topbar-me">
+            <StreakChip />
             <FocusButton />
             <div className="me-menu" ref={box}>
               <button type="button" className="me-link" aria-label="Меню аккаунта" aria-expanded={menu} onClick={() => setMenu((v) => !v)}>

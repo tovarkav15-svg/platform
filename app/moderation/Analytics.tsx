@@ -8,6 +8,7 @@ import { profileHref } from "@/lib/links";
 import { useLive } from "@/lib/live";
 
 type Day = { day: string; signups: number; active: number; messages: number; orders: number; responses: number; jobs: number };
+type Streaks = { any: number; s3: number; s7: number; today: number; max: number; coins: number };
 export type Stats = {
   days: number;
   totals: Record<string, number>;
@@ -35,19 +36,21 @@ export function Analytics() {
   const [days, setDays] = useState(30);
   const [s, setS] = useState<Stats | null>(null);
   const [err, setErr] = useState("");
+  const [streaks, setStreaks] = useState<Streaks | null>(null);
   const load = useCallback(async () => {
-    const { data, error } = await supabase.rpc("admin_stats", { p_days: days });
+    const [{ data, error }, st] = await Promise.all([supabase.rpc("admin_stats", { p_days: days }), supabase.rpc("admin_streak_stats")]);
     if (error) setErr(error.message); else { setErr(""); setS(data as Stats); }
+    if (st.data) setStreaks(st.data as Streaks);
   }, [days]);
   useEffect(() => { setS(null); load(); }, [load]);
   useLive(["profiles", "orders", "order_responses", "jobs"], load, { poll: 60000 });
 
   if (err) return <p className="md-empty">{err}</p>;
   if (!s) return <div className="skeleton list-skeleton" />;
-  return <AnalyticsView s={s} days={days} setDays={setDays} />;
+  return <AnalyticsView s={s} days={days} setDays={setDays} streaks={streaks} />;
 }
 
-export function AnalyticsView({ s, days, setDays }: { s: Stats; days: number; setDays: (d: number) => void }) {
+export function AnalyticsView({ s, days, setDays, streaks }: { s: Stats; days: number; setDays: (d: number) => void; streaks?: Streaks | null }) {
   const t = s.totals;
   const sum = (k: keyof Omit<Day, "day">) => s.series.reduce((a, d) => a + d[k], 0);
 
@@ -69,6 +72,20 @@ export function AnalyticsView({ s, days, setDays }: { s: Stats; days: number; se
         <Kpi label="Вернулись через неделю" value={s.retention.cohort ? `${pct(s.retention.returned, s.retention.cohort)}%` : "—"}
           sub={s.retention.cohort ? `${s.retention.returned} из ${s.retention.cohort} зарегистрированных 7–30 дней назад` : "появится, когда платформе будет больше недели"} />
       </div>
+
+      {streaks && (
+        <section className="an-card an-streaks">
+          <header><b>🔥 Серии в Plans</b><small>помогает ли огонёк возвращаться</small></header>
+          <div className="an-kpis">
+            <Kpi label="Держат серию" value={streaks.any} sub={`${pct(streaks.any, t.users)}% от всех`} />
+            <Kpi label="Серия 3+ дней" value={streaks.s3} sub={`${pct(streaks.s3, t.users)}% от всех`} />
+            <Kpi label="Серия 7+ дней" value={streaks.s7} sub={`${pct(streaks.s7, t.users)}% от всех`} />
+            <Kpi label="Засчитали сегодня" value={streaks.today} sub="закрыли задачу" accent />
+            <Kpi label="Самая длинная" value={streaks.max} sub="дней подряд сейчас" />
+            <Kpi label="Coins за серии" value={streaks.coins} sub="выдано наградами" />
+          </div>
+        </section>
+      )}
 
       <div className="an-grid">
         {SERIES.map((x) => <Bars key={x.key} title={x.label} color={x.color} total={sum(x.key)} data={s.series.map((d) => ({ day: d.day, v: d[x.key] }))} />)}

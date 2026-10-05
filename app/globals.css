@@ -5335,3 +5335,23 @@ html[data-taskw="bold"] :is(.plan-task-title, .quad-title, .gs-step-title) { fon
   .sd-me-t { flex: 1; min-width: 0; display: grid; } .sd-me-t b { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .sd-me-t small { font-size: 12px; color: var(--mute); }
 }
 @media (min-width: 761px) and (prefers-reduced-motion: reduce) { .sd, html[data-side] body:has(.topbar) { transition: none; } }
+
+/* Серия v2: выходные ❄, «как считается», огонёк в шапке */
+.sk-week li.frz { color: #3B82C4; }
+.sk-week li.frz i { background: #E6F2FC; border-color: #A9D2F3; }
+.sk-ice { font-style: normal; font-size: 13px; line-height: 1; color: #3B82C4; }
+.sk-week.big .sk-ice { font-size: 16px; }
+.sk-how-btn { width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--line); background: rgba(255,255,255,.8); color: var(--mute); font-size: 12px; font-weight: 800; cursor: pointer; display: grid; place-items: center; padding: 0; }
+.sk-count .sk-how-btn { margin-left: auto; }
+.sk-best + .sk-how-btn { margin-left: 0; }
+.sk-how-btn:hover, .sk-how-btn[aria-expanded="true"] { color: var(--ink); border-color: var(--ink); }
+.sk-how { list-style: none; margin: 2px 0 0; padding: 0; display: grid; gap: 5px; font-size: 12.5px; line-height: 1.4; color: var(--graphite); animation: fadeUp .3s var(--ease) both; }
+.sk-chip { display: inline-flex; align-items: center; gap: 4px; height: 34px; padding: 0 10px 0 8px; border-radius: 99px; text-decoration: none; font-size: 14px; font-weight: 900; border: 1px solid var(--line); background: #fff; color: var(--graphite); transition: transform .25s var(--spring), box-shadow .25s; }
+.sk-chip:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(255,106,26,.15); }
+.sk-chip.lit { background: linear-gradient(135deg, #FFF4E8, #FFE2C8); border-color: #FFC896; color: #E8590C; }
+.sk-chip.risk { border-color: #FFB27A; }
+.sk-chip.risk .flame.out { animation: flRisk 2s ease-in-out infinite; }
+.sk-chip .flame.out { opacity: .6; }
+.an-streaks .an-kpis { grid-template-columns: repeat(6, 1fr); }
+@media (max-width: 1000px) { .an-streaks .an-kpis { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 560px) { .an-streaks .an-kpis { grid-template-columns: repeat(2, 1fr); } }
