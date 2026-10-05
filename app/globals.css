@@ -5295,3 +5295,43 @@ html[data-taskw="bold"] :is(.plan-task-title, .quad-title, .gs-step-title) { fon
   .md-me > svg { color: var(--mute); }
 }
 @media (max-width: 760px) and (prefers-reduced-motion: reduce) { .md-drawer, .md-shade { transition: none; } .md-drawer.on .md-item { animation: none; } }
+
+/* ===== Компьютер: боковая панель вместо вкладок в шапке ===== */
+.sd { display: none; }
+@media (min-width: 761px) {
+  html[data-side] body:has(.topbar) { padding-left: var(--sdw); transition: padding-left .3s var(--ease); }
+  html[data-side="full"] { --sdw: 256px; }
+  html[data-side="rail"] { --sdw: 68px; }
+  html[data-side] .topbar > .navtabs, html[data-side] .topbar > .relic-logo { display: none; }
+  html[data-side] .topbar { justify-content: flex-end; }
+  .sd {
+    display: flex; flex-direction: column; position: fixed; top: 0; bottom: 0; left: 0; z-index: 30; width: var(--sdw, 256px);
+    padding: 12px 10px; background: var(--paper); border-right: 1px solid var(--line); transition: width .3s var(--ease);
+  }
+  .sd-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 2px 4px 14px; min-height: 52px; }
+  .sd.rail .sd-top { justify-content: center; }
+  .sd-toggle { display: grid; place-items: center; width: 36px; height: 36px; border: 0; border-radius: 10px; background: none; color: var(--mute); cursor: pointer; transition: background .2s, color .2s; }
+  .sd-toggle:hover { background: var(--paper-2); color: var(--ink); }
+  .sd-scroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 16px; scrollbar-width: thin; }
+  .sd-nav { display: grid; gap: 2px; }
+  .sd-item { position: relative; display: flex; align-items: center; gap: 11px; padding: 9px 10px; border-radius: 11px; color: var(--graphite); text-decoration: none; font-size: 14.5px; font-weight: 600; transition: background .2s, color .2s; }
+  .sd.rail .sd-item { justify-content: center; padding: 10px 0; }
+  .sd-item:hover { background: rgba(20,20,20,.045); color: var(--ink); }
+  .sd-item[aria-current="page"] { background: #fff; color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.05), 0 0 0 1px var(--line); }
+  .sd-ico { position: relative; display: grid; place-items: center; }
+  .sd-ico svg { opacity: .78; } .sd-item[aria-current="page"] .sd-ico svg, .sd-item:hover .sd-ico svg { opacity: 1; }
+  .sd-dot { position: absolute; top: -3px; right: -4px; width: 8px; height: 8px; border-radius: 50%; background: var(--c-edit); box-shadow: 0 0 0 2px var(--paper); }
+  .sd-label { flex: 1; white-space: nowrap; }
+  .sd-chats { display: grid; gap: 1px; padding-top: 12px; border-top: 1px solid var(--line); }
+  .sd-head { display: flex; justify-content: space-between; align-items: baseline; padding: 0 10px 6px; font-size: 12px; font-weight: 700; color: var(--mute); }
+  .sd-head a { color: var(--mute); text-decoration: none; font-weight: 600; } .sd-head a:hover { color: var(--ink); }
+  .sd-chat { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-radius: 10px; color: var(--graphite); text-decoration: none; font-size: 13.5px; }
+  .sd-chat:hover { background: rgba(20,20,20,.045); color: var(--ink); }
+  .sd-chat-t { flex: 1; min-width: 0; } .sd-chat-t b { display: block; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sd-chat.unread .sd-chat-t b { font-weight: 800; color: var(--ink); }
+  .sd-me { display: flex; align-items: center; gap: 10px; margin-top: 10px; padding: 8px 10px; border-radius: 12px; color: var(--ink); text-decoration: none; transition: background .2s; }
+  .sd.rail .sd-me { justify-content: center; padding: 8px 0; }
+  .sd-me:hover { background: rgba(20,20,20,.045); }
+  .sd-me-t { flex: 1; min-width: 0; display: grid; } .sd-me-t b { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .sd-me-t small { font-size: 12px; color: var(--mute); }
+}
+@media (min-width: 761px) and (prefers-reduced-motion: reduce) { .sd, html[data-side] body:has(.topbar) { transition: none; } }

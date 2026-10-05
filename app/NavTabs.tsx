@@ -7,6 +7,7 @@ import { supabase, type ChatListItem, type Profile } from "@/lib/supabase";
 import { profileHref } from "@/lib/links";
 import { useLive } from "@/lib/live";
 import { MobileDrawer, type NavTab } from "./MobileDrawer";
+import { SideNav } from "./SideNav";
 
 export function NavTabs({ me }: { me: Profile }) {
   const path = usePathname();
@@ -85,6 +86,7 @@ export function NavTabs({ me }: { me: Profile }) {
   return (
     <>
     <MobileDrawer me={me} tabs={visible} chats={inFocus ? [] : recent} />
+    <SideNav me={me} tabs={visible} chats={inFocus ? [] : recent} />
     <nav className={`navtabs ${inFocus ? "focus" : ""}`} aria-label="Разделы">
       {visible.map((t) => (
         <Link key={t.label} href={t.href} className="navtab" aria-current={t.active ? "page" : undefined}>

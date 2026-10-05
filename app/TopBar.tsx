@@ -17,6 +17,9 @@ export function TopBar() {
   const [confirmOut, setConfirmOut] = useState(false);
   const box = useRef<HTMLDivElement>(null);
 
+  // Вышел из аккаунта — убираем место под боковую панель
+  useEffect(() => { if (ready && !me) delete document.documentElement.dataset.side; }, [ready, me]);
+
   useEffect(() => {
     if (!menu) return;
     const close = (e: MouseEvent) => { if (!box.current?.contains(e.target as Node)) { setMenu(false); setConfirmOut(false); } };
