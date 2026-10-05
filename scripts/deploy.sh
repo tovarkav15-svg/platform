@@ -5,6 +5,7 @@ cd "$(dirname "$0")/.."
 export PATH="$PWD/.node/bin:$PATH"
 
 rm -rf out
+node scripts/patch-next.mjs
 npx next build
 touch out/.nojekyll
 
