@@ -335,7 +335,7 @@ export function Clients({ userId }: { userId: string }) {
                       onCancel={() => { setEditing(null); grid.current?.focus(); }}
                     />
                   ) : (
-                    <span className={`cell-text ${c.type === "user" && v ? "user" : ""}`}>{c.type === "user" && v ? `@${v}` : v}</span>
+                    <span className={`cell-text ${c.type === "user" && v ? "user" : ""}`}><CellText value={v} user={c.type === "user"} /></span>
                   )}
                 </div>
               );
@@ -493,4 +493,42 @@ function ColumnEditor({ columns, onClose, onSave }: { columns: ClientColumn[]; o
       </div>
     </div>
   );
+}
+
+// Ссылки в ячейках сразу кликабельны: адреса сайтов открываются в новой вкладке, @ник — в Telegram.
+// Клик по ссылке не выбирает ячейку и не начинает редактирование
+const CELL_RE = /(https?:\/\/[^\s<>"']+|www\.[^\s<>"']+|\b(?:[a-z0-9-]+\.)+(?:ru|com|net|org|io|me|app|dev|online|site|store|pro|info|рф|su|ai|gg|tv|co|xyz|tech|shop|by|kz|ua)\b(?:\/[^\s<>"']*)?|@[a-z][a-z0-9_]{3,31})/gi;
+const CELL_TRAIL = /[.,!?;:)»"'\]]+$/;
+const hrefOf = (t: string) => (t.startsWith("@") ? `https://t.me/${t.slice(1)}` : /^https?:\/\//i.test(t) ? t : `https://${t}`);
+const stop = (e: React.SyntheticEvent) => e.stopPropagation();
+
+function CellLink({ href, children }: { href: string; children: React.ReactNode }) {
+  return <a className="cell-link" href={href} target="_blank" rel="noopener noreferrer nofollow" onMouseDown={stop} onDoubleClick={stop}>{children}</a>;
+}
+
+function CellText({ value, user }: { value: string; user: boolean }) {
+  if (!value) return null;
+  if (user) {
+    const v = value.trim().replace(/^@+/, "");
+    // В колонку ника иногда вставляют целую ссылку — показываем её как ссылку, без «@»
+    if (/^(https?:\/\/|www\.|t\.me\/)/i.test(v)) return <CellLink href={hrefOf(v)}>{v.replace(/^https?:\/\//i, "")}</CellLink>;
+    if (/^[a-z][a-z0-9_]{3,31}$/i.test(v)) return <CellLink href={`https://t.me/${v}`}>@{v}</CellLink>;
+    return <>@{v}</>;
+  }
+  const out: React.ReactNode[] = [];
+  let last = 0;
+  for (const m of value.matchAll(CELL_RE)) {
+    const start = m.index ?? 0;
+    let token = m[0];
+    const tail = token.match(CELL_TRAIL)?.[0] ?? "";
+    if (tail) token = token.slice(0, -tail.length);
+    // e-mail (name@mail.ru) — не ник
+    if (token.startsWith("@") && start > 0 && /[a-z0-9._-]/i.test(value[start - 1])) continue;
+    if (start > last) out.push(value.slice(last, start));
+    out.push(<CellLink key={start} href={hrefOf(token)}>{token}</CellLink>);
+    if (tail) out.push(tail);
+    last = start + m[0].length;
+  }
+  if (last < value.length) out.push(value.slice(last));
+  return <>{out}</>;
 }

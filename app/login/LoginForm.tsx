@@ -100,6 +100,7 @@ export function LoginForm() {
 
       <button className="btn" type="submit" disabled={pending}>{pending ? "Вхожу…" : "Войти"}</button>
       <p className="switch">Нет аккаунта? <Link href="/register">Зарегистрироваться</Link></p>
+      <p className="auth-legal"><Link href="/privacy/">Политика конфиденциальности</Link></p>
     </form>
   );
 }

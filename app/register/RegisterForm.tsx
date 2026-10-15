@@ -11,7 +11,7 @@ import { supabase } from "@/lib/supabase";
 import { savedRef } from "../RefCatcher";
 import { normalizeUsername, validateUsername, USERNAME_MAX } from "@/lib/username";
 
-type Errors = Partial<Record<"displayName" | "username" | "email" | "password" | "form", string>>;
+type Errors = Partial<Record<"displayName" | "username" | "email" | "password" | "consent" | "form", string>>;
 
 export function RegisterForm() {
   const router = useRouter();
@@ -68,6 +68,7 @@ export function RegisterForm() {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) e.email = "Проверь почту";
     if (password.length < 8) e.password = "Минимум 8 символов";
     else if (!/\d/.test(password) || !/[a-zA-Zа-яА-Я]/.test(password)) e.password = "Нужны буквы и хотя бы одна цифра";
+    if (!form.get("consent")) e.consent = "Без согласия на обработку данных создать аккаунт нельзя";
     if (Object.keys(e).length) return setErrors(e);
 
     setPending(true);
@@ -172,6 +173,12 @@ export function RegisterForm() {
           ))}
         </div>
       </fieldset>
+
+      <label className="rg-consent">
+        <input type="checkbox" name="consent" required />
+        <span>Принимаю <Link href="/privacy/" target="_blank">Политику конфиденциальности</Link> и даю согласие на обработку персональных данных</span>
+      </label>
+      {errors.consent && <span className="hint bad rg-consent-err">{errors.consent}</span>}
 
       <button className="btn" type="submit" disabled={pending}>{pending ? "Создаю аккаунт…" : "Создать аккаунт"}</button>
       <p className="switch">Уже есть аккаунт? <Link href="/login">Войти</Link></p>

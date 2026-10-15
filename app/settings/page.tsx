@@ -295,6 +295,7 @@ function AccountBlock({ username }: { username: string }) {
   return (
     <Group title="Аккаунт">
       <p className="st-note">Ты вошёл как @{username}. На этом устройстве вход сохраняется, пока не выйдешь.</p>
+      <p className="st-note">Как мы обращаемся с твоими данными — в <Link href="/privacy/">Политике конфиденциальности</Link>. Удалить аккаунт или получить свои данные можно по запросу на <a href="mailto:knmi2000@mail.ru">knmi2000@mail.ru</a>.</p>
       <div className="save-row">
         {confirm
           ? <button type="button" className="btn danger" onClick={async () => { await signOut(); router.replace("/login"); }}>Точно выйти</button>

@@ -147,6 +147,12 @@ export default function Home() {
             <Link className="btn hm-btn" href="/register">Создать аккаунт</Link>
           </section>
         )}
+
+        <footer className="hm-foot">
+          <span>© {new Date().getFullYear()} Relic</span>
+          <Link href="/privacy/">Политика конфиденциальности</Link>
+          <a href="mailto:relic_help@mail.ru">relic_help@mail.ru</a>
+        </footer>
       </main>
     </>
   );
