@@ -5427,3 +5427,6 @@ html[data-taskw="bold"] :is(.plan-task-title, .quad-title, .gs-step-title) { fon
 .hm-foot { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 20px; padding: 28px 0 8px; margin-top: 20px; border-top: 1px solid var(--line); font-size: 13.5px; color: var(--mute); }
 .hm-foot a { color: var(--graphite); }
 .rg-consent-err { margin-top: -10px; }
+/* Ники в колонке @USERNAME — чёрные, ссылка видна по тонкому подчёркиванию */
+.cell-text.user .cell-link { color: var(--ink); text-decoration-color: rgba(20,20,20,.25); }
+.cell-text.user .cell-link:hover { text-decoration-color: currentColor; }
