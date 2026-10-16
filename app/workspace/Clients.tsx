@@ -21,6 +21,29 @@ const BASE: Col[] = [
   { key: "comment", title: "Комментарий", type: "text", width: 280, long: true },
 ];
 const FIXED = new Set(BASE.map((c) => c.key));
+const BASE_MAP = new Map(BASE.map((c) => [c.key, c]));
+const TYPE_NAME: Record<ClientColumn["type"], string> = { text: "Текст", number: "Число", date: "Дата", select: "Список" };
+const newColId = () => `c_${crypto.randomUUID().slice(0, 8)}`;
+
+// Старые настройки хранили только свои колонки: базовые встают перед ними в исходном порядке
+function normalizeLayout(saved: ClientColumn[] | null | undefined): ClientColumn[] {
+  const list = (saved ?? []).filter((c) => c?.id && (!c.base || BASE_MAP.has(c.id)));
+  const have = new Set(list.filter((c) => c.base).map((c) => c.id));
+  const missing = BASE.filter((b) => !have.has(b.key)).map((b): ClientColumn => ({ id: b.key, title: b.title, type: "text", base: true }));
+  return [...missing, ...list];
+}
+
+function toCol(c: ClientColumn): Col {
+  const b = c.base ? BASE_MAP.get(c.id) : undefined;
+  if (b) return { ...b, title: c.title.trim() || b.title };
+  return { key: c.id, title: c.title, type: c.type, custom: true, width: c.type === "text" ? 180 : 150, options: c.options?.map((v) => ({ v })) };
+}
+
+/** Свободное название вида «Колонка 3» */
+function freeTitle(layout: ClientColumn[], base = "Колонка") {
+  const used = new Set(layout.map((c) => c.title.trim().toLowerCase()));
+  for (let n = layout.filter((c) => !c.base).length + 1; ; n++) if (!used.has(`${base} ${n}`.toLowerCase())) return `${base} ${n}`;
+}
 
 const letter = (i: number) => (i < 26 ? String.fromCharCode(65 + i) : String.fromCharCode(64 + Math.floor(i / 26)) + String.fromCharCode(65 + (i % 26)));
 
@@ -28,7 +51,7 @@ const getVal = (r: Client, key: string) => (FIXED.has(key) ? String((r as unknow
 
 export function Clients({ userId }: { userId: string }) {
   const [rows, setRows] = useState<Client[] | null>(null);
-  const [custom, setCustom] = useState<ClientColumn[]>([]);
+  const [layout, setLayout] = useState<ClientColumn[]>(() => normalizeLayout([]));
   const [widths, setWidths] = useState<Record<string, number>>({});
   const [sel, setSel] = useState<{ r: number; c: number } | null>(null);
   const [editing, setEditing] = useState<{ r: number; c: number; value: string } | null>(null);
@@ -37,7 +60,11 @@ export function Clients({ userId }: { userId: string }) {
   const [filter, setFilter] = useState<{ qualify?: string; outcome?: string }>({});
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [colEditor, setColEditor] = useState(false);
-  const [toast, setToast] = useState("");
+  const [toast, setToast] = useState<{ text: string; undo?: () => void } | null>(null);
+  const [menu, setMenu] = useState<{ key: string; x: number; y: number; rename?: boolean } | null>(null);
+  const [drop, setDrop] = useState<{ key: string; side: "left" | "right" } | null>(null);
+  const wrap = useRef<HTMLDivElement>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const sp = useSearchParams();
   const [viewMode, setViewMode] = useState<"table" | "pipeline">(sp.get("view") === "pipeline" ? "pipeline" : "table");
   const autoAdded = useRef(false);
@@ -55,22 +82,99 @@ export function Clients({ userId }: { userId: string }) {
         loadSettings(userId),
         supabase.from("clients").select("*").eq("user_id", userId).order("position").order("created_at"),
       ]);
-      setCustom(s.client_columns ?? []);
+      setLayout(normalizeLayout(s.client_columns));
       setRows((data as Client[]) ?? []);
       if (sp.get("new") === "1" && !autoAdded.current) { autoAdded.current = true; setTimeout(() => addRowRef.current?.(), 0); }
     })();
     try { setWidths(JSON.parse(localStorage.getItem("clients:widths") ?? "{}")); } catch {}
   }, [userId]);
 
-  const columns: Col[] = useMemo(() => [
-    ...BASE,
-    ...custom.map((c) => ({
-      key: c.id, title: c.title, type: c.type, custom: true, width: 160,
-      options: c.options?.map((v) => ({ v })),
-    })),
-  ].map((c) => ({ ...c, width: widths[c.key] ?? c.width })), [custom, widths]);
+  const columns: Col[] = useMemo(
+    () => layout.filter((c) => !c.hidden).map(toCol).map((c) => ({ ...c, width: widths[c.key] ?? c.width })),
+    [layout, widths],
+  );
 
-  const flash = (t: string) => { setToast(t); setTimeout(() => setToast(""), 2200); };
+  const flash = (text: string, undo?: () => void) => {
+    clearTimeout(toastTimer.current);
+    setToast({ text, undo });
+    toastTimer.current = setTimeout(() => setToast(null), undo ? 6000 : 2200);
+  };
+
+  // Колонки сохраняются в настройках пользователя сразу после любого изменения
+  const layoutRef = useRef(layout);
+  layoutRef.current = layout;
+  const saveLayout = useCallback((next: ClientColumn[]) => {
+    layoutRef.current = next;
+    setLayout(next);
+    saveSettings(userId, { client_columns: next }).catch(() => flash("Колонки не сохранились. Проверь интернет."));
+  }, [userId]);
+  const patchColumn = (id: string, patch: Partial<ClientColumn>) => saveLayout(layoutRef.current.map((c) => (c.id === id ? { ...c, ...patch } : c)));
+
+  // Выделение не должно указывать на колонку, которой больше нет
+  useEffect(() => { setSel((s) => (s && s.c >= columns.length ? null : s)); }, [columns.length]);
+
+  /** Открыть меню колонки под её заголовком */
+  function openMenu(key: string, cell: HTMLElement, rename = false) {
+    const box = wrap.current?.getBoundingClientRect();
+    const r = cell.getBoundingClientRect();
+    if (!box) return;
+    const w = 288;
+    setMenu({ key, rename, x: Math.max(0, Math.min(r.left - box.left, box.width - w)), y: r.bottom - box.top + 6 });
+  }
+
+  /** Новая колонка рядом с другой (или в конце) — сразу открывается меню, чтобы назвать её */
+  function insertColumn(nearKey?: string, side: "left" | "right" = "right") {
+    const list = layoutRef.current;
+    const col: ClientColumn = { id: newColId(), title: freeTitle(list), type: "text" };
+    const at = nearKey ? list.findIndex((c) => c.id === nearKey) + (side === "right" ? 1 : 0) : list.length;
+    saveLayout([...list.slice(0, at), col, ...list.slice(at)]);
+    setMenu(null);
+    // Ждём, пока заголовок появится в таблице
+    setTimeout(() => {
+      const cell = grid.current?.querySelector<HTMLElement>(`[data-col="${col.id}"]`);
+      if (!cell) return;
+      cell.scrollIntoView({ block: "nearest", inline: "nearest" });
+      openMenu(col.id, cell, true);
+    }, 30);
+  }
+
+  function deleteColumn(id: string) {
+    const before = layoutRef.current;
+    const col = before.find((c) => c.id === id);
+    if (!col || col.base) return;
+    saveLayout(before.filter((c) => c.id !== id));
+    setMenu(null);
+    setSort((s) => (s?.key === id ? null : s));
+    // Значения остаются в строках, поэтому колонку можно вернуть вместе с данными
+    flash(`Колонка «${col.title}» удалена`, () => saveLayout(before));
+  }
+
+  function moveColumn(from: string, to: string, side: "left" | "right") {
+    if (from === to) return;
+    const list = layoutRef.current.filter((c) => c.id !== from);
+    const moved = layoutRef.current.find((c) => c.id === from);
+    if (!moved) return;
+    const at = list.findIndex((c) => c.id === to) + (side === "right" ? 1 : 0);
+    saveLayout([...list.slice(0, at), moved, ...list.slice(at)]);
+    setSel(null);
+  }
+
+  /** Добавить недостающие колонки (для вставки и импорта), вернуть ключи видимых колонок */
+  function ensureColumns(count: number, titles: string[] = []): string[] {
+    let list = layoutRef.current;
+    const visible = list.filter((c) => !c.hidden).length;
+    if (count > visible) {
+      const add: ClientColumn[] = [];
+      for (let i = visible; i < count; i++) {
+        const t = titles[i - visible]?.trim().slice(0, 40);
+        const tmp = [...list, ...add];
+        add.push({ id: newColId(), title: t && !tmp.some((c) => c.title.toLowerCase() === t.toLowerCase()) ? t : freeTitle(tmp), type: "text" });
+      }
+      list = [...list, ...add];
+      saveLayout(list);
+    }
+    return list.filter((c) => !c.hidden).map((c) => c.id);
+  }
 
   // Видимые строки: поиск, фильтры, сортировка
   const view = useMemo(() => {
@@ -153,12 +257,15 @@ export function Clients({ userId }: { userId: string }) {
       const { data } = await supabase.from("clients").insert(Array.from({ length: need }, (_, i) => ({ position: base + i }))).select("*");
       if (data) { list = [...list, ...(data as Client[])]; setRows((prev) => [...(prev ?? []), ...(data as Client[])]); }
     }
+    const width = Math.max(...block.map((r) => r.length));
+    const keys = ensureColumns(sel.c + width);
+    const added = keys.length - columns.length;
     block.forEach((cells, i) => {
       const row = list[sel.r + i];
       if (!row) return;
-      cells.forEach((v, j) => { const col = columns[sel.c + j]; if (col) setCell(row.id, col.key, v.trim()); });
+      cells.forEach((v, j) => { const key = keys[sel.c + j]; if (key) setCell(row.id, key, v.trim()); });
     });
-    flash(`Вставлено строк: ${block.length}`);
+    flash(`Вставлено строк: ${block.length}${added > 0 ? `, новых колонок: ${added}` : ""}`);
   }
 
   function onKeyDown(e: React.KeyboardEvent) {
@@ -206,9 +313,25 @@ export function Clients({ userId }: { userId: string }) {
   async function importCsv(file: File) {
     const table = parseTable(await file.text());
     if (table.length < 2) return flash("В файле нет строк");
-    const head = table[0].map((h) => h.trim().toLowerCase());
-    const idx = (key: string, title: string) => head.findIndex((h) => h === title.toLowerCase() || h === key);
-    const map = columns.map((c) => ({ c, i: idx(c.key, c.title) }));
+    const rawHead = table[0].map((h) => h.trim());
+    const head = rawHead.map((h) => h.toLowerCase());
+    // Ищем и среди скрытых колонок, чтобы не плодить дубли
+    const all = layoutRef.current.map(toCol);
+    const known = new Set<number>();
+    const map = all.map((c) => {
+      const i = head.findIndex((h, n) => !known.has(n) && (h === c.title.toLowerCase() || h === c.key || h === BASE_MAP.get(c.key)?.title.toLowerCase()));
+      if (i >= 0) known.add(i);
+      return { c, i };
+    });
+    // Колонки из файла, которых нет в таблице, добавляются как новые
+    const extraCols: ClientColumn[] = [];
+    head.forEach((h, i) => {
+      if (known.has(i) || !h) return;
+      const id = newColId();
+      extraCols.push({ id, title: rawHead[i].slice(0, 40), type: "text" });
+      map.push({ c: { key: id, title: rawHead[i], type: "text", width: 180, custom: true }, i });
+    });
+    if (extraCols.length) saveLayout([...layoutRef.current, ...extraCols]);
     const base = (rows?.[rows.length - 1]?.position ?? 0) + 1;
     const payload = table.slice(1).map((cells, n) => {
       const r: Record<string, unknown> = { position: base + n, extra: {} };
@@ -224,7 +347,7 @@ export function Clients({ userId }: { userId: string }) {
     if (error) return flash("Не получилось загрузить файл");
     setRows((prev) => [...(prev ?? []), ...((data as Client[]) ?? [])]);
     markFresh(((data as Client[]) ?? []).map((d) => d.id));
-    flash(`Загружено строк: ${data?.length ?? 0}`);
+    flash(`Загружено строк: ${data?.length ?? 0}${extraCols.length ? `, новых колонок: ${extraCols.length}` : ""}`);
   }
 
   function startResize(key: string, startX: number, startW: number) {
@@ -244,6 +367,8 @@ export function Clients({ userId }: { userId: string }) {
   const stats = OUTCOME.map((o) => ({ ...o, n: rows.filter((r) => r.outcome === o.v).length }));
   const allChecked = view.length > 0 && view.every((r) => checked.has(r.id));
   const template = `44px ${columns.map((c) => `${c.width}px`).join(" ")} 44px`;
+  const numCols = columns.filter((c) => c.type === "number");
+  const menuEntry = menu ? layout.find((c) => c.id === menu.key) : undefined;
 
   return (
     <div className="ws-section">
@@ -278,7 +403,7 @@ export function Clients({ userId }: { userId: string }) {
 
       {viewMode === "pipeline" ? (
         <Pipeline rows={view} onMove={(id, outcome) => setCell(id, "outcome", outcome)} onOpen={(id) => { setViewMode("table"); const r = view.findIndex((x) => x.id === id); setSel({ r, c: 0 }); }} />
-      ) : (<>
+      ) : (<div className="sheet-wrap" ref={wrap}>
       <FormulaBar
         address={sel ? `${letter(sel.c)}${sel.r + 1}` : ""}
         title={sel ? columns[sel.c]?.title : ""}
@@ -298,14 +423,34 @@ export function Clients({ userId }: { userId: string }) {
               onChange={() => setChecked(allChecked ? new Set() : new Set(view.map((r) => r.id)))} />
           </div>
           {columns.map((c, ci) => (
-            <div key={c.key} className="sheet-cell th" role="columnheader" aria-sort={sort?.key === c.key ? (sort.dir === 1 ? "ascending" : "descending") : "none"}>
-              <button type="button" onClick={() => setSort((s) => (s?.key !== c.key ? { key: c.key, dir: 1 } : s.dir === 1 ? { key: c.key, dir: -1 } : null))}>
-                <em className="col-letter">{letter(ci)}</em>{c.title}<span className="sort">{sort?.key === c.key ? (sort.dir === 1 ? "↑" : "↓") : ""}</span>
+            <div key={c.key} data-col={c.key} role="columnheader"
+              className={`sheet-cell th ${menu?.key === c.key ? "menu-on" : ""} ${drop?.key === c.key ? `drop-${drop.side}` : ""}`}
+              aria-sort={sort?.key === c.key ? (sort.dir === 1 ? "ascending" : "descending") : "none"}
+              onContextMenu={(e) => { e.preventDefault(); openMenu(c.key, e.currentTarget); }}
+              onDragOver={(e) => {
+                if (!e.dataTransfer.types.includes("text/col")) return;
+                e.preventDefault();
+                const r = e.currentTarget.getBoundingClientRect();
+                const side = e.clientX < r.left + r.width / 2 ? "left" : "right";
+                if (drop?.key !== c.key || drop.side !== side) setDrop({ key: c.key, side });
+              }}
+              onDragLeave={() => setDrop((d) => (d?.key === c.key ? null : d))}
+              onDrop={(e) => { e.preventDefault(); const from = e.dataTransfer.getData("text/col"); if (from && drop) moveColumn(from, c.key, drop.side); setDrop(null); }}
+            >
+              <button type="button" draggable title="Нажми, чтобы настроить. Перетащи, чтобы переставить"
+                onClick={(e) => { const cell = e.currentTarget.parentElement!; menu?.key === c.key ? setMenu(null) : openMenu(c.key, cell); }}
+                onDoubleClick={(e) => openMenu(c.key, e.currentTarget.parentElement!, true)}
+                onDragStart={(e) => { e.dataTransfer.setData("text/col", c.key); e.dataTransfer.effectAllowed = "move"; setMenu(null); }}
+                onDragEnd={() => setDrop(null)}>
+                <em className="col-letter">{letter(ci)}</em><span className="th-title">{c.title}</span>
+                <span className="sort">{sort?.key === c.key ? (sort.dir === 1 ? "↑" : "↓") : <i className="th-caret" aria-hidden="true">▾</i>}</span>
               </button>
               <span className="resizer" onPointerDown={(e) => { e.preventDefault(); startResize(c.key, e.clientX, c.width); }} />
             </div>
           ))}
-          <div className="sheet-cell th" />
+          <div className="sheet-cell th add-col">
+            <button type="button" onClick={() => insertColumn()} aria-label="Добавить колонку" title="Добавить колонку">+</button>
+          </div>
         </div>
 
         {view.map((r, ri) => (
@@ -347,23 +492,56 @@ export function Clients({ userId }: { userId: string }) {
           </div>
         ))}
 
+        {numCols.length > 0 && view.length > 0 && (
+          <div className="sheet-row foot" style={{ gridTemplateColumns: template }} role="row">
+            <div className="sheet-cell idx"><span className="rownum">Σ</span></div>
+            {columns.map((c) => {
+              if (c.type !== "number") return <div key={c.key} className="sheet-cell" />;
+              const sum = view.reduce((a, r) => a + (parseFloat(getVal(r, c.key).replace(",", ".")) || 0), 0);
+              return <div key={c.key} className="sheet-cell sum" title="Сумма по видимым строкам">{sum.toLocaleString("ru-RU", { maximumFractionDigits: 2 })}</div>;
+            })}
+            <div className="sheet-cell end" />
+          </div>
+        )}
+
         <button type="button" className="sheet-add" onClick={() => addRow()}>+ Новая строка</button>
       </div>
 
-      </>)}
+      {menu && menuEntry && (
+        <ColumnMenu
+          key={menu.key}
+          entry={menuEntry}
+          col={toCol(menuEntry)}
+          x={menu.x} y={menu.y} focusTitle={menu.rename}
+          sort={sort?.key === menu.key ? sort.dir : 0}
+          onClose={() => { setMenu(null); grid.current?.focus(); }}
+          onPatch={(patch) => patchColumn(menu.key, patch)}
+          onSort={(dir) => { setSort(dir ? { key: menu.key, dir } : null); setMenu(null); }}
+          onInsert={(side) => insertColumn(menu.key, side)}
+          onHide={() => { patchColumn(menu.key, { hidden: true }); setMenu(null); flash("Колонка скрыта. Вернуть можно в «Колонки»"); }}
+          onDelete={() => deleteColumn(menu.key)}
+        />
+      )}
+      </div>)}
 
       {viewMode === "table" && <p className="hint">
         Клик — выбрать ячейку, двойной клик или Enter — редактировать, стрелки и Tab — перемещаться, Delete — очистить.
-        Можно вставить диапазон из Excel или Google Таблиц через Ctrl+V / ⌘V.
+        Клик по заголовку — переименовать, сменить тип, сортировать, вставить или удалить колонку. Заголовок можно перетащить, «+» справа добавляет колонку.
+        Можно вставить диапазон из Excel или Google Таблиц через Ctrl+V / ⌘V: если он шире таблицы, недостающие колонки появятся сами.
       </p>}
       {viewMode === "pipeline" && <p className="hint">Перетаскивай карточки между колонками, чтобы менять этап сделки. Двойной клик открывает клиента в таблице.</p>}
 
-      {toast && <div className="toast" role="status">{toast}</div>}
+      {toast && (
+        <div className="toast" role="status">
+          {toast.text}
+          {toast.undo && <button type="button" className="toast-undo" onClick={() => { toast.undo?.(); setToast(null); }}>Вернуть</button>}
+        </div>
+      )}
       {colEditor && (
         <ColumnEditor
-          columns={custom}
+          columns={layout}
           onClose={() => setColEditor(false)}
-          onSave={async (next) => { setCustom(next); await saveSettings(userId, { client_columns: next }); setColEditor(false); flash("Колонки сохранены"); }}
+          onSave={(next) => { saveLayout(next); setColEditor(false); flash("Колонки сохранены"); }}
         />
       )}
     </div>
@@ -427,6 +605,8 @@ function CellEditor({ value, long, type, onChange, onCommit, onCancel }: {
     const el = ref.current;
     if (!el) return;
     el.focus();
+    // У полей «число» и «дата» нет выделения текста: setSelectionRange там бросает ошибку
+    if (el.type === "number" || el.type === "date") return;
     const end = el.value.length;
     el.setSelectionRange?.(end, end);
   }, []);
@@ -456,31 +636,144 @@ function SelectCell({ value, options, onChange }: { value: string; options: { v:
   );
 }
 
+/** Меню колонки: название, тип, варианты списка, сортировка, вставка, скрытие, удаление */
+function ColumnMenu({ entry, col, x, y, focusTitle, sort, onClose, onPatch, onSort, onInsert, onHide, onDelete }: {
+  entry: ClientColumn; col: Col; x: number; y: number; focusTitle?: boolean; sort: 0 | 1 | -1;
+  onClose: () => void; onPatch: (p: Partial<ClientColumn>) => void; onSort: (dir: 1 | -1 | null) => void;
+  onInsert: (side: "left" | "right") => void; onHide: () => void; onDelete: () => void;
+}) {
+  const box = useRef<HTMLDivElement>(null);
+  const titleRef = useRef<HTMLInputElement>(null);
+  const [title, setTitle] = useState(col.title);
+  const [opt, setOpt] = useState("");
+  const [confirm, setConfirm] = useState(false);
+  const isCustom = !entry.base;
+  const options = entry.options ?? [];
+
+  useEffect(() => {
+    if (focusTitle) { titleRef.current?.focus(); titleRef.current?.select(); }
+    const down = (e: MouseEvent) => { if (box.current && !box.current.contains(e.target as Node)) onClose(); };
+    const key = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    // Клик, который открыл меню, ещё не закончился — слушаем со следующего тика
+    const t = setTimeout(() => document.addEventListener("mousedown", down), 0);
+    document.addEventListener("keydown", key);
+    return () => { clearTimeout(t); document.removeEventListener("mousedown", down); document.removeEventListener("keydown", key); };
+  }, []);
+
+  const saveTitle = () => {
+    const t = title.trim().slice(0, 40);
+    if (t && t !== col.title) onPatch({ title: t });
+    else setTitle(col.title);
+  };
+  const addOpt = () => {
+    const v = opt.trim().slice(0, 40);
+    if (v && !options.includes(v) && options.length < 20) onPatch({ options: [...options, v] });
+    setOpt("");
+  };
+
+  return (
+    <div className="col-menu card" ref={box} role="dialog" aria-label={`Колонка «${col.title}»`} style={{ left: x, top: y }}>
+      <div className="input">
+        <input ref={titleRef} value={title} maxLength={40} aria-label="Название колонки"
+          onChange={(e) => setTitle(e.target.value)} onBlur={saveTitle}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); saveTitle(); onClose(); } }} />
+      </div>
+
+      {isCustom ? (
+        <div className="cm-types" role="radiogroup" aria-label="Тип колонки">
+          {(Object.keys(TYPE_NAME) as ClientColumn["type"][]).map((t) => (
+            <button key={t} type="button" role="radio" aria-checked={entry.type === t} className={entry.type === t ? "on" : ""}
+              onClick={() => onPatch({ type: t, options: t === "select" ? options : entry.options })}>{TYPE_NAME[t]}</button>
+          ))}
+        </div>
+      ) : (
+        <p className="cm-note">Базовая колонка: её можно переименовать, переставить или скрыть, но не удалить.</p>
+      )}
+
+      {isCustom && entry.type === "select" && (
+        <div className="cm-opts">
+          <span className="label">Варианты</span>
+          <div className="cm-chips">
+            {options.map((o) => (
+              <span key={o} className="cm-chip">{o}
+                <button type="button" aria-label={`Убрать вариант ${o}`} onClick={() => onPatch({ options: options.filter((x) => x !== o) })}>×</button>
+              </span>
+            ))}
+            {!options.length && <span className="hint">Пока пусто. Добавь первый вариант.</span>}
+          </div>
+          <form className="cm-add" onSubmit={(e) => { e.preventDefault(); addOpt(); }}>
+            <div className="input"><input value={opt} onChange={(e) => setOpt(e.target.value)} placeholder="Новый вариант" maxLength={40} aria-label="Новый вариант" /></div>
+            <button type="submit" className="btn ghost sm" disabled={!opt.trim()}>Добавить</button>
+          </form>
+        </div>
+      )}
+
+      <div className="cm-list">
+        <button type="button" className={sort === 1 ? "on" : ""} onClick={() => onSort(sort === 1 ? null : 1)}>↑ Сортировать {col.type === "number" ? "по возрастанию" : "А → Я"}</button>
+        <button type="button" className={sort === -1 ? "on" : ""} onClick={() => onSort(sort === -1 ? null : -1)}>↓ Сортировать {col.type === "number" ? "по убыванию" : "Я → А"}</button>
+        <hr />
+        <button type="button" onClick={() => onInsert("left")}>← Вставить колонку слева</button>
+        <button type="button" onClick={() => onInsert("right")}>→ Вставить колонку справа</button>
+        <hr />
+        <button type="button" onClick={onHide}>Скрыть колонку</button>
+        {isCustom && (confirm ? (
+          <div className="cm-confirm">
+            <span>Удалить «{col.title}»?</span>
+            <button type="button" className="btn danger sm" onClick={onDelete}>Удалить</button>
+            <button type="button" className="btn ghost sm" onClick={() => setConfirm(false)}>Отмена</button>
+          </div>
+        ) : (
+          <button type="button" className="danger-text" onClick={() => setConfirm(true)}>Удалить колонку</button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Все колонки списком: показать или скрыть, переименовать, переставить, удалить свои, добавить новую */
 function ColumnEditor({ columns, onClose, onSave }: { columns: ClientColumn[]; onClose: () => void; onSave: (c: ClientColumn[]) => void }) {
   const [list, setList] = useState<ClientColumn[]>(columns);
   const [title, setTitle] = useState("");
   const [type, setType] = useState<ClientColumn["type"]>("text");
   const [opts, setOpts] = useState("");
+  const patch = (i: number, p: Partial<ClientColumn>) => setList(list.map((c, j) => (j === i ? { ...c, ...p } : c)));
+  const move = (i: number, d: -1 | 1) => {
+    const j = i + d;
+    if (j < 0 || j >= list.length) return;
+    const next = [...list];
+    [next[i], next[j]] = [next[j], next[i]];
+    setList(next);
+  };
+  const visible = list.filter((c) => !c.hidden).length;
   return (
-    <div className="sheet-modal" role="dialog" aria-label="Свои колонки" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    <div className="sheet-modal" role="dialog" aria-label="Колонки" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="modal-body card">
-        <header className="modal-head"><h2 className="h-md caps">Свои <span className="it">колонки</span></h2><button type="button" className="icon-btn" onClick={onClose} aria-label="Закрыть">×</button></header>
-        <p className="lead small">Базовые колонки остаются всегда. Добавь свои: бюджет, источник, дата созвона.</p>
-        <ul className="section-order">
+        <header className="modal-head"><h2 className="h-md caps">Колонки <span className="it">таблицы</span></h2><button type="button" className="icon-btn" onClick={onClose} aria-label="Закрыть">×</button></header>
+        <p className="lead small">Сними галочку, чтобы скрыть колонку. Данные в скрытой колонке сохраняются. Названия можно менять прямо здесь.</p>
+        <ul className="section-order col-list">
           {list.map((c, i) => (
-            <li key={c.id} className="on">
-              <span><b>{c.title}</b> <span className="hint">{{ text: "текст", select: "список", number: "число", date: "дата" }[c.type]}{c.options?.length ? `: ${c.options.join(", ")}` : ""}</span></span>
-              <button type="button" className="icon-btn sm" aria-label="Удалить колонку" onClick={() => setList(list.filter((_, j) => j !== i))}>×</button>
+            <li key={c.id} className={c.hidden ? "" : "on"}>
+              <input type="checkbox" checked={!c.hidden} aria-label={`Показывать «${c.title}»`}
+                disabled={!c.hidden && visible <= 1} onChange={() => patch(i, { hidden: !c.hidden })} />
+              <input className="col-title" value={c.title} maxLength={40} aria-label="Название колонки"
+                onChange={(e) => patch(i, { title: e.target.value })}
+                onBlur={(e) => { if (!e.target.value.trim()) patch(i, { title: c.base ? BASE_MAP.get(c.id)?.title ?? "Колонка" : "Колонка" }); }} />
+              <span className="hint">{c.base ? "базовая" : `${TYPE_NAME[c.type].toLowerCase()}${c.options?.length ? `: ${c.options.join(", ")}` : ""}`}</span>
+              <span className="order-btns">
+                <button type="button" className="icon-btn sm" aria-label="Выше" disabled={i === 0} onClick={() => move(i, -1)}>↑</button>
+                <button type="button" className="icon-btn sm" aria-label="Ниже" disabled={i === list.length - 1} onClick={() => move(i, 1)}>↓</button>
+                {!c.base && <button type="button" className="icon-btn sm" aria-label="Удалить колонку" onClick={() => setList(list.filter((_, j) => j !== i))}>×</button>}
+              </span>
             </li>
           ))}
         </ul>
         <form className="col-add" onSubmit={(e) => {
           e.preventDefault();
           if (!title.trim()) return;
-          setList([...list, { id: `c_${crypto.randomUUID().slice(0, 8)}`, title: title.trim().slice(0, 40), type, options: type === "select" ? opts.split(",").map((s) => s.trim()).filter(Boolean).slice(0, 12) : undefined }]);
+          setList([...list, { id: newColId(), title: title.trim().slice(0, 40), type, options: type === "select" ? opts.split(",").map((s) => s.trim()).filter(Boolean).slice(0, 20) : undefined }]);
           setTitle(""); setOpts("");
         }}>
-          <div className="input"><input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Название колонки" maxLength={40} aria-label="Название колонки" /></div>
+          <div className="input"><input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Название новой колонки" maxLength={40} aria-label="Название колонки" /></div>
           <div className="input">
             <select value={type} onChange={(e) => setType(e.target.value as ClientColumn["type"])} aria-label="Тип колонки">
               <option value="text">Текст</option><option value="number">Число</option><option value="date">Дата</option><option value="select">Список</option>
@@ -489,7 +782,7 @@ function ColumnEditor({ columns, onClose, onSave }: { columns: ClientColumn[]; o
           {type === "select" && <div className="input"><input value={opts} onChange={(e) => setOpts(e.target.value)} placeholder="Варианты через запятую" aria-label="Варианты" /></div>}
           <button type="submit" className="btn ghost sm" disabled={!title.trim()}>Добавить</button>
         </form>
-        <div className="editor-actions"><button type="button" className="btn" onClick={() => onSave(list)}>Сохранить</button></div>
+        <div className="editor-actions"><button type="button" className="btn" onClick={() => onSave(list.map((c) => ({ ...c, title: c.title.trim() || "Колонка" })))}>Сохранить</button></div>
       </div>
     </div>
   );

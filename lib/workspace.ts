@@ -1,6 +1,8 @@
 import { supabase } from "./supabase";
 
-export type ClientColumn = { id: string; title: string; type: "text" | "select" | "number" | "date"; options?: string[] };
+// Порядок в массиве = порядок колонок в таблице. Базовые колонки (base: true) хранят только своё название и видимость,
+// их данные лежат в полях clients; данные своих колонок — в clients.extra[id]
+export type ClientColumn = { id: string; title: string; type: "text" | "select" | "number" | "date"; options?: string[]; base?: boolean; hidden?: boolean };
 export type Client = {
   id: string; user_id: string; username: string; sphere: string; qualify: string; hypothesis: string;
   outcome: string; comment: string; extra: Record<string, string>; position: number; created_at: string; updated_at: string;
