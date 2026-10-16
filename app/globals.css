@@ -5640,3 +5640,16 @@ button.pj-tl-name:hover { background: var(--paper); }
 .ai-tokens small { color: var(--mute); font-size: 12px; }
 .ai-tokens .hint { margin: 0; }
 .ai-revoke { display: flex; gap: 6px; }
+
+/* Таблица клиентов на весь экран */
+.sheet-full-layer {
+  position: fixed; inset: 0; z-index: 50; background: var(--paper); display: flex; flex-direction: column;
+  padding: calc(14px + env(safe-area-inset-top, 0px)) clamp(12px, 2vw, 24px) calc(14px + env(safe-area-inset-bottom, 0px));
+  animation: fadeIn .2s ease;
+}
+.sheet-full { flex: 1; min-height: 0; gap: 12px; }
+.sheet-full > .ws-stats, .sheet-full > .hint { display: none; }
+.sheet-full .sheet-wrap { flex: 1; min-height: 0; }
+.sheet-full .sheet { flex: 1; max-height: none; min-height: 0; }
+.sheet-full .pipeline { flex: 1; min-height: 0; }
+.full-btn[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: #fff; }

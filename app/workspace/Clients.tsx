@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { createPortal } from "react-dom";
 import { supabase } from "@/lib/supabase";
 import { CountUp } from "../CountUp";
 import { ClientsAi, type AiPlan } from "./ClientsAi";
@@ -63,6 +64,7 @@ export function Clients({ userId }: { userId: string }) {
   const [colEditor, setColEditor] = useState(false);
   const [cardId, setCardId] = useState<string | null>(null);
   const [aiOpen, setAiOpen] = useState(false);
+  const [full, setFull] = useState(false);
   const [toast, setToast] = useState<{ text: string; undo?: () => void } | null>(null);
   const [menu, setMenu] = useState<{ key: string; x: number; y: number; rename?: boolean } | null>(null);
   const [drop, setDrop] = useState<{ key: string; side: "left" | "right" } | null>(null);
@@ -94,6 +96,22 @@ export function Clients({ userId }: { userId: string }) {
   }, [userId]);
 
   // Живые изменения: клиентов, которых добавила или поправила подключённая нейронка, видно сразу
+  // Полноэкранный режим: страница под таблицей не прокручивается, Esc возвращает обратно
+  const overlayOpen = useRef(false);
+  useEffect(() => {
+    if (!full) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const key = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || overlayOpen.current) return;
+      const t = e.target as HTMLElement;
+      if (t.closest("input, textarea, select, .col-menu")) return;
+      setFull(false);
+    };
+    document.addEventListener("keydown", key);
+    return () => { document.body.style.overflow = prev; document.removeEventListener("keydown", key); };
+  }, [full]);
+
   const aiAdded = useRef<{ n: number; t?: ReturnType<typeof setTimeout> }>({ n: 0 });
   useEffect(() => {
     const syncColumns = (r: Client) => {
@@ -504,8 +522,11 @@ export function Clients({ userId }: { userId: string }) {
   const numCols = columns.filter((c) => c.type === "number");
   const menuEntry = menu ? layout.find((c) => c.id === menu.key) : undefined;
 
-  return (
-    <div className="ws-section">
+  // Пока открыты меню, карточка или окно, Esc закрывает их, а не полноэкранный режим
+  overlayOpen.current = !!(menu || cardId || aiOpen || colEditor || editing || sel);
+
+  const page = (
+    <div className={`ws-section ${full ? "sheet-full" : ""}`}>
       <div className="ws-stats">
         <div className="ws-stat"><b><CountUp value={rows.length} /></b><span>клиентов</span></div>
         {stats.map((s) => (
@@ -533,6 +554,8 @@ export function Clients({ userId }: { userId: string }) {
           {viewMode === "table" && <button type="button" className="btn ghost sm" onClick={() => insertColumn()}>+ Колонка</button>}
           <label className="btn ghost sm">Импорт CSV<input type="file" accept=".csv,.tsv,.txt" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) importCsv(f); e.target.value = ""; }} /></label>
           <button type="button" className="btn ghost sm" onClick={exportCsv}>Экспорт</button>
+          <button type="button" className="btn ghost sm full-btn" onClick={() => setFull((f) => !f)} aria-pressed={full}
+            title={full ? "Свернуть (Esc)" : "Таблица на весь экран"}>{full ? "⤡ Свернуть" : "⤢ На весь экран"}</button>
           <button type="button" className="btn sm" onClick={() => addRow()}>+ Клиент</button>
         </div>
       </div>
@@ -718,6 +741,7 @@ export function Clients({ userId }: { userId: string }) {
       )}
     </div>
   );
+  return full ? createPortal(<div className="ws-clients sheet-full-layer" role="dialog" aria-label="Таблица клиентов на весь экран">{page}</div>, document.body) : page;
 }
 
 /** Воронка: клиенты по этапам сделки, карточки перетаскиваются между колонками */
