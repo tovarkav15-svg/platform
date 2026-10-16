@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { CountUp } from "../CountUp";
+import { ClientsAi, type AiPlan } from "./ClientsAi";
 import {
   OUTCOME, QUALIFY, download, loadSettings, parseTable, saveSettings, toCsv,
   type Client, type ClientColumn,
@@ -61,6 +62,7 @@ export function Clients({ userId }: { userId: string }) {
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [colEditor, setColEditor] = useState(false);
   const [cardId, setCardId] = useState<string | null>(null);
+  const [aiOpen, setAiOpen] = useState(false);
   const [toast, setToast] = useState<{ text: string; undo?: () => void } | null>(null);
   const [menu, setMenu] = useState<{ key: string; x: number; y: number; rename?: boolean } | null>(null);
   const [drop, setDrop] = useState<{ key: string; side: "left" | "right" } | null>(null);
@@ -325,6 +327,86 @@ export function Clients({ userId }: { userId: string }) {
     download(`clients-${new Date().toISOString().slice(0, 10)}.csv`, toCsv([head, ...body]));
   }
 
+  // ---------- Нейронка: ответ таблицей раскладывается по клиентам через @username ----------
+  const norm = (s: string) => s.toLowerCase().replace(/^@/, "").replace(/[\s_*`«»"']/g, "");
+  const uname = (s: string) => s.trim().replace(/^https?:\/\//i, "").replace(/^(www\.)?t\.me\//i, "").replace(/^@+/, "").replace(/\/+$/, "").toLowerCase();
+
+  type AiTarget = { key: string; col: Col | null; title: string } | null;
+  function planAi(table: string[][]): { error: string } | { keyIdx: number; targets: AiTarget[]; items: { name: string; row?: Client; cells: string[] }[] } {
+    const head = table[0].map((h) => h.trim());
+    const all = layoutRef.current.map(toCol);
+    const userTitle = all.find((c) => c.key === "username")?.title ?? "@username";
+    const keyNames = new Set(["username", "ник", "клиент", "telegram", "юзернейм", norm(userTitle)]);
+    const keyIdx = head.findIndex((h) => keyNames.has(norm(h)));
+    if (keyIdx < 0) return { error: `В ответе нет колонки «${userTitle}». Попроси нейронку оставить её.` };
+    const targets = head.map((h, i): AiTarget => {
+      if (i === keyIdx || !h) return null;
+      const col = all.find((c) => norm(c.title) === norm(h) || c.key === h || norm(BASE_MAP.get(c.key)?.title ?? "") === norm(h));
+      return col ? { key: col.key, col, title: col.title } : { key: "", col: null, title: h.slice(0, 40) };
+    });
+    const byName = new Map((rows ?? []).filter((r) => r.username).map((r) => [uname(r.username), r]));
+    const items = table.slice(1).filter((r) => r[keyIdx]?.trim()).map((r) => ({ name: r[keyIdx].trim(), row: byName.get(uname(r[keyIdx])), cells: r }));
+    return { keyIdx, targets, items };
+  }
+
+  function aiSummary(table: string[][]): AiPlan {
+    const p = planAi(table);
+    if ("error" in p) return { error: p.error, updated: 0, created: 0, newCols: [], skipped: [] };
+    return {
+      updated: p.items.filter((x) => x.row).length,
+      created: p.items.filter((x) => !x.row).length,
+      newCols: p.targets.filter((t) => t && !t.col).map((t) => t!.title),
+      skipped: p.items.flatMap((x) => x.cells.filter((c, i) => i !== p.keyIdx && !c.trim())),
+    };
+  }
+
+  async function applyAi(table: string[][], addNew: boolean): Promise<string> {
+    const p = planAi(table);
+    if ("error" in p) return p.error;
+    // Новые колонки из ответа (например, «Сообщение») добавляются в конец
+    const fresh: ClientColumn[] = [];
+    const keys = p.targets.map((t) => {
+      if (!t) return null;
+      if (t.col) return { key: t.key, col: t.col };
+      const id = newColId();
+      fresh.push({ id, title: t.title, type: "text" });
+      return { key: id, col: toCol({ id, title: t.title, type: "text" }) };
+    });
+    if (fresh.length) saveLayout([...layoutRef.current, ...fresh]);
+    // Значения списков подгоняем под варианты без учёта регистра
+    const fit = (col: Col, v: string) => {
+      const clean = v.trim().replace(/^\*\*(.*)\*\*$/, "$1");
+      if (col.type !== "select" || !col.options?.length) return clean;
+      return col.options.find((o) => o.v.toLowerCase() === clean.toLowerCase())?.v ?? clean;
+    };
+    let updated = 0;
+    for (const it of p.items) {
+      if (!it.row) continue;
+      it.cells.forEach((v, i) => { const k = keys[i]; if (k && v.trim()) setCell(it.row!.id, k.key, fit(k.col, v)); });
+      updated++;
+    }
+    let created = 0;
+    const toAdd = addNew ? p.items.filter((x) => !x.row) : [];
+    if (toAdd.length) {
+      const base = (rows?.[rows.length - 1]?.position ?? 0) + 1;
+      const payload = toAdd.map((it, n) => {
+        const r: Record<string, unknown> = { position: base + n, username: it.name.replace(/^@+/, "").slice(0, 60), extra: {} };
+        it.cells.forEach((v, i) => {
+          const k = keys[i];
+          if (!k || !v.trim()) return;
+          if (FIXED.has(k.key)) r[k.key] = fit(k.col, v);
+          else (r.extra as Record<string, string>)[k.key] = fit(k.col, v);
+        });
+        return r;
+      });
+      const { data } = await supabase.from("clients").insert(payload).select("*");
+      if (data) { setRows((prev) => [...(prev ?? []), ...(data as Client[])]); markFresh((data as Client[]).map((d) => d.id)); created = data.length; }
+    }
+    const msg = [`Обновлено клиентов: ${updated}`, created && `добавлено новых: ${created}`, fresh.length && `новых колонок: ${fresh.length}`].filter(Boolean).join(", ");
+    flash(msg);
+    return msg;
+  }
+
   async function importCsv(file: File) {
     const table = parseTable(await file.text());
     if (table.length < 2) return flash("В файле нет строк");
@@ -409,6 +491,7 @@ export function Clients({ userId }: { userId: string }) {
         </select>
         <div className="sheet-actions">
           {checked.size > 0 && <button type="button" className="btn danger sm" onClick={removeChecked}>Удалить ({checked.size})</button>}
+          <button type="button" className="btn ghost sm ai-btn" onClick={() => setAiOpen(true)}>✦ Нейронка</button>
           <button type="button" className="btn ghost sm" onClick={() => setColEditor(true)}>Колонки</button>
           {viewMode === "table" && <button type="button" className="btn ghost sm" onClick={() => insertColumn()}>+ Колонка</button>}
           <label className="btn ghost sm">Импорт CSV<input type="file" accept=".csv,.tsv,.txt" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) importCsv(f); e.target.value = ""; }} /></label>
@@ -567,6 +650,25 @@ export function Clients({ userId }: { userId: string }) {
             onAddField={appendColumn}
             onDelete={async () => { setCardId(null); await deleteRow(row.id); flash("Клиент удалён"); }}
             onClose={() => setCardId(null)}
+          />
+        );
+      })()}
+      {aiOpen && (() => {
+        // @username всегда первой колонкой, даже если в таблице её скрыли или переставили
+        const userCol = toCol(layout.find((c) => c.id === "username") ?? { id: "username", title: "@username", type: "text", base: true });
+        const aiCols = [userCol, ...columns.filter((c) => c.key !== "username")];
+        const pick = (c: Col) => ({ key: c.key, title: c.title, type: c.type, options: c.options });
+        return (
+          <ClientsAi
+            columns={aiCols.map(pick)}
+            allColumns={layout.map(toCol).map(pick)}
+            rows={view.length} selected={view.filter((r) => checked.has(r.id)).length}
+            keyTitle={userCol.title}
+            getRow={(only) => (only ? view.filter((r) => checked.has(r.id)) : view).map((r) =>
+              aiCols.map((c) => (c.key === "username" ? (!r.username ? "" : /[./]/.test(r.username) ? r.username : `@${r.username.replace(/^@+/, "")}`) : getVal(r, c.key))))}
+            onPlan={aiSummary}
+            onApply={applyAi}
+            onClose={() => setAiOpen(false)}
           />
         );
       })()}

@@ -5601,3 +5601,19 @@ button.pj-tl-name:hover { background: var(--paper); }
 .pj-colors button { width: 26px; height: 26px; border-radius: 8px; border: 0; cursor: pointer; transition: transform .2s var(--spring); }
 .pj-colors button.on { box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--ink); transform: scale(1.06); }
 .pj-foot { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+/* Клиенты и нейронка */
+.ai-btn { border-color: color-mix(in srgb, #7B61FF 40%, var(--line)); color: #5B44D6; }
+.ai-btn:hover { background: color-mix(in srgb, #7B61FF 8%, #fff); }
+.ai-modal { width: min(640px, 100%); gap: 14px; }
+.ai-presets { display: flex; flex-wrap: wrap; gap: 6px; }
+.ai-presets button { border: 1px solid var(--line); background: #fff; border-radius: 99px; padding: 7px 13px; font: inherit; font-size: 13px; font-weight: 700; color: var(--graphite); cursor: pointer; transition: all .2s var(--ease); }
+.ai-presets button.on { background: var(--ink); border-color: var(--ink); color: #fff; }
+.ai-scope { display: flex; flex-direction: column; gap: 8px; }
+.ai-scope .mini-toggle span { font-variant-numeric: tabular-nums; }
+.ai-preview summary { cursor: pointer; font-size: 13px; font-weight: 700; color: var(--graphite); }
+.ai-preview textarea { margin-top: 8px; font-size: 12px; }
+.ai-privacy { margin: 0; }
+.ai-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.ai-answer { font-size: 12px; }
+.ai-plan { display: flex; flex-direction: column; gap: 6px; padding: 12px; border-radius: 12px; background: var(--paper); border: 1px solid var(--line); font-size: 14px; }
