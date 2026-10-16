@@ -78,6 +78,7 @@ export function Clients({ userId }: { userId: string }) {
   const animateOut = (ids: string[]) => new Promise<void>((res) => { setLeaving(new Set(ids)); setTimeout(() => { setLeaving(new Set()); res(); }, 260); });
   const grid = useRef<HTMLDivElement>(null);
   const saveTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const lastEdit = useRef<Map<string, number>>(new Map());
 
   useEffect(() => {
     (async () => {
@@ -90,6 +91,41 @@ export function Clients({ userId }: { userId: string }) {
       if (sp.get("new") === "1" && !autoAdded.current) { autoAdded.current = true; setTimeout(() => addRowRef.current?.(), 0); }
     })();
     try { setWidths(JSON.parse(localStorage.getItem("clients:widths") ?? "{}")); } catch {}
+  }, [userId]);
+
+  // Живые изменения: клиентов, которых добавила или поправила подключённая нейронка, видно сразу
+  const aiAdded = useRef<{ n: number; t?: ReturnType<typeof setTimeout> }>({ n: 0 });
+  useEffect(() => {
+    const syncColumns = (r: Client) => {
+      const known = new Set(layoutRef.current.map((c) => c.id));
+      if (Object.keys(r.extra ?? {}).some((k) => !known.has(k))) loadSettings(userId).then((st) => setLayout(normalizeLayout(st.client_columns)));
+    };
+    const ch = supabase.channel(`clients:${userId}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "clients", filter: `user_id=eq.${userId}` }, (payload) => {
+        const r = payload.new as Client;
+        setRows((prev) => (!prev || prev.some((x) => x.id === r.id) ? prev : [...prev, r]));
+        setFresh((f) => new Set(f).add(r.id));
+        setTimeout(() => setFresh((f) => { const n = new Set(f); n.delete(r.id); return n; }), 1600);
+        syncColumns(r);
+        // Нейронка добавляет пачкой: одно сообщение на всю пачку
+        const a = aiAdded.current;
+        a.n++;
+        clearTimeout(a.t);
+        a.t = setTimeout(() => { flash(`Новые клиенты в таблице: ${a.n}`); a.n = 0; }, 900);
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "clients", filter: `user_id=eq.${userId}` }, (payload) => {
+        const r = payload.new as Client;
+        // Строку, которую правишь прямо сейчас, не перезаписываем
+        if (saveTimers.current.has(r.id) && Date.now() - (lastEdit.current.get(r.id) ?? 0) < 3000) return;
+        setRows((prev) => prev?.map((x) => (x.id === r.id ? r : x)) ?? prev);
+        syncColumns(r);
+      })
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "clients" }, (payload) => {
+        const id = (payload.old as { id?: string }).id;
+        if (id) setRows((prev) => prev?.filter((x) => x.id !== id) ?? prev);
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
   }, [userId]);
 
   const columns: Col[] = useMemo(
@@ -217,6 +253,7 @@ export function Clients({ userId }: { userId: string }) {
   const persist = useCallback((row: Client) => {
     const t = saveTimers.current.get(row.id);
     if (t) clearTimeout(t);
+    lastEdit.current.set(row.id, Date.now());
     saveTimers.current.set(row.id, setTimeout(async () => {
       const { id, username, sphere, qualify, hypothesis, outcome, comment, extra } = row;
       const { error } = await supabase.from("clients").update({ username, sphere, qualify, hypothesis, outcome, comment, extra, updated_at: new Date().toISOString() }).eq("id", id);
