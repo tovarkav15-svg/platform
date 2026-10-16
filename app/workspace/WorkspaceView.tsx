@@ -15,18 +15,21 @@ import { Plans } from "./Plans";
 import { Finance } from "./Finance";
 import { Notes } from "./Notes";
 import { Tools } from "./Tools";
+import { Projects } from "./Projects";
+import { iso, addDays } from "@/lib/plans";
 
-type Tab = "overview" | "clients" | "plans" | "finance" | "notes" | "tools";
+type Tab = "overview" | "clients" | "projects" | "plans" | "finance" | "notes" | "tools";
 const TABS: { id: Tab; label: string; sub: string; icon: string }[] = [
   { id: "overview", label: "Обзор", sub: "Главное на сегодня", icon: "◎" },
   { id: "clients", label: "Clients", sub: "Клиенты и сделки", icon: "◧" },
+  { id: "projects", label: "My Projects", sub: "Проекты и дедлайны", icon: "◆" },
   { id: "plans", label: "Plans / Цели", sub: "Задачи, планы, вершины", icon: "◷" },
   { id: "finance", label: "Finance", sub: "Деньги и оплаты", icon: "◈" },
   { id: "notes", label: "Заметки", sub: "Проекты, идеи, списки", icon: "✎" },
   { id: "tools", label: "Инструменты", sub: "КП, шаблоны, помодоро", icon: "✦" },
 ];
 
-type Counters = { inWork: number; today: number; profit: number };
+type Counters = { inWork: number; today: number; profit: number; projects: number; burning: number };
 
 export function WorkspaceView({ me }: { me: Profile | null }) {
   const sp = useSearchParams();
@@ -46,7 +49,10 @@ export function WorkspaceView({ me }: { me: Profile | null }) {
       supabase.from("clients").select("id", { count: "exact", head: true }).eq("user_id", me.id).eq("outcome", "В работе"),
       supabase.from("plan_tasks").select("id", { count: "exact", head: true }).eq("user_id", me.id).eq("done", false).lte("due_date", today()),
       supabase.from("fin_transactions").select("type, amount").eq("user_id", me.id).gte("date", `${month}-01`),
-    ]).then(([c, t, f]) => setCounters({
+      supabase.from("ws_projects").select("deadline").eq("user_id", me.id).in("status", ["idea", "active", "review"]),
+    ]).then(([c, t, f, p]) => setCounters({
+      projects: p.data?.length ?? 0,
+      burning: (p.data ?? []).filter((x) => x.deadline && x.deadline <= iso(addDays(new Date(), 3))).length,
       inWork: c.count ?? 0,
       today: t.count ?? 0,
       profit: (f.data ?? []).reduce((s, x) => s + (x.type === "income" ? 1 : -1) * Number(x.amount), 0),
@@ -71,6 +77,7 @@ export function WorkspaceView({ me }: { me: Profile | null }) {
   const count = (id: Tab) => {
     if (!counters) return null;
     if (id === "clients") return counters.inWork ? `${counters.inWork} в работе` : null;
+    if (id === "projects") return counters.burning ? `${counters.burning} горят по дедлайну` : counters.projects ? `${counters.projects} активных` : null;
     if (id === "plans") return counters.today ? `${counters.today} на сегодня` : null;
     if (id === "finance") return counters.profit ? rub(counters.profit, true) : null;
     return null;
@@ -105,6 +112,7 @@ export function WorkspaceView({ me }: { me: Profile | null }) {
           <div className="ws2-quick">
             <span className="label">Быстро</span>
             <button type="button" onClick={() => router.replace("/workspace/?tab=clients&new=1")}>+ Клиент</button>
+            <button type="button" onClick={() => router.replace("/workspace/?tab=projects&new=1")}>+ Проект</button>
             <button type="button" onClick={() => router.replace("/workspace/?tab=plans")}>+ Задача</button>
             <button type="button" onClick={() => router.replace("/workspace/?tab=finance&ops=1")}>+ Операция</button>
             <button type="button" onClick={() => router.replace("/workspace/?tab=notes")}>✎ Заметка</button>
@@ -125,6 +133,7 @@ export function WorkspaceView({ me }: { me: Profile | null }) {
             <div key={tab} className="ws2-body">
               {tab === "overview" && <Overview userId={me.id} name={me.display_name} />}
               {tab === "clients" && <Clients userId={me.id} />}
+              {tab === "projects" && <Projects userId={me.id} />}
               {tab === "plans" && <Plans userId={me.id} />}
               {tab === "finance" && <Finance userId={me.id} />}
               {tab === "notes" && <Notes userId={me.id} />}

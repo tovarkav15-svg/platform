@@ -60,6 +60,7 @@ export function Clients({ userId }: { userId: string }) {
   const [filter, setFilter] = useState<{ qualify?: string; outcome?: string }>({});
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [colEditor, setColEditor] = useState(false);
+  const [cardId, setCardId] = useState<string | null>(null);
   const [toast, setToast] = useState<{ text: string; undo?: () => void } | null>(null);
   const [menu, setMenu] = useState<{ key: string; x: number; y: number; rename?: boolean } | null>(null);
   const [drop, setDrop] = useState<{ key: string; side: "left" | "right" } | null>(null);
@@ -136,6 +137,20 @@ export function Clients({ userId }: { userId: string }) {
       cell.scrollIntoView({ block: "nearest", inline: "nearest" });
       openMenu(col.id, cell, true);
     }, 30);
+  }
+
+  /** Своя колонка с заданным названием и типом — в конец таблицы (из карточки клиента) */
+  function appendColumn(title: string, type: ClientColumn["type"], options?: string[]) {
+    const list = layoutRef.current;
+    const t = title.trim().slice(0, 40) || freeTitle(list);
+    saveLayout([...list, { id: newColId(), title: t, type, options: type === "select" ? options?.slice(0, 20) : undefined }]);
+    flash(`Поле «${t}» добавлено и в таблицу`);
+  }
+
+  async function deleteRow(id: string) {
+    await animateOut([id]);
+    await supabase.from("clients").delete().eq("id", id);
+    setRows((p) => (p ?? []).filter((x) => x.id !== id));
   }
 
   function deleteColumn(id: string) {
@@ -366,7 +381,7 @@ export function Clients({ userId }: { userId: string }) {
 
   const stats = OUTCOME.map((o) => ({ ...o, n: rows.filter((r) => r.outcome === o.v).length }));
   const allChecked = view.length > 0 && view.every((r) => checked.has(r.id));
-  const template = `44px ${columns.map((c) => `${c.width}px`).join(" ")} 44px`;
+  const template = `44px ${columns.map((c) => `${c.width}px`).join(" ")} 72px`;
   const numCols = columns.filter((c) => c.type === "number");
   const menuEntry = menu ? layout.find((c) => c.id === menu.key) : undefined;
 
@@ -395,6 +410,7 @@ export function Clients({ userId }: { userId: string }) {
         <div className="sheet-actions">
           {checked.size > 0 && <button type="button" className="btn danger sm" onClick={removeChecked}>Удалить ({checked.size})</button>}
           <button type="button" className="btn ghost sm" onClick={() => setColEditor(true)}>Колонки</button>
+          {viewMode === "table" && <button type="button" className="btn ghost sm" onClick={() => insertColumn()}>+ Колонка</button>}
           <label className="btn ghost sm">Импорт CSV<input type="file" accept=".csv,.tsv,.txt" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) importCsv(f); e.target.value = ""; }} /></label>
           <button type="button" className="btn ghost sm" onClick={exportCsv}>Экспорт</button>
           <button type="button" className="btn sm" onClick={() => addRow()}>+ Клиент</button>
@@ -402,7 +418,7 @@ export function Clients({ userId }: { userId: string }) {
       </div>
 
       {viewMode === "pipeline" ? (
-        <Pipeline rows={view} onMove={(id, outcome) => setCell(id, "outcome", outcome)} onOpen={(id) => { setViewMode("table"); const r = view.findIndex((x) => x.id === id); setSel({ r, c: 0 }); }} />
+        <Pipeline rows={view} onMove={(id, outcome) => setCell(id, "outcome", outcome)} onOpen={(id) => setCardId(id)} />
       ) : (<div className="sheet-wrap" ref={wrap}>
       <FormulaBar
         address={sel ? `${letter(sel.c)}${sel.r + 1}` : ""}
@@ -486,8 +502,8 @@ export function Clients({ userId }: { userId: string }) {
               );
             })}
             <div className="sheet-cell end">
-              <button type="button" className="icon-btn sm" aria-label="Удалить строку"
-                onClick={async () => { await animateOut([r.id]); await supabase.from("clients").delete().eq("id", r.id); setRows((p) => (p ?? []).filter((x) => x.id !== r.id)); }}>×</button>
+              <button type="button" className="icon-btn sm" aria-label="Открыть карточку клиента" title="Карточка клиента" onClick={() => setCardId(r.id)}>⤢</button>
+              <button type="button" className="icon-btn sm" aria-label="Удалить строку" onClick={() => deleteRow(r.id)}>×</button>
             </div>
           </div>
         ))}
@@ -526,10 +542,10 @@ export function Clients({ userId }: { userId: string }) {
 
       {viewMode === "table" && <p className="hint">
         Клик — выбрать ячейку, двойной клик или Enter — редактировать, стрелки и Tab — перемещаться, Delete — очистить.
-        Клик по заголовку — переименовать, сменить тип, сортировать, вставить или удалить колонку. Заголовок можно перетащить, «+» справа добавляет колонку.
+        Клик по заголовку — переименовать, сменить тип, сортировать, вставить или удалить колонку. Заголовок можно перетащить, «+» справа добавляет колонку. Кнопка ⤢ в конце строки открывает карточку клиента со всеми полями.
         Можно вставить диапазон из Excel или Google Таблиц через Ctrl+V / ⌘V: если он шире таблицы, недостающие колонки появятся сами.
       </p>}
-      {viewMode === "pipeline" && <p className="hint">Перетаскивай карточки между колонками, чтобы менять этап сделки. Двойной клик открывает клиента в таблице.</p>}
+      {viewMode === "pipeline" && <p className="hint">Перетаскивай карточки между колонками, чтобы менять этап сделки. Двойной клик открывает карточку клиента.</p>}
 
       {toast && (
         <div className="toast" role="status">
@@ -537,6 +553,23 @@ export function Clients({ userId }: { userId: string }) {
           {toast.undo && <button type="button" className="toast-undo" onClick={() => { toast.undo?.(); setToast(null); }}>Вернуть</button>}
         </div>
       )}
+      {cardId && (() => {
+        const i = view.findIndex((x) => x.id === cardId);
+        const row = rows.find((x) => x.id === cardId);
+        if (!row) return null;
+        return (
+          <ClientCard
+            row={row} layout={layout}
+            pos={i >= 0 ? `${i + 1} из ${view.length}` : ""}
+            onPrev={i > 0 ? () => setCardId(view[i - 1].id) : undefined}
+            onNext={i >= 0 && i < view.length - 1 ? () => setCardId(view[i + 1].id) : undefined}
+            onChange={(key, v) => setCell(row.id, key, v)}
+            onAddField={appendColumn}
+            onDelete={async () => { setCardId(null); await deleteRow(row.id); flash("Клиент удалён"); }}
+            onClose={() => setCardId(null)}
+          />
+        );
+      })()}
       {colEditor && (
         <ColumnEditor
           columns={layout}
@@ -633,6 +666,108 @@ function SelectCell({ value, options, onChange }: { value: string; options: { v:
         {options.map((o) => <option key={o.v} value={o.v}>{o.v}</option>)}
       </select>
     </span>
+  );
+}
+
+/** Карточка клиента сбоку: все поля (и скрытые в таблице), свои поля добавляются прямо здесь */
+function ClientCard({ row, layout, pos, onPrev, onNext, onChange, onAddField, onDelete, onClose }: {
+  row: Client; layout: ClientColumn[]; pos: string; onPrev?: () => void; onNext?: () => void;
+  onChange: (key: string, v: string) => void; onAddField: (title: string, type: ClientColumn["type"], options?: string[]) => void;
+  onDelete: () => void; onClose: () => void;
+}) {
+  const [adding, setAdding] = useState(false);
+  const [title, setTitle] = useState("");
+  const [type, setType] = useState<ClientColumn["type"]>("text");
+  const [opts, setOpts] = useState("");
+  const [confirm, setConfirm] = useState(false);
+  const fields = layout.map((c) => ({ entry: c, col: toCol(c) }));
+  const name = row.username ? `@${row.username}` : "Новый клиент";
+
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+      // Стрелки листают клиентов, когда курсор не в поле ввода
+      const t = e.target as HTMLElement;
+      if (t.closest("input, textarea, select")) return;
+      if (e.key === "ArrowUp" && onPrev) onPrev();
+      if (e.key === "ArrowDown" && onNext) onNext();
+    };
+    document.addEventListener("keydown", key);
+    return () => document.removeEventListener("keydown", key);
+  }, [onClose, onPrev, onNext]);
+  useEffect(() => setConfirm(false), [row.id]);
+
+  return (
+    <div className="card-drawer-bg" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <aside className="card-drawer" role="dialog" aria-label={`Карточка: ${name}`}>
+        <header className="cd-head">
+          <div className="cd-nav">
+            <button type="button" className="icon-btn sm" aria-label="Предыдущий клиент" disabled={!onPrev} onClick={onPrev}>↑</button>
+            <button type="button" className="icon-btn sm" aria-label="Следующий клиент" disabled={!onNext} onClick={onNext}>↓</button>
+            <span className="label">{pos}</span>
+          </div>
+          <button type="button" className="icon-btn" aria-label="Закрыть" onClick={onClose}>×</button>
+        </header>
+        <h2 className="h-md caps cd-title">{name}</h2>
+
+        <div className="cd-fields" key={row.id}>
+          {fields.map(({ entry, col }) => {
+            const v = getVal(row, col.key);
+            const id = `cd-${col.key}`;
+            return (
+              <label key={col.key} className="cd-field" htmlFor={id}>
+                <span className="label">{col.title}{entry.hidden && <em className="cd-hidden"> · скрыта в таблице</em>}</span>
+                {col.type === "select" ? (
+                  <select id={id} className="mini-select" value={v} onChange={(e) => onChange(col.key, e.target.value)}>
+                    <option value="">Не выбрано</option>
+                    {(col.options ?? []).map((o) => <option key={o.v} value={o.v}>{o.v}</option>)}
+                  </select>
+                ) : col.long ? (
+                  <textarea id={id} className="cd-input" rows={3} value={v} onChange={(e) => onChange(col.key, e.target.value)} />
+                ) : (
+                  <input id={id} className="cd-input" type={col.type === "number" || col.type === "date" ? col.type : "text"}
+                    value={v} placeholder={col.type === "user" ? "ник или ссылка" : ""} onChange={(e) => onChange(col.key, e.target.value)} />
+                )}
+              </label>
+            );
+          })}
+        </div>
+
+        {adding ? (
+          <form className="cd-add" onSubmit={(e) => {
+            e.preventDefault();
+            if (!title.trim()) return;
+            onAddField(title, type, opts.split(",").map((s) => s.trim()).filter(Boolean));
+            setTitle(""); setOpts(""); setType("text"); setAdding(false);
+          }}>
+            <span className="label">Новое поле</span>
+            <div className="input"><input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Например: Бюджет, Источник, Дата созвона" maxLength={40} aria-label="Название поля" /></div>
+            <div className="cm-types" role="radiogroup" aria-label="Тип поля">
+              {(Object.keys(TYPE_NAME) as ClientColumn["type"][]).map((t) => (
+                <button key={t} type="button" role="radio" aria-checked={type === t} className={type === t ? "on" : ""} onClick={() => setType(t)}>{TYPE_NAME[t]}</button>
+              ))}
+            </div>
+            {type === "select" && <div className="input"><input value={opts} onChange={(e) => setOpts(e.target.value)} placeholder="Варианты через запятую" aria-label="Варианты" /></div>}
+            <p className="hint">Поле появится у всех клиентов и в таблице как новая колонка.</p>
+            <div className="cd-actions">
+              <button type="submit" className="btn sm" disabled={!title.trim()}>Добавить поле</button>
+              <button type="button" className="btn ghost sm" onClick={() => setAdding(false)}>Отмена</button>
+            </div>
+          </form>
+        ) : (
+          <button type="button" className="sheet-add cd-add-btn" onClick={() => setAdding(true)}>+ Добавить поле</button>
+        )}
+
+        <footer className="cd-foot">
+          {confirm ? (
+            <div className="cm-confirm"><span>Удалить клиента {name}?</span>
+              <button type="button" className="btn danger sm" onClick={onDelete}>Удалить</button>
+              <button type="button" className="btn ghost sm" onClick={() => setConfirm(false)}>Отмена</button>
+            </div>
+          ) : <button type="button" className="btn ghost sm danger-text" onClick={() => setConfirm(true)}>Удалить клиента</button>}
+        </footer>
+      </aside>
+    </div>
   );
 }
 
