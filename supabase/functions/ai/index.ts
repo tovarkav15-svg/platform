@@ -3,7 +3,7 @@
 //   MCP (Claude, ChatGPT-коннекторы):  POST /functions/v1/ai/mcp/<ключ>
 //   REST для своего GPT (Actions):    /functions/v1/ai/clients, /table + Authorization: Bearer <ключ>
 //   Схема OpenAPI:                     GET /functions/v1/ai/openapi.json
-// Нейронка может читать, добавлять и менять клиентов, но не удалять.
+// Нейронка может читать, добавлять, менять и удалять клиентов (удаление — по id или @username, до 100 за раз).
 import { createClient, type SupabaseClient } from "jsr:@supabase/supabase-js@2";
 
 const URL_BASE = Deno.env.get("SUPABASE_URL")!;
@@ -13,7 +13,7 @@ const PUBLIC_URL = `${URL_BASE}/functions/v1/ai`;
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, content-type, x-api-key, mcp-session-id, mcp-protocol-version, apikey",
-  "Access-Control-Allow-Methods": "GET, POST, PATCH, OPTIONS",
+  "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
 };
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json; charset=utf-8" } });
@@ -174,6 +174,29 @@ async function updateClient(user: string, args: Record<string, unknown>) {
   return { updated: view({ ...target, ...patch }, cols) };
 }
 
+/** Удалить клиентов по id или @username (только своих) */
+async function deleteClients(user: string, args: Record<string, unknown>) {
+  const ids = Array.isArray(args.ids) ? args.ids.map(String) : [];
+  const names = Array.isArray(args.usernames) ? args.usernames.map((u) => uname(String(u))).filter(Boolean) : [];
+  if (!ids.length && !names.length) throw new Error("Передай ids или usernames из list_clients");
+  if (ids.length + names.length > MAX_ROWS_PER_CALL) throw new Error(`За один раз не больше ${MAX_ROWS_PER_CALL} клиентов`);
+  const { cols } = await loadLayout(user);
+  const { data: rows } = await db.from("clients").select("*").eq("user_id", user).limit(MAX_CLIENTS);
+  const targets = (rows ?? []).filter((r) => ids.includes(r.id) || (r.username && names.includes(uname(r.username))));
+  const hit = new Set(targets.flatMap((r) => [r.id, uname(r.username ?? "")]));
+  const not_found = [...ids, ...names.map((n) => `@${n}`)].filter((x) => !hit.has(x.replace(/^@/, "")));
+  if (targets.length) {
+    const { error } = await db.from("clients").delete().eq("user_id", user).in("id", targets.map((r) => r.id));
+    if (error) throw new Error(`Не удалилось: ${error.message}`);
+  }
+  return {
+    deleted: targets.length,
+    clients: targets.map((r) => view(r, cols)),
+    not_found,
+    message: `Удалено клиентов: ${targets.length}${not_found.length ? `, не найдено: ${not_found.length}` : ""}`,
+  };
+}
+
 // ---------- MCP ----------
 const TOOLS = [
   {
@@ -204,6 +227,18 @@ const TOOLS = [
       properties: { id: { type: "string" }, username: { type: "string" }, fields: { type: "object", additionalProperties: { type: "string" } } },
     },
   },
+  {
+    name: "delete_clients",
+    description: "Удалить клиентов из таблицы безвозвратно (до 100 за раз): по id или @username из list_clients. Удаляй только тех, кого пользователь явно попросил удалить.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        ids: { type: "array", maxItems: MAX_ROWS_PER_CALL, items: { type: "string" } },
+        usernames: { type: "array", maxItems: MAX_ROWS_PER_CALL, items: { type: "string" } },
+      },
+    },
+    annotations: { destructiveHint: true },
+  },
 ];
 
 async function callTool(user: string, name: string, args: Record<string, unknown>) {
@@ -211,6 +246,7 @@ async function callTool(user: string, name: string, args: Record<string, unknown
   if (name === "list_clients") return listClients(user, String(args.query ?? ""), Number(args.limit ?? 50));
   if (name === "add_clients") return addClients(user, args.clients);
   if (name === "update_client") return updateClient(user, args);
+  if (name === "delete_clients") return deleteClients(user, args);
   throw new Error(`Нет такого инструмента: ${name}`);
 }
 
@@ -263,7 +299,7 @@ async function mcp(req: Request, user: string) {
 // ---------- OpenAPI для своего GPT ----------
 const OPENAPI = {
   openapi: "3.1.0",
-  info: { title: "Relic · таблица клиентов", version: "1.0.0", description: "Чтение и пополнение личной таблицы клиентов в Workspace." },
+  info: { title: "Relic · таблица клиентов", version: "1.0.0", description: "Чтение, пополнение, правка и удаление клиентов в личной таблице Workspace." },
   servers: [{ url: PUBLIC_URL }],
   components: {
     securitySchemes: { key: { type: "http", scheme: "bearer" } },
@@ -291,6 +327,11 @@ const OPENAPI = {
       patch: {
         operationId: "updateClient", summary: "Изменить поля клиента по id или @username",
         requestBody: { required: true, content: { "application/json": { schema: { type: "object", required: ["fields"], properties: { id: { type: "string" }, username: { type: "string" }, fields: { $ref: "#/components/schemas/Client" } } } } } },
+        responses: { "200": { description: "OK" } },
+      },
+      delete: {
+        operationId: "deleteClients", summary: "Удалить клиентов по id или @username (до 100 за раз, безвозвратно)",
+        requestBody: { required: true, content: { "application/json": { schema: { type: "object", properties: { ids: { type: "array", items: { type: "string" } }, usernames: { type: "array", items: { type: "string" } } } } } } },
         responses: { "200": { description: "OK" } },
       },
     },
@@ -334,6 +375,7 @@ Deno.serve(async (req) => {
       const body = await req.json().catch(() => ({}));
       if (req.method === "POST") return json(await addClients(user, body.clients));
       if (req.method === "PATCH") return json(await updateClient(user, body));
+      if (req.method === "DELETE") return json(await deleteClients(user, body));
     }
     return json({ error: "Нет такого адреса. Список: /openapi.json" }, 404);
   } catch (e) {
