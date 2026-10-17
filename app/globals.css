@@ -5760,3 +5760,71 @@ button.pj-tl-name:hover { background: var(--paper); }
 .pj-more-row { display: flex; gap: 14px; align-items: flex-end; flex-wrap: wrap; }
 .pj-more-row label { display: flex; flex-direction: column; gap: 5px; }
 @media (max-width: 520px) { .pj-facts, .pj-duo { grid-template-columns: 1fr; } }
+
+/* Проект в отдельном окне: журнал «сделано / надо / заметка / проблема» */
+.pj-win { margin-left: 2px; font-size: 13px; font-weight: 800; color: var(--mute); text-decoration: none; padding: 1px 6px; border-radius: 6px; opacity: 0; transition: opacity .15s; }
+.pj-row:hover .pj-win, .pj-win:focus-visible { opacity: 1; }
+.pj-win:hover { background: var(--paper-2); color: var(--ink); }
+@media (hover: none) { .pj-win { opacity: 1; } }
+.pj-open-win { white-space: nowrap; text-decoration: none; }
+.pjp-wrap { padding-block: 20px 60px; padding-inline: clamp(16px, 3vw, 40px); max-width: 1280px; margin: 0 auto; }
+.pjp { display: flex; flex-direction: column; gap: 18px; }
+.pjp-head { display: flex; flex-direction: column; align-items: stretch; text-align: left; gap: 8px; }
+.pjp-back { font-size: 13px; font-weight: 700; color: var(--graphite); text-decoration: none; align-self: flex-start; }
+.pjp-back:hover { color: var(--ink); }
+.pjp-title { width: 100%; text-align: left; border: 0; outline: none; background: none; font: inherit; font-size: clamp(26px, 3.4vw, 40px); font-weight: 900; letter-spacing: -.01em; color: var(--ink); padding: 0 0 6px; border-bottom: 3px solid var(--pc); }
+.pjp-meta { display: flex; align-items: center; justify-content: flex-start; gap: 8px; flex-wrap: wrap; }
+.pjp-date { position: relative; cursor: pointer; }
+.pjp-date input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
+.pjp-client { font-size: 13px; font-weight: 700; color: var(--graphite); }
+.pjp-money { font-size: 13px; font-weight: 800; }
+.pjp-saved { margin-left: auto; min-height: 0; }
+.pjp-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(280px, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 900px) { .pjp-grid { grid-template-columns: 1fr; } }
+.pjp-log { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.pjp-side { display: flex; flex-direction: column; gap: 12px; position: sticky; top: calc(76px + env(safe-area-inset-top, 0px)); }
+@media (max-width: 900px) { .pjp-side { position: static; } }
+.pjp-compose { padding: 12px; gap: 10px; }
+.pjp-kinds { display: flex; gap: 6px; flex-wrap: wrap; }
+.pjp-kinds button { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: #fff; border-radius: 99px; padding: 5px 11px; font: inherit; font-size: 13px; font-weight: 700; color: var(--graphite); cursor: pointer; }
+.pjp-kinds button i { width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
+.pjp-kinds button.on { border-color: var(--c); background: color-mix(in srgb, var(--c) 12%, #fff); color: var(--ink); }
+.pjp-input { width: 100%; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); padding: 10px 12px; font: inherit; font-size: 15px; resize: vertical; min-height: 70px; color: var(--ink); }
+.pjp-input:focus { outline: none; background: #fff; border-color: var(--ink); }
+.pjp-compose-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.pjp-compose-foot .hint { min-height: 0; }
+.pjp-todos { padding: 12px 14px; gap: 6px; border-color: color-mix(in srgb, #2F7BFF 30%, var(--line)); }
+.pjp-todos ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.pjp-todos li { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-top: 1px solid var(--line); font-size: 15px; }
+.pjp-todos li:first-child { border-top: 0; }
+.pjp-todos li span { flex: 1; min-width: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.pjp-todos li .icon-btn { opacity: 0; }
+.pjp-todos li:hover .icon-btn { opacity: 1; }
+.pjp-filter { display: flex; gap: 6px; flex-wrap: wrap; }
+.pjp-filter button { display: inline-flex; align-items: center; gap: 6px; border: 0; background: var(--paper-2); border-radius: 99px; padding: 5px 11px; font: inherit; font-size: 12px; font-weight: 700; color: var(--graphite); cursor: pointer; }
+.pjp-filter button i { width: 7px; height: 7px; border-radius: 50%; background: var(--c); }
+.pjp-filter button em { font-style: normal; color: var(--mute); }
+.pjp-filter button.on { background: var(--ink); color: #fff; }
+.pjp-filter button.on em { color: #cfcfcc; }
+.pjp-empty { margin: 0; padding: 18px; border: 1px dashed var(--line); border-radius: 14px; min-height: 0; }
+.pjp-day { display: flex; flex-direction: column; gap: 6px; }
+.pjp-day-t { padding: 6px 2px 0; }
+.pjp-item { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 12px; background: #fff; border: 1px solid var(--line); border-left: 3px solid var(--c); }
+.pjp-item .chk { margin-top: 2px; flex: none; }
+.pjp-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--c); margin-top: 6px; flex: none; }
+.pjp-item-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.pjp-item-meta { font-size: 11px; color: var(--mute); }
+.pjp-item-meta b { color: var(--c); font-weight: 800; text-transform: uppercase; letter-spacing: .05em; }
+.pjp-item p { margin: 0; font-size: 15px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
+.pjp-item.is-done p { color: var(--mute); text-decoration: line-through; }
+.pjp-item-actions { display: flex; gap: 2px; opacity: 0; transition: opacity .15s; }
+.pjp-item:hover .pjp-item-actions, .pjp-item:focus-within .pjp-item-actions { opacity: 1; }
+@media (hover: none) { .pjp-item-actions, .pjp-todos li .icon-btn { opacity: 1; } }
+.pjp-stages { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.pjp-stages li { display: flex; align-items: center; gap: 8px; padding: 5px 2px; font-size: 14px; }
+.pjp-stages li span { flex: 1; min-width: 0; }
+.pjp-stages li.done span { color: var(--mute); text-decoration: line-through; }
+.pjp-stages small { font-size: 11px; color: var(--mute); }
+.pjp-stages small.late { color: #B4232A; font-weight: 700; }
+.pjp-notes { min-height: 180px; }
+.pjp-missing { align-items: flex-start; max-width: 480px; }

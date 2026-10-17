@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -286,7 +287,9 @@ function TrackRow({ p, now, onOpen, onPatch, onStatus, onTimer }: {
       </span>
 
       <span className="pj-main">
-        <b><i className="pj-dot" />{p.title || "Без названия"}{p.priority >= 2 && <em className="pj-prio" style={{ color: PRIORITY[p.priority].c }}>{"!".repeat(p.priority)}</em>}</b>
+        <b><i className="pj-dot" />{p.title || "Без названия"}{p.priority >= 2 && <em className="pj-prio" style={{ color: PRIORITY[p.priority].c }}>{"!".repeat(p.priority)}</em>}
+          <Link href={`/workspace/project/?id=${p.id}`} target="_blank" className="pj-win" title="Открыть в отдельном окне: журнал, заметки" aria-label="Открыть в отдельном окне" onClick={stop}>↗</Link>
+        </b>
         <small>
           {p.client && <span>{p.client}</span>}
           {stale && <span className="pj-stale">без движения {staleDays(p)} дн.</span>}
@@ -493,6 +496,7 @@ function ProjectDrawer({ p, clients, now, onPatch, onStatus, onTimer, onRemind, 
         <header className="pj-d-head">
           <input className="pj-title-input" value={p.title} maxLength={120} placeholder="Название проекта" aria-label="Название проекта"
             onChange={(e) => onPatch({ title: e.target.value })} />
+          <Link href={`/workspace/project/?id=${p.id}`} target="_blank" className="btn ghost sm pj-open-win">Журнал ↗</Link>
           <button type="button" className="icon-btn" aria-label="Закрыть" onClick={onClose}>×</button>
         </header>
 
