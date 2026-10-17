@@ -5828,3 +5828,7 @@ button.pj-tl-name:hover { background: var(--paper); }
 .pjp-stages small.late { color: #B4232A; font-weight: 700; }
 .pjp-notes { min-height: 180px; }
 .pjp-missing { align-items: flex-start; max-width: 480px; }
+.pj-open-pill { display: inline-flex; align-items: center; gap: 4px; align-self: flex-start; padding: 2px 9px; border-radius: 99px; font-size: 12px; font-weight: 800; text-decoration: none; color: #fff; background: var(--pc, var(--ink)); white-space: nowrap; transition: filter .15s, transform .15s; }
+.pj-open-pill:hover { filter: brightness(1.08); transform: translateY(-1px); }
+.pj-main small .pj-open-pill { order: -1; }
+.pj-open-win { background: var(--pc) !important; color: #fff; }

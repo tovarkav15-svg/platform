@@ -288,9 +288,9 @@ function TrackRow({ p, now, onOpen, onPatch, onStatus, onTimer }: {
 
       <span className="pj-main">
         <b><i className="pj-dot" />{p.title || "Без названия"}{p.priority >= 2 && <em className="pj-prio" style={{ color: PRIORITY[p.priority].c }}>{"!".repeat(p.priority)}</em>}
-          <Link href={`/workspace/project/?id=${p.id}`} target="_blank" className="pj-win" title="Открыть в отдельном окне: журнал, заметки" aria-label="Открыть в отдельном окне" onClick={stop}>↗</Link>
         </b>
         <small>
+          <Link href={`/workspace/project/?id=${p.id}`} target="_blank" className="pj-open-pill" title="Журнал проекта в новом окне: что сделано, что надо, заметки" onClick={stop}>Открыть проект ↗</Link>
           {p.client && <span>{p.client}</span>}
           {stale && <span className="pj-stale">без движения {staleDays(p)} дн.</span>}
         </small>
@@ -362,6 +362,8 @@ function ProjectCard({ p, onOpen, i }: { p: Project; onOpen: () => void; i: numb
         </div>
       )}
       {p.budget > 0 && <span className="pj-money mono">{rub(p.paid) || "0 ₽"} <em>из {rub(p.budget)}</em></span>}
+      <Link href={`/workspace/project/?id=${p.id}`} target="_blank" className="pj-open-pill" draggable={false}
+        onClick={(e) => e.stopPropagation()}>Открыть проект ↗</Link>
     </article>
   );
 }
@@ -496,7 +498,7 @@ function ProjectDrawer({ p, clients, now, onPatch, onStatus, onTimer, onRemind, 
         <header className="pj-d-head">
           <input className="pj-title-input" value={p.title} maxLength={120} placeholder="Название проекта" aria-label="Название проекта"
             onChange={(e) => onPatch({ title: e.target.value })} />
-          <Link href={`/workspace/project/?id=${p.id}`} target="_blank" className="btn ghost sm pj-open-win">Журнал ↗</Link>
+          <Link href={`/workspace/project/?id=${p.id}`} target="_blank" className="btn sm pj-open-win">Открыть проект ↗</Link>
           <button type="button" className="icon-btn" aria-label="Закрыть" onClick={onClose}>×</button>
         </header>
 
