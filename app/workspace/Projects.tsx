@@ -6,32 +6,42 @@ import { supabase } from "@/lib/supabase";
 import { rub } from "@/lib/workspace";
 import { PRIORITY, addDays, fromIso, iso, today } from "@/lib/plans";
 import {
-  PROJECT_COLORS, STATUSES, daysLeft, deadlineInfo, isOpen, progress, statusOf,
-  type Project, type ProjectStatus, type Stage,
+  BUCKETS, PROJECT_COLORS, STAGE_TEMPLATES, STATUSES, bucketOf, daysLeft, deadlineInfo, fmtClock, fmtDur, isOpen, isStale,
+  nextStage, progress, spent, staleDays, statusOf,
+  type Bucket, type Project, type ProjectStatus, type Stage,
 } from "@/lib/projects";
-import { CountUp } from "../CountUp";
 
-type View = "board" | "timeline";
+type View = "list" | "board" | "timeline";
+type Filter = "all" | "hot" | "late" | "stale" | "unpaid";
 const newId = () => crypto.randomUUID().slice(0, 8);
 
 // Сначала горящие: по дедлайну (без дедлайна — в конце), потом по приоритету
 const byDeadline = (a: Project, b: Project) =>
   (a.deadline ?? "9999").localeCompare(b.deadline ?? "9999") || b.priority - a.priority || a.created_at.localeCompare(b.created_at);
 
-/** My Projects: проекты с дедлайнами, этапами и деньгами. Видит только владелец */
+const isHot = (p: Project) => { const d = daysLeft(p.deadline); return isOpen(p) && d !== null && d <= 3; };
+const isLate = (p: Project) => { const d = daysLeft(p.deadline); return isOpen(p) && d !== null && d < 0; };
+const owed = (p: Project) => (p.status === "paused" ? 0 : Math.max(0, p.budget - p.paid));
+
+/** Изменение этапов; когда все закрыты, проект в работе уходит на проверку */
+const stagesPatch = (p: Project, tasks: Stage[]): Partial<Project> =>
+  tasks.length > 0 && tasks.every((t) => t.done) && p.status === "active" ? { tasks, status: "review" } : { tasks };
+
+/** My Projects: проекты с дедлайнами, этапами, временем и деньгами. Видит только владелец */
 export function Projects({ userId }: { userId: string }) {
   const sp = useSearchParams();
   const [list, setList] = useState<Project[] | null>(null);
   const [clients, setClients] = useState<string[]>([]);
   const [view, setView] = useState<View>(() => {
-    try { return (localStorage.getItem("projects:view") as View) || "board"; } catch { return "board"; }
+    try { const v = localStorage.getItem("projects:view") as View; return v === "board" || v === "timeline" ? v : "list"; } catch { return "list"; }
   });
+  const [filter, setFilter] = useState<Filter>("all");
   const [q, setQ] = useState("");
-  const [hideDone, setHideDone] = useState(false);
+  const [showClosed, setShowClosed] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
-  const [deadline, setDeadline] = useState("");
   const [toast, setToast] = useState("");
+  const [now, setNow] = useState(() => Date.now());
   const timers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const pending = useRef<Map<string, Partial<Project>>>(new Map());
   const titleInput = useRef<HTMLInputElement>(null);
@@ -43,28 +53,50 @@ export function Projects({ userId }: { userId: string }) {
         supabase.from("clients").select("username").eq("user_id", userId).neq("username", ""),
       ]);
       setList(((p.data as Project[]) ?? []).map(fix));
-      setClients(Array.from(new Set((c.data ?? []).map((x) => `@${x.username}`))));
+      setClients(Array.from(new Set((c.data ?? []).map((x) => (/[./]/.test(x.username) ? x.username : `@${x.username}`)))));
       if (sp.get("new") === "1") setTimeout(() => titleInput.current?.focus(), 50);
     })();
   }, [userId]);
 
   useEffect(() => { try { localStorage.setItem("projects:view", view); } catch {} }, [view]);
 
+  // Часы идут, только пока запущен таймер
+  const running = list?.find((p) => p.timer_started_at) ?? null;
+  useEffect(() => {
+    if (!running) return;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [running?.id]);
+
   const flash = (t: string) => { setToast(t); setTimeout(() => setToast(""), 2400); };
 
   // Правки копятся и уходят в базу через полсекунды после последней
   function patch(id: string, change: Partial<Project>) {
-    const now = new Date().toISOString();
-    if (change.status) change.done_at = change.status === "done" ? now : null;
-    setList((all) => (all ?? []).map((p) => (p.id === id ? { ...p, ...change, updated_at: now } : p)));
+    const stamp = new Date().toISOString();
+    if (change.status) change.done_at = change.status === "done" ? stamp : null;
+    setList((all) => (all ?? []).map((p) => (p.id === id ? { ...p, ...change, updated_at: stamp } : p)));
     pending.current.set(id, { ...pending.current.get(id), ...change });
     clearTimeout(timers.current.get(id));
     timers.current.set(id, setTimeout(async () => {
       const body = pending.current.get(id);
       pending.current.delete(id);
-      const { error } = await supabase.from("ws_projects").update({ ...body, updated_at: now }).eq("id", id);
+      const { error } = await supabase.from("ws_projects").update({ ...body, updated_at: stamp }).eq("id", id);
       if (error) flash("Не сохранилось. Проверь интернет.");
     }, 500));
+  }
+
+  // Таймер: одновременно идёт только один
+  function stopTimer(p: Project) {
+    if (p.timer_started_at) patch(p.id, { time_spent: spent(p), timer_started_at: null });
+  }
+  function startTimer(p: Project) {
+    if (running && running.id !== p.id) stopTimer(running);
+    patch(p.id, { timer_started_at: new Date().toISOString(), ...(p.status === "idea" ? { status: "active" as const } : {}) });
+    setNow(Date.now());
+  }
+  const toggleTimer = (p: Project) => (p.timer_started_at ? stopTimer(p) : startTimer(p));
+  function setStatus(p: Project, status: ProjectStatus) {
+    patch(p.id, status === "done" && p.timer_started_at ? { status, time_spent: spent(p), timer_started_at: null } : { status });
   }
 
   async function create(e?: React.FormEvent) {
@@ -73,11 +105,11 @@ export function Projects({ userId }: { userId: string }) {
     if (!t) return titleInput.current?.focus();
     const color = PROJECT_COLORS[(list?.length ?? 0) % PROJECT_COLORS.length];
     const { data, error } = await supabase.from("ws_projects")
-      .insert({ title: t.slice(0, 120), deadline: deadline || null, start_date: today(), status: "active", color, position: Date.now() / 1000 })
+      .insert({ title: t.slice(0, 120), start_date: today(), status: "active", color, position: Date.now() / 1000 })
       .select("*").single();
     if (error || !data) return flash("Не получилось создать проект");
     setList((all) => [...(all ?? []), fix(data as Project)]);
-    setTitle(""); setDeadline("");
+    setTitle("");
     setOpenId((data as Project).id);
   }
 
@@ -86,6 +118,18 @@ export function Projects({ userId }: { userId: string }) {
     await supabase.from("ws_projects").delete().eq("id", id);
     setList((all) => (all ?? []).filter((p) => p.id !== id));
     flash("Проект удалён");
+  }
+
+  async function duplicate(p: Project) {
+    const { id: _id, created_at: _c, updated_at: _u, done_at: _d, ...rest } = p;
+    const { data } = await supabase.from("ws_projects").insert({
+      ...rest, title: `${p.title} (копия)`.slice(0, 120), status: "active", paid: 0, time_spent: 0, timer_started_at: null,
+      start_date: today(), deadline: null, tasks: p.tasks.map((t) => ({ ...t, id: newId(), done: false, due: null })), position: Date.now() / 1000,
+    }).select("*").single();
+    if (!data) return flash("Не получилось скопировать");
+    setList((all) => [...(all ?? []), fix(data as Project)]);
+    setOpenId((data as Project).id);
+    flash("Копия создана: этапы без отметок, без дедлайна");
   }
 
   async function remind(p: Project) {
@@ -98,81 +142,93 @@ export function Projects({ userId }: { userId: string }) {
     flash(error ? "Не получилось добавить в Plans" : "Задача на день дедлайна добавлена в Plans");
   }
 
-  const shown = useMemo(() => {
+  const searched = useMemo(() => {
     const s = q.trim().toLowerCase();
-    return (list ?? [])
-      .filter((p) => !hideDone || p.status !== "done")
-      .filter((p) => !s || [p.title, p.client, p.description].some((x) => x.toLowerCase().includes(s)))
-      .sort(byDeadline);
-  }, [list, q, hideDone]);
+    return (list ?? []).filter((p) => !s || [p.title, p.client, p.description, ...p.tasks.map((t) => t.t)].some((x) => x.toLowerCase().includes(s)));
+  }, [list, q]);
+  const shown = useMemo(() => searched.filter((p) => {
+    if (filter === "hot") return isHot(p);
+    if (filter === "late") return isLate(p);
+    if (filter === "stale") return isOpen(p) && isStale(p);
+    if (filter === "unpaid") return owed(p) > 0;
+    return true;
+  }).sort(byDeadline), [searched, filter]);
 
   if (!list) return <div className="skeleton profile-skeleton" />;
 
   const open = list.filter(isOpen);
-  const burning = open.filter((p) => { const d = daysLeft(p.deadline); return d !== null && d >= 0 && d <= 3; }).length;
-  const late = open.filter((p) => { const d = daysLeft(p.deadline); return d !== null && d < 0; }).length;
-  const money = list.filter((p) => p.status !== "paused").reduce((a, p) => ({ budget: a.budget + p.budget, paid: a.paid + p.paid }), { budget: 0, paid: 0 });
+  const counts = {
+    hot: list.filter(isHot).length,
+    late: list.filter(isLate).length,
+    stale: open.filter(isStale).length,
+    unpaid: list.reduce((a, p) => a + owed(p), 0),
+  };
   const current = list.find((p) => p.id === openId) ?? null;
+  const chip = (f: Filter, label: React.ReactNode, tone = "") => (
+    <button type="button" className={`pj-chip ${tone} ${filter === f ? "on" : ""}`} aria-pressed={filter === f}
+      onClick={() => setFilter(filter === f ? "all" : f)}>{label}</button>
+  );
 
   return (
     <div className="ws-section pj">
-      <header className="pj-head">
-        <div>
-          <span className="label">My Projects</span>
-          <h1 className="h-xl caps">Проекты <span className="it">и</span> дедлайны</h1>
+      <div className="pj-top">
+        <h1 className="pj-h caps">My <span className="it">Projects</span></h1>
+        <div className="pj-chips" role="group" aria-label="Фильтр">
+          {chip("all", <><b className="mono">{open.length}</b> в работе</>)}
+          {counts.hot > 0 && chip("hot", <><b className="mono">{counts.hot}</b> горят</>, "soon")}
+          {counts.late > 0 && chip("late", <><b className="mono">{counts.late}</b> просрочено</>, "late")}
+          {counts.stale > 0 && chip("stale", <><b className="mono">{counts.stale}</b> без движения</>, "stale")}
+          {counts.unpaid > 0 && chip("unpaid", <>ждём <b className="mono">{rub(counts.unpaid)}</b></>, "money")}
         </div>
-      </header>
-
-      <div className="ws-stats">
-        <div className="ws-stat"><b><CountUp value={open.length} /></b><span><i style={{ background: "#2F7BFF" }} />активных</span></div>
-        <div className="ws-stat"><b><CountUp value={burning} /></b><span><i style={{ background: "#E8B100" }} />горят, 3 дня и меньше</span></div>
-        <div className="ws-stat"><b><CountUp value={late} /></b><span><i style={{ background: "#E5484D" }} />просрочено</span></div>
-        <div className="ws-stat"><b><CountUp value={money.paid} format={(n) => rub(n)} /></b><span>получено из {rub(money.budget) || "0 ₽"}</span></div>
       </div>
 
-      <form className="pj-new" onSubmit={create}>
-        <div className="input pj-new-title">
-          <input ref={titleInput} value={title} onChange={(e) => setTitle(e.target.value)} maxLength={120}
-            placeholder="Новый проект: например, «Сайт для кофейни»" aria-label="Название проекта" />
+      {running && (
+        <div className="pj-running" role="status">
+          <i className="pj-rec" />
+          <button type="button" className="pj-running-name" onClick={() => setOpenId(running.id)}>{running.title || "Без названия"}</button>
+          <b className="mono">{fmtClock(spent(running, now))}</b>
+          <button type="button" className="btn sm" onClick={() => stopTimer(running)}>■ Стоп</button>
         </div>
-        <label className="input pj-new-date">
-          <span className="label">Дедлайн</span>
-          <input type="date" value={deadline} min={today()} onChange={(e) => setDeadline(e.target.value)} aria-label="Дедлайн" />
-        </label>
-        <button type="submit" className="btn" disabled={!title.trim()}>+ Проект</button>
-      </form>
+      )}
 
-      <div className="sheet-toolbar">
+      <div className="pj-bar-tools">
+        <form className="input pj-quick" onSubmit={create}>
+          <span aria-hidden="true">+</span>
+          <input ref={titleInput} value={title} onChange={(e) => setTitle(e.target.value)} maxLength={120}
+            placeholder="Новый проект и Enter" aria-label="Название нового проекта" />
+        </form>
+        <div className="input sheet-search"><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Поиск: проект, клиент, этап" aria-label="Поиск" /></div>
         <div className="seg small" role="tablist" aria-label="Вид">
-          <button type="button" role="tab" className="seg-item" aria-current={view === "board" ? "page" : undefined} onClick={() => setView("board")}>Доска</button>
-          <button type="button" role="tab" className="seg-item" aria-current={view === "timeline" ? "page" : undefined} onClick={() => setView("timeline")}>Таймлайн</button>
+          {([["list", "Список"], ["board", "Доска"], ["timeline", "Таймлайн"]] as const).map(([v, l]) => (
+            <button key={v} type="button" role="tab" className="seg-item" aria-current={view === v ? "page" : undefined} onClick={() => setView(v)}>{l}</button>
+          ))}
         </div>
-        <div className="input sheet-search"><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Поиск по проектам и клиентам" aria-label="Поиск" /></div>
-        <label className="mini-toggle"><input type="checkbox" checked={hideDone} onChange={(e) => setHideDone(e.target.checked)} />Скрыть готовые</label>
       </div>
 
       {!list.length ? (
         <div className="pj-empty card">
-          <b className="h-md caps">Пока <span className="it">пусто</span></b>
-          <p className="lead small">Добавь первый проект: название и дедлайн. Этапы, клиента и бюджет можно заполнить потом в карточке.</p>
+          <b className="h-md">Проектов пока нет</b>
+          <p className="lead small">Впиши название в строку «Новый проект» и нажми Enter. Дедлайн, этапы и бюджет добавишь в карточке.</p>
         </div>
+      ) : !shown.length ? (
+        <p className="hint">Ничего не нашлось. <button type="button" className="pj-link-btn" onClick={() => { setFilter("all"); setQ(""); }}>Сбросить фильтр</button></p>
+      ) : view === "list" ? (
+        <TrackList items={shown} now={now} showClosed={showClosed || filter !== "all" || !!q.trim()} onShowClosed={() => setShowClosed((v) => !v)}
+          onOpen={setOpenId} onPatch={patch} onStatus={setStatus} onTimer={toggleTimer} />
       ) : view === "board" ? (
-        <Board items={shown} onOpen={setOpenId} onMove={(id, status) => patch(id, { status })} hideDone={hideDone} />
+        <Board items={shown} onOpen={setOpenId} onMove={(id, status) => { const p = list.find((x) => x.id === id); if (p) setStatus(p, status); }} hideDone={false} />
       ) : (
         <Timeline items={shown} onOpen={setOpenId} />
       )}
 
-      <p className="hint">
-        {view === "board"
-          ? "Перетаскивай карточки между колонками, чтобы менять статус. Клик открывает проект: дедлайн, этапы, клиент, деньги."
-          : "Полоса идёт от старта до дедлайна. Красный хвост — просрочка. Проекты без дедлайна собраны внизу."}
-      </p>
-
       {current && (
         <ProjectDrawer
-          key={current.id} p={current} clients={clients}
+          key={current.id} p={current} clients={clients} now={now}
           onPatch={(c) => patch(current.id, c)}
+          onStatus={(s) => setStatus(current, s)}
+          onTimer={() => toggleTimer(current)}
           onRemind={() => remind(current)}
+          onDuplicate={() => duplicate(current)}
           onDelete={() => remove(current.id)}
           onClose={() => setOpenId(null)}
         />
@@ -182,9 +238,96 @@ export function Projects({ userId }: { userId: string }) {
   );
 }
 
+/** Список по срочности: в строке всё, что нужно для решения «что делать дальше» */
+function TrackList({ items, now, showClosed, onShowClosed, onOpen, onPatch, onStatus, onTimer }: {
+  items: Project[]; now: number; showClosed: boolean; onShowClosed: () => void;
+  onOpen: (id: string) => void; onPatch: (id: string, c: Partial<Project>) => void; onStatus: (p: Project, s: ProjectStatus) => void; onTimer: (p: Project) => void;
+}) {
+  const groups = BUCKETS.map((b) => ({ ...b, items: items.filter((p) => bucketOf(p) === b.v) })).filter((g) => g.items.length);
+  const closed = (b: Bucket) => b === "done" || b === "paused";
+  const closedCount = groups.filter((g) => closed(g.v)).reduce((a, g) => a + g.items.length, 0);
+  return (
+    <div className="pj-track">
+      {groups.filter((g) => showClosed || !closed(g.v)).map((g) => (
+        <section key={g.v} className={`pj-group g-${g.v}`}>
+          <header><span>{g.label}</span><em className="mono">{g.items.length}</em></header>
+          {g.items.map((p) => <TrackRow key={p.id} p={p} now={now} onOpen={() => onOpen(p.id)} onPatch={(c) => onPatch(p.id, c)} onStatus={(s) => onStatus(p, s)} onTimer={() => onTimer(p)} />)}
+        </section>
+      ))}
+      {closedCount > 0 && (
+        <button type="button" className="pj-link-btn pj-closed-toggle" onClick={onShowClosed}>
+          {showClosed ? "Скрыть готовые и на паузе" : `Готовые и на паузе: ${closedCount}`}
+        </button>
+      )}
+    </div>
+  );
+}
+
+const stop = (e: React.SyntheticEvent) => e.stopPropagation();
+
+function TrackRow({ p, now, onOpen, onPatch, onStatus, onTimer }: {
+  p: Project; now: number; onOpen: () => void; onPatch: (c: Partial<Project>) => void; onStatus: (s: ProjectStatus) => void; onTimer: () => void;
+}) {
+  const st = statusOf(p.status);
+  const next = nextStage(p);
+  const done = p.tasks.filter((t) => t.done).length;
+  const left = owed(p);
+  const stale = isOpen(p) && isStale(p);
+  const sec = spent(p, now);
+  const nextLate = next?.due && next.due < today();
+  return (
+    <div className={`pj-row ${p.status === "done" ? "is-done" : ""}`} style={{ "--pc": p.color } as React.CSSProperties}
+      role="button" tabIndex={0} onClick={onOpen} onKeyDown={(e) => { if (e.key === "Enter" && e.target === e.currentTarget) onOpen(); }}>
+      <span className="pj-st" style={{ "--c": st.c } as React.CSSProperties} onClick={stop}>
+        <i />{st.label}
+        <select value={p.status} onChange={(e) => onStatus(e.target.value as ProjectStatus)} aria-label="Статус">
+          {STATUSES.map((s) => <option key={s.v} value={s.v}>{s.label}</option>)}
+        </select>
+      </span>
+
+      <span className="pj-main">
+        <b><i className="pj-dot" />{p.title || "Без названия"}{p.priority >= 2 && <em className="pj-prio" style={{ color: PRIORITY[p.priority].c }}>{"!".repeat(p.priority)}</em>}</b>
+        <small>
+          {p.client && <span>{p.client}</span>}
+          {stale && <span className="pj-stale">без движения {staleDays(p)} дн.</span>}
+        </small>
+      </span>
+
+      <span className="pj-next" onClick={stop}>
+        {next ? (
+          <>
+            <button type="button" className="chk" aria-pressed={false} aria-label={`Этап «${next.t}» готов`}
+              onClick={() => onPatch(stagesPatch(p, p.tasks.map((t) => (t.id === next.id ? { ...t, done: true } : t))))} />
+            <span className="pj-next-t"><span>{next.t}</span>{next.due && <small className={nextLate ? "late" : ""}>{fromIso(next.due).toLocaleDateString("ru-RU", { day: "numeric", month: "short" })}</small>}</span>
+          </>
+        ) : p.tasks.length ? <span className="pj-muted">Все этапы готовы</span> : <button type="button" className="pj-link-btn" onClick={onOpen}>+ этапы</button>}
+      </span>
+
+      <span className="pj-prog" title={p.tasks.length ? `Этапов готово: ${done} из ${p.tasks.length}` : ""}>
+        {p.tasks.length > 0 && <><span className="pj-bar"><b style={{ width: `${progress(p) * 100}%` }} /></span><small className="mono">{done}/{p.tasks.length}</small></>}
+      </span>
+
+      <span className="pj-deadline"><DeadlineChip p={p} /></span>
+
+      <span className="pj-time" onClick={stop}>
+        {p.status !== "done" ? (
+          <button type="button" className={`pj-timer ${p.timer_started_at ? "on" : ""}`} onClick={onTimer}
+            aria-label={p.timer_started_at ? "Остановить таймер" : "Запустить таймер"}>
+            <i aria-hidden="true">{p.timer_started_at ? "■" : "▶"}</i><span className="mono">{p.timer_started_at ? fmtClock(sec) : sec ? fmtDur(sec) : "0 мин"}</span>
+          </button>
+        ) : sec > 0 ? <span className="pj-muted mono">{fmtDur(sec)}</span> : null}
+      </span>
+
+      <span className="pj-money-cell mono">
+        {left > 0 ? <><small>ждём</small>{rub(left)}</> : p.budget > 0 ? <span className="pj-paid">оплачено</span> : null}
+      </span>
+    </div>
+  );
+}
+
 // numeric из Postgres приходит строкой
 function fix(p: Project): Project {
-  return { ...p, budget: Number(p.budget) || 0, paid: Number(p.paid) || 0, tasks: Array.isArray(p.tasks) ? p.tasks : [] };
+  return { ...p, budget: Number(p.budget) || 0, paid: Number(p.paid) || 0, tasks: Array.isArray(p.tasks) ? p.tasks : [], time_spent: Number(p.time_spent) || 0 };
 }
 
 function DeadlineChip({ p }: { p: Project }) {
@@ -207,6 +350,7 @@ function ProjectCard({ p, onOpen, i }: { p: Project; onOpen: () => void; i: numb
         {p.priority > 0 && <span className="pj-prio" style={{ color: prio.c }} title={`Приоритет: ${prio.label.toLowerCase()}`}>{"!".repeat(p.priority)}</span>}
       </div>
       {p.client && <span className="pj-client">{p.client}</span>}
+      {nextStage(p) && p.status !== "done" && <span className="pj-next-mini">→ {nextStage(p)!.t}</span>}
       <DeadlineChip p={p} />
       {(st > 0 || p.status === "done") && (
         <div className="pj-progress" aria-label={`Готово ${Math.round(pr * 100)}%`}>
@@ -319,15 +463,18 @@ function Timeline({ items, onOpen }: { items: Project[]; onOpen: (id: string) =>
 }
 
 /** Карточка проекта сбоку: всё редактируется на месте и сохраняется само */
-function ProjectDrawer({ p, clients, onPatch, onRemind, onDelete, onClose }: {
-  p: Project; clients: string[]; onPatch: (c: Partial<Project>) => void; onRemind: () => void; onDelete: () => void; onClose: () => void;
+function ProjectDrawer({ p, clients, now, onPatch, onStatus, onTimer, onRemind, onDuplicate, onDelete, onClose }: {
+  p: Project; clients: string[]; now: number;
+  onPatch: (c: Partial<Project>) => void; onStatus: (s: ProjectStatus) => void; onTimer: () => void;
+  onRemind: () => void; onDuplicate: () => void; onDelete: () => void; onClose: () => void;
 }) {
   const [stage, setStage] = useState("");
   const [stageDue, setStageDue] = useState("");
   const [confirm, setConfirm] = useState(false);
   const pr = progress(p);
-  const d = deadlineInfo(p);
   const left = Math.max(0, p.budget - p.paid);
+  const sec = spent(p, now);
+  const rate = p.budget > 0 && sec >= 600 ? Math.round(p.budget / (sec / 3600)) : 0;
 
   useEffect(() => {
     const key = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -335,58 +482,42 @@ function ProjectDrawer({ p, clients, onPatch, onRemind, onDelete, onClose }: {
     return () => document.removeEventListener("keydown", key);
   }, [onClose]);
 
-  const setTasks = (tasks: Stage[]) => {
-    // Все этапы закрыты — предлагаем статус «На проверке», если проект ещё в работе
-    const allDone = tasks.length > 0 && tasks.every((t) => t.done);
-    onPatch(allDone && p.status === "active" ? { tasks, status: "review" } : { tasks });
-  };
+  const setTasks = (tasks: Stage[]) => onPatch(stagesPatch(p, tasks));
   const shift = (n: number) => onPatch({ deadline: iso(addDays(p.deadline ? fromIso(p.deadline) : fromIso(today()), n)) });
   const num = (v: string) => Math.max(0, Math.min(1e9, Math.round(Number(v.replace(/\s/g, "").replace(",", ".")) || 0)));
+  const addTime = (s: number) => onPatch({ time_spent: Math.max(0, (p.time_spent ?? 0) + s) });
 
   return (
     <div className="card-drawer-bg" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <aside className="card-drawer pj-drawer" role="dialog" aria-label={`Проект ${p.title}`} style={{ "--pc": p.color } as React.CSSProperties}>
-        <header className="cd-head">
-          <span className={`pj-due ${d.tone}`}>{d.text}</span>
+        <header className="pj-d-head">
+          <input className="pj-title-input" value={p.title} maxLength={120} placeholder="Название проекта" aria-label="Название проекта"
+            onChange={(e) => onPatch({ title: e.target.value })} />
           <button type="button" className="icon-btn" aria-label="Закрыть" onClick={onClose}>×</button>
         </header>
-
-        <input className="pj-title-input" value={p.title} maxLength={120} placeholder="Название проекта" aria-label="Название проекта"
-          onChange={(e) => onPatch({ title: e.target.value })} />
 
         <div className="pj-status" role="radiogroup" aria-label="Статус">
           {STATUSES.map((s) => (
             <button key={s.v} type="button" role="radio" aria-checked={p.status === s.v} className={p.status === s.v ? "on" : ""}
-              style={{ "--c": s.c } as React.CSSProperties} onClick={() => onPatch({ status: s.v })}><i />{s.label}</button>
+              style={{ "--c": s.c } as React.CSSProperties} onClick={() => onStatus(s.v)}><i />{s.label}</button>
           ))}
         </div>
 
-        <div className="pj-grid">
-          <label className="cd-field" htmlFor="pj-deadline">
-            <span className="label">Дедлайн</span>
+        <div className="pj-facts">
+          <label htmlFor="pj-deadline"><span className="label">Дедлайн</span>
             <input id="pj-deadline" className="cd-input" type="date" value={p.deadline ?? ""} onChange={(e) => onPatch({ deadline: e.target.value || null })} />
-            <span className="pj-shift">
-              <button type="button" onClick={() => shift(1)}>+1 день</button>
-              <button type="button" onClick={() => shift(7)}>+1 нед</button>
-              <button type="button" onClick={() => shift(30)}>+1 мес</button>
-              {p.deadline && <button type="button" onClick={() => onPatch({ deadline: null })}>убрать</button>}
-            </span>
           </label>
-          <label className="cd-field" htmlFor="pj-start">
-            <span className="label">Старт</span>
-            <input id="pj-start" className="cd-input" type="date" value={p.start_date ?? ""} onChange={(e) => onPatch({ start_date: e.target.value || null })} />
-          </label>
-        </div>
-
-        <div className="pj-grid">
-          <label className="cd-field" htmlFor="pj-client">
-            <span className="label">Клиент</span>
-            <input id="pj-client" className="cd-input" list="pj-clients" value={p.client} maxLength={120} placeholder="@ник или имя"
-              onChange={(e) => onPatch({ client: e.target.value })} />
+          <label htmlFor="pj-client"><span className="label">Клиент</span>
+            <input id="pj-client" className="cd-input" list="pj-clients" value={p.client} maxLength={120} placeholder="@ник или имя" onChange={(e) => onPatch({ client: e.target.value })} />
             <datalist id="pj-clients">{clients.map((c) => <option key={c} value={c} />)}</datalist>
           </label>
-          <label className="cd-field" htmlFor="pj-prio">
-            <span className="label">Приоритет</span>
+          <span className="pj-shift">
+            <span className={`pj-due ${deadlineInfo(p).tone}`}>{deadlineInfo(p).text}</span>
+            <button type="button" onClick={() => shift(1)}>+1 д</button>
+            <button type="button" onClick={() => shift(7)}>+1 нед</button>
+            {p.deadline && <button type="button" onClick={() => onPatch({ deadline: null })}>убрать</button>}
+          </span>
+          <label htmlFor="pj-prio"><span className="label">Приоритет</span>
             <select id="pj-prio" className="mini-select" value={p.priority} onChange={(e) => onPatch({ priority: Number(e.target.value) as Project["priority"] })}>
               {PRIORITY.map((x) => <option key={x.v} value={x.v}>{x.label}</option>)}
             </select>
@@ -394,11 +525,16 @@ function ProjectDrawer({ p, clients, onPatch, onRemind, onDelete, onClose }: {
         </div>
 
         <section className="pj-block">
-          <div className="pj-block-head">
-            <span className="label">Этапы</span>
-            <span className="mono pj-pct">{Math.round(pr * 100)}%</span>
-          </div>
-          <div className="pj-bar big"><b style={{ width: `${pr * 100}%` }} /></div>
+          <div className="pj-block-head"><span className="label">Этапы</span><span className="mono pj-pct">{p.tasks.length ? `${p.tasks.filter((t) => t.done).length}/${p.tasks.length} · ${Math.round(pr * 100)}%` : ""}</span></div>
+          {p.tasks.length > 0 && <div className="pj-bar big"><b style={{ width: `${pr * 100}%` }} /></div>}
+          {!p.tasks.length && (
+            <div className="pj-templates">
+              <span className="hint">Быстро из шаблона:</span>
+              {STAGE_TEMPLATES.map((t) => (
+                <button key={t.label} type="button" title={t.stages.join(" → ")} onClick={() => setTasks(t.stages.map((x) => ({ id: newId(), t: x, done: false, due: null })))}>{t.label}</button>
+              ))}
+            </div>
+          )}
           <ul className="pj-stages">
             {p.tasks.map((t, i) => {
               const late = !t.done && t.due && t.due < today();
@@ -426,62 +562,67 @@ function ProjectDrawer({ p, clients, onPatch, onRemind, onDelete, onClose }: {
             setTasks([...p.tasks, { id: newId(), t: t.slice(0, 160), done: false, due: stageDue || null }]);
             setStage(""); setStageDue("");
           }}>
-            <div className="input"><input value={stage} onChange={(e) => setStage(e.target.value)} placeholder="Новый этап: бриф, макет, правки, сдача" maxLength={160} aria-label="Новый этап" /></div>
+            <div className="input"><input value={stage} onChange={(e) => setStage(e.target.value)} placeholder="Новый этап и Enter" maxLength={160} aria-label="Новый этап" /></div>
             <input type="date" className="pj-stage-date" value={stageDue} onChange={(e) => setStageDue(e.target.value)} aria-label="Срок нового этапа" />
-            <button type="submit" className="btn ghost sm" disabled={!stage.trim()}>Добавить</button>
           </form>
         </section>
 
-        <section className="pj-block">
-          <span className="label">Деньги</span>
-          <div className="pj-grid">
-            <label className="cd-field" htmlFor="pj-budget">
-              <span className="hint">Бюджет, ₽</span>
-              <input id="pj-budget" className="cd-input mono" inputMode="numeric" value={p.budget || ""} placeholder="0" onChange={(e) => onPatch({ budget: num(e.target.value) })} />
-            </label>
-            <label className="cd-field" htmlFor="pj-paid">
-              <span className="hint">Оплачено, ₽</span>
-              <input id="pj-paid" className="cd-input mono" inputMode="numeric" value={p.paid || ""} placeholder="0" onChange={(e) => onPatch({ paid: num(e.target.value) })} />
-            </label>
-          </div>
-          {p.budget > 0 && (
-            <>
-              <div className="pj-bar money"><b style={{ width: `${Math.min(1, p.paid / p.budget) * 100}%` }} /></div>
-              <span className="hint">{left > 0 ? `Осталось получить ${rub(left)}` : "Оплачено полностью"}</span>
-            </>
-          )}
-        </section>
-
-        <label className="cd-field" htmlFor="pj-link">
-          <span className="label">Ссылка</span>
-          <input id="pj-link" className="cd-input" value={p.link} maxLength={500} placeholder="Figma, Google Диск, ТЗ" onChange={(e) => onPatch({ link: e.target.value })} />
-          {/^https?:\/\/\S+$/i.test(p.link.trim()) && <a className="pj-open" href={p.link.trim()} target="_blank" rel="noopener noreferrer nofollow">Открыть ссылку ↗</a>}
-        </label>
-
-        <label className="cd-field" htmlFor="pj-desc">
-          <span className="label">Описание и заметки</span>
-          <textarea id="pj-desc" className="cd-input" rows={5} value={p.description} maxLength={5000}
-            placeholder="Что нужно сделать, договорённости, правки" onChange={(e) => onPatch({ description: e.target.value })} />
-        </label>
-
-        <div className="cd-field">
-          <span className="label">Цвет</span>
-          <div className="pj-colors" role="radiogroup" aria-label="Цвет проекта">
-            {PROJECT_COLORS.map((c) => (
-              <button key={c} type="button" role="radio" aria-checked={p.color === c} aria-label={`Цвет ${c}`}
-                className={p.color === c ? "on" : ""} style={{ background: c }} onClick={() => onPatch({ color: c })} />
-            ))}
-          </div>
+        <div className="pj-duo">
+          <section className="pj-block">
+            <span className="label">Время</span>
+            <b className="pj-clock mono">{p.timer_started_at ? fmtClock(sec) : fmtDur(sec)}</b>
+            <div className="pj-time-btns">
+              <button type="button" className={`btn sm ${p.timer_started_at ? "" : "ghost"}`} onClick={onTimer}>{p.timer_started_at ? "■ Стоп" : "▶ Старт"}</button>
+              <button type="button" className="btn ghost sm" onClick={() => addTime(900)}>+15 мин</button>
+              <button type="button" className="btn ghost sm" onClick={() => addTime(3600)}>+1 ч</button>
+            </div>
+            {rate > 0 && <span className="hint">≈ {rub(rate)} за час</span>}
+          </section>
+          <section className="pj-block">
+            <span className="label">Деньги</span>
+            <div className="pj-money-in">
+              <input className="cd-input mono" inputMode="numeric" value={p.budget || ""} placeholder="Бюджет" aria-label="Бюджет, ₽" onChange={(e) => onPatch({ budget: num(e.target.value) })} />
+              <input className="cd-input mono" inputMode="numeric" value={p.paid || ""} placeholder="Оплачено" aria-label="Оплачено, ₽" onChange={(e) => onPatch({ paid: num(e.target.value) })} />
+            </div>
+            {p.budget > 0 && <div className="pj-bar money"><b style={{ width: `${Math.min(1, p.paid / p.budget) * 100}%` }} /></div>}
+            {p.budget > 0 && (left > 0
+              ? <span className="hint">Ждём {rub(left)} · <button type="button" className="pj-link-btn" onClick={() => onPatch({ paid: p.budget })}>оплачено полностью</button></span>
+              : <span className="hint good">Оплачено полностью</span>)}
+          </section>
         </div>
+
+        <details className="pj-more" open={!!(p.link || p.description)}>
+          <summary>Ссылка, заметки, цвет, старт</summary>
+          <label className="cd-field" htmlFor="pj-link"><span className="label">Ссылка</span>
+            <input id="pj-link" className="cd-input" value={p.link} maxLength={500} placeholder="Figma, Google Диск, ТЗ" onChange={(e) => onPatch({ link: e.target.value })} />
+            {/^https?:\/\/\S+$/i.test(p.link.trim()) && <a className="pj-open" href={p.link.trim()} target="_blank" rel="noopener noreferrer nofollow">Открыть ↗</a>}
+          </label>
+          <label className="cd-field" htmlFor="pj-desc"><span className="label">Заметки</span>
+            <textarea id="pj-desc" className="cd-input" rows={4} value={p.description} maxLength={5000} placeholder="Договорённости, правки, доступы"
+              onChange={(e) => onPatch({ description: e.target.value })} />
+          </label>
+          <div className="pj-more-row">
+            <label htmlFor="pj-start"><span className="label">Старт</span>
+              <input id="pj-start" className="cd-input" type="date" value={p.start_date ?? ""} onChange={(e) => onPatch({ start_date: e.target.value || null })} />
+            </label>
+            <div className="pj-colors" role="radiogroup" aria-label="Цвет проекта">
+              {PROJECT_COLORS.map((c) => (
+                <button key={c} type="button" role="radio" aria-checked={p.color === c} aria-label={`Цвет ${c}`}
+                  className={p.color === c ? "on" : ""} style={{ background: c }} onClick={() => onPatch({ color: c })} />
+              ))}
+            </div>
+          </div>
+        </details>
 
         <footer className="cd-foot pj-foot">
           <button type="button" className="btn ghost sm" onClick={onRemind} disabled={!p.deadline}>Напомнить в Plans</button>
+          <button type="button" className="btn ghost sm" onClick={onDuplicate}>Дублировать</button>
           {confirm ? (
-            <div className="cm-confirm"><span>Удалить проект «{p.title || "без названия"}»?</span>
+            <div className="cm-confirm"><span>Удалить «{p.title || "без названия"}»?</span>
               <button type="button" className="btn danger sm" onClick={onDelete}>Удалить</button>
               <button type="button" className="btn ghost sm" onClick={() => setConfirm(false)}>Отмена</button>
             </div>
-          ) : <button type="button" className="btn ghost sm danger-text" onClick={() => setConfirm(true)}>Удалить проект</button>}
+          ) : <button type="button" className="btn ghost sm danger-text" onClick={() => setConfirm(true)}>Удалить</button>}
         </footer>
       </aside>
     </div>
