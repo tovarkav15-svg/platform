@@ -55,17 +55,23 @@ function findCol(cols: Col[], name: string) {
 }
 
 function fit(col: Col, v: unknown) {
-  let s = String(v ?? "").trim();
+  let s = Array.isArray(v) ? v.map(String).join(", ") : String(v ?? "").trim();
+  const opt = (x: string) => col.options?.find((o) => o.toLowerCase() === x.toLowerCase()) ?? x;
   if (col.key === "username") s = s.replace(/^@+/, "");
-  if (col.type === "select" && col.options?.length) s = col.options.find((o) => o.toLowerCase() === s.toLowerCase()) ?? s;
-  if (col.type === "number") s = s.replace(/\s/g, "").replace(",", ".");
+  if (col.type === "select") s = opt(s);
+  // Теги: несколько вариантов через запятую
+  if (col.type === "multi") s = Array.from(new Set(s.split(/\s*[,;]\s*/).map((x) => opt(x.trim())).filter(Boolean))).join(", ");
+  if (col.type === "number" || col.type === "money") s = s.replace(/[^\d.,-]/g, "").replace(",", ".");
+  if (col.type === "checkbox") s = /^(1|true|да|yes|y|✓|\+|x|х)$/i.test(s) ? "1" : "";
+  if (col.type === "rating") { const n = Math.round(Number(s.replace(",", "."))); s = n >= 1 ? String(Math.min(5, n)) : ""; }
   return s.slice(0, col.max);
 }
 
 function view(r: Record<string, unknown>, cols: Col[]) {
   const out: Record<string, string> = { id: String(r.id) };
   for (const c of cols) {
-    const v = c.base ? String(r[c.key] ?? "") : String((r.extra as Record<string, string>)?.[c.key] ?? "");
+    const v = c.type === "created" ? String(r.created_at ?? "").slice(0, 10)
+      : c.base ? String(r[c.key] ?? "") : String((r.extra as Record<string, string>)?.[c.key] ?? "");
     if (v) out[c.title] = c.key === "username" && !/[./]/.test(v) ? `@${v}` : v;
   }
   return out;
@@ -125,7 +131,7 @@ async function addClients(user: string, items: unknown) {
     const row: Record<string, unknown> = { user_id: user, extra: {}, position: pos };
     for (const [k, v] of Object.entries(o)) {
       const col = findCol(cols, k);
-      if (!col || v === null || v === undefined || String(v).trim() === "") continue;
+      if (!col || col.type === "created" || v === null || v === undefined || String(v).trim() === "") continue;
       const val = fit(col, v);
       if (FIXED.has(col.key)) row[col.key] = val;
       else (row.extra as Record<string, string>)[col.key] = val;
@@ -164,7 +170,7 @@ async function updateClient(user: string, args: Record<string, unknown>) {
   const patch: Record<string, unknown> = { extra: { ...(target.extra ?? {}) }, updated_at: new Date().toISOString() };
   for (const [k, v] of Object.entries(fields)) {
     const col = findCol(cols, k);
-    if (!col) continue;
+    if (!col || col.type === "created") continue;
     const val = fit(col, v);
     if (FIXED.has(col.key)) patch[col.key] = val;
     else (patch.extra as Record<string, string>)[col.key] = val;

@@ -7,11 +7,15 @@ import { supabase } from "@/lib/supabase";
 import { CountUp } from "../CountUp";
 import { ClientsAi, type AiPlan } from "./ClientsAi";
 import {
+  AddColumnMenu, KINDS, KindField, KindValue, NO_TYPING, NUMERIC, OptionPicker, OptionsEditor, PRESETS, WIDTH,
+  autoColor, fmtMoney, isChecked, kindOf, optsOf, toNum, type Kind, type Opt,
+} from "./columnKinds";
+import {
   OUTCOME, QUALIFY, download, loadSettings, parseTable, saveSettings, toCsv,
   type Client, type ClientColumn,
 } from "@/lib/workspace";
 
-type Col = { key: string; title: string; type: "text" | "select" | "number" | "date" | "user"; options?: { v: string; c?: string }[]; width: number; custom?: boolean; long?: boolean };
+type Col = { key: string; title: string; type: Kind | "user"; options?: Opt[]; width: number; custom?: boolean; long?: boolean };
 type Sort = { key: string; dir: 1 | -1 } | null;
 
 const BASE: Col[] = [
@@ -24,7 +28,9 @@ const BASE: Col[] = [
 ];
 const FIXED = new Set(BASE.map((c) => c.key));
 const BASE_MAP = new Map(BASE.map((c) => [c.key, c]));
-const TYPE_NAME: Record<ClientColumn["type"], string> = { text: "Текст", number: "Число", date: "Дата", select: "Список" };
+const TYPE_NAME = Object.fromEntries(KINDS.map((k) => [k.v, k.label])) as Record<ClientColumn["type"], string>;
+// Колонки «Дата добавления»: значение берётся из даты создания строки
+const CREATED = new Set<string>();
 const newColId = () => `c_${crypto.randomUUID().slice(0, 8)}`;
 
 // Старые настройки хранили только свои колонки: базовые встают перед ними в исходном порядке
@@ -37,8 +43,8 @@ function normalizeLayout(saved: ClientColumn[] | null | undefined): ClientColumn
 
 function toCol(c: ClientColumn): Col {
   const b = c.base ? BASE_MAP.get(c.id) : undefined;
-  if (b) return { ...b, title: c.title.trim() || b.title };
-  return { key: c.id, title: c.title, type: c.type, custom: true, width: c.type === "text" ? 180 : 150, options: c.options?.map((v) => ({ v })) };
+  if (b) return { ...b, title: c.title.trim() || b.title, options: b.options ? optsOf(c, b.options) : undefined };
+  return { key: c.id, title: c.title, type: c.type, custom: true, width: WIDTH[c.type] ?? (c.type === "text" ? 180 : 150), options: optsOf(c) };
 }
 
 /** Свободное название вида «Колонка 3» */
@@ -49,7 +55,8 @@ function freeTitle(layout: ClientColumn[], base = "Колонка") {
 
 const letter = (i: number) => (i < 26 ? String.fromCharCode(65 + i) : String.fromCharCode(64 + Math.floor(i / 26)) + String.fromCharCode(65 + (i % 26)));
 
-const getVal = (r: Client, key: string) => (FIXED.has(key) ? String((r as unknown as Record<string, string>)[key] ?? "") : r.extra?.[key] ?? "");
+const getVal = (r: Client, key: string) =>
+  CREATED.has(key) ? (r.created_at ?? "").slice(0, 10) : FIXED.has(key) ? String((r as unknown as Record<string, string>)[key] ?? "") : r.extra?.[key] ?? "";
 
 export function Clients({ userId }: { userId: string }) {
   const [rows, setRows] = useState<Client[] | null>(null);
@@ -67,6 +74,8 @@ export function Clients({ userId }: { userId: string }) {
   const [full, setFull] = useState(false);
   const [toast, setToast] = useState<{ text: string; undo?: () => void } | null>(null);
   const [menu, setMenu] = useState<{ key: string; x: number; y: number; rename?: boolean } | null>(null);
+  const [picker, setPicker] = useState<{ rowId: string; key: string; x: number; y: number } | null>(null);
+  const [addMenu, setAddMenu] = useState<{ x: number; y: number; near?: string; side?: "left" | "right" } | null>(null);
   const [drop, setDrop] = useState<{ key: string; side: "left" | "right" } | null>(null);
   const wrap = useRef<HTMLDivElement>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -146,10 +155,11 @@ export function Clients({ userId }: { userId: string }) {
     return () => { supabase.removeChannel(ch); };
   }, [userId]);
 
-  const columns: Col[] = useMemo(
-    () => layout.filter((c) => !c.hidden).map(toCol).map((c) => ({ ...c, width: widths[c.key] ?? c.width })),
-    [layout, widths],
-  );
+  const columns: Col[] = useMemo(() => {
+    CREATED.clear();
+    layout.forEach((c) => { if (!c.base && c.type === "created") CREATED.add(c.id); });
+    return layout.filter((c) => !c.hidden).map(toCol).map((c) => ({ ...c, width: widths[c.key] ?? c.width }));
+  }, [layout, widths]);
 
   const flash = (text: string, undo?: () => void) => {
     clearTimeout(toastTimer.current);
@@ -175,31 +185,80 @@ export function Clients({ userId }: { userId: string }) {
     const box = wrap.current?.getBoundingClientRect();
     const r = cell.getBoundingClientRect();
     if (!box) return;
-    const w = 288;
+    const w = Math.min(320, box.width);
     setMenu({ key, rename, x: Math.max(0, Math.min(r.left - box.left, box.width - w)), y: r.bottom - box.top + 6 });
   }
 
   /** Новая колонка рядом с другой (или в конце) — сразу открывается меню, чтобы назвать её */
-  function insertColumn(nearKey?: string, side: "left" | "right" = "right") {
+  function insertColumn(nearKey?: string, side: "left" | "right" = "right", kind: Kind = "text", preset?: { title: string; options?: string[] }) {
     const list = layoutRef.current;
-    const col: ClientColumn = { id: newColId(), title: freeTitle(list), type: "text" };
+    const used = new Set(list.map((c) => c.title.trim().toLowerCase()));
+    let title = preset?.title ?? (kind === "text" ? freeTitle(list) : kindOf(kind).label);
+    for (let n = 2; used.has(title.toLowerCase()); n++) title = `${preset?.title ?? kindOf(kind).label} ${n}`;
+    const options = preset?.options ?? (kind === "select" || kind === "multi" ? [] : undefined);
+    const col: ClientColumn = {
+      id: newColId(), title, type: kind, options,
+      colors: options?.length ? Object.fromEntries(options.map((o, i) => [o, autoColor(i)])) : undefined,
+    };
     const at = nearKey ? list.findIndex((c) => c.id === nearKey) + (side === "right" ? 1 : 0) : list.length;
     saveLayout([...list.slice(0, at), col, ...list.slice(at)]);
     setMenu(null);
-    // Ждём, пока заголовок появится в таблице
+    setAddMenu(null);
+    // Ждём, пока заголовок появится в таблице. Готовую колонку не переименовываем, пустую — сразу называем
     setTimeout(() => {
       const cell = grid.current?.querySelector<HTMLElement>(`[data-col="${col.id}"]`);
       if (!cell) return;
       cell.scrollIntoView({ block: "nearest", inline: "nearest" });
-      openMenu(col.id, cell, true);
+      if (preset) flash(`Колонка «${title}» добавлена`);
+      else openMenu(col.id, cell, true);
     }, 30);
+  }
+
+  /** Окно «+»: готовые колонки и типы. Открывается у «+» в шапке или у нужной колонки */
+  function openAddMenu(anchor?: HTMLElement | null, near?: string, side?: "left" | "right") {
+    const box = wrap.current?.getBoundingClientRect();
+    const cell = anchor ?? grid.current?.querySelector<HTMLElement>(".add-col");
+    if (!box || !cell) return;
+    const r = cell.getBoundingClientRect();
+    const w = Math.min(420, box.width);
+    setMenu(null);
+    setAddMenu({ near, side, x: Math.max(0, Math.min(r.right - box.left - w, box.width - w)), y: r.bottom - box.top + 6 });
+  }
+
+  /** Список вариантов у ячейки «Список» или «Теги» */
+  function openPicker(rowId: string, key: string, cell: HTMLElement) {
+    const box = wrap.current?.getBoundingClientRect();
+    const r = cell.getBoundingClientRect();
+    if (!box) return;
+    const w = 260;
+    setPicker({ rowId, key, x: Math.max(0, Math.min(r.left - box.left, box.width - w)), y: r.bottom - box.top + 4 });
+  }
+
+  /** Новый вариант списка с цветом по порядку */
+  function createOption(key: string, name: string) {
+    const entry = layoutRef.current.find((c) => c.id === key);
+    if (!entry || entry.base) return;
+    const options = entry.options ?? [];
+    if (options.includes(name) || options.length >= 50) return;
+    patchColumn(key, { options: [...options, name], colors: { ...entry.colors, [name]: autoColor(options.length) } });
+  }
+
+  /** Все значения, которые уже есть в колонке, — варианты при смене типа на «Список» */
+  function distinctValues(key: string, multi: boolean) {
+    const seen: string[] = [];
+    for (const r of rows ?? []) {
+      const v = getVal(r, key).trim();
+      for (const x of multi ? v.split(/\s*,\s*/) : [v]) if (x && !seen.includes(x) && seen.length < 50) seen.push(x.slice(0, 40));
+    }
+    return seen;
   }
 
   /** Своя колонка с заданным названием и типом — в конец таблицы (из карточки клиента) */
   function appendColumn(title: string, type: ClientColumn["type"], options?: string[]) {
     const list = layoutRef.current;
     const t = title.trim().slice(0, 40) || freeTitle(list);
-    saveLayout([...list, { id: newColId(), title: t, type, options: type === "select" ? options?.slice(0, 20) : undefined }]);
+    const opts = type === "select" || type === "multi" ? options?.slice(0, 50) : undefined;
+    saveLayout([...list, { id: newColId(), title: t, type, options: opts, colors: opts?.length ? Object.fromEntries(opts.map((o, i) => [o, autoColor(i)])) : undefined }]);
     flash(`Поле «${t}» добавлено и в таблицу`);
   }
 
@@ -258,7 +317,8 @@ export function Clients({ userId }: { userId: string }) {
       const col = columns.find((c) => c.key === sort.key);
       list = [...list].sort((a, b) => {
         const x = getVal(a, sort.key), y = getVal(b, sort.key);
-        if (col?.type === "number") return ((parseFloat(x) || 0) - (parseFloat(y) || 0)) * sort.dir;
+        if (col && NUMERIC.has(col.type)) return (toNum(x) - toNum(y)) * sort.dir;
+        if (col?.type === "checkbox") return (Number(isChecked(y)) - Number(isChecked(x))) * sort.dir;
         if (!x && y) return 1;
         if (x && !y) return -1;
         return x.localeCompare(y, "ru") * sort.dir;
@@ -280,6 +340,7 @@ export function Clients({ userId }: { userId: string }) {
   }, []);
 
   const setCell = useCallback((rowId: string, key: string, value: string) => {
+    if (CREATED.has(key)) return;
     setRows((prev) => {
       if (!prev) return prev;
       return prev.map((r) => {
@@ -351,7 +412,17 @@ export function Clients({ userId }: { userId: string }) {
       case "ArrowLeft": return move(sel.r, sel.c - 1);
       case "ArrowRight": return move(sel.r, sel.c + 1);
       case "Tab": return move(sel.r, sel.c + (e.shiftKey ? -1 : 1));
-      case "Enter": e.preventDefault(); if (row) setEditing({ ...sel, value: getVal(row, columns[sel.c].key) }); return;
+      case "Enter": {
+        e.preventDefault();
+        if (!row) return;
+        const c = columns[sel.c];
+        if (c.type === "select" || c.type === "multi") {
+          const cell = grid.current?.querySelectorAll<HTMLElement>(".sheet-row:not(.head):not(.foot)")[sel.r]?.querySelectorAll<HTMLElement>("[role=gridcell]")[sel.c];
+          if (cell) openPicker(row.id, c.key, cell);
+        } else if (c.type === "checkbox") setCell(row.id, c.key, isChecked(getVal(row, c.key)) ? "" : "1");
+        else if (!NO_TYPING.has(c.type)) setEditing({ ...sel, value: getVal(row, c.key) });
+        return;
+      }
       case "Backspace": case "Delete": e.preventDefault(); if (row) setCell(row.id, columns[sel.c].key, ""); return;
       case "Escape": setSel(null); return;
     }
@@ -361,7 +432,8 @@ export function Clients({ userId }: { userId: string }) {
       return;
     }
     // Начали печатать — сразу режим ввода, как в Excel
-    if (e.key.length === 1 && !e.metaKey && !e.ctrlKey && row && columns[sel.c].type !== "select") {
+    if (e.key === " " && row && columns[sel.c].type === "checkbox") { e.preventDefault(); setCell(row.id, columns[sel.c].key, isChecked(getVal(row, columns[sel.c].key)) ? "" : "1"); return; }
+    if (e.key.length === 1 && !e.metaKey && !e.ctrlKey && row && !NO_TYPING.has(columns[sel.c].type)) {
       e.preventDefault();
       setEditing({ ...sel, value: e.key });
     }
@@ -516,14 +588,18 @@ export function Clients({ userId }: { userId: string }) {
   addRowRef.current = () => { setViewMode("table"); addRow(); };
   if (!rows) return <div className="skeleton profile-skeleton" />;
 
-  const stats = OUTCOME.map((o) => ({ ...o, n: rows.filter((r) => r.outcome === o.v).length }));
+  const outcomeOpts = toCol(layout.find((c) => c.id === "outcome") ?? { id: "outcome", title: "", type: "text", base: true }).options ?? OUTCOME;
+  const qualifyOpts = toCol(layout.find((c) => c.id === "qualify") ?? { id: "qualify", title: "", type: "text", base: true }).options ?? QUALIFY;
+  const stats = outcomeOpts.map((o) => ({ ...o, n: rows.filter((r) => r.outcome === o.v).length }));
   const allChecked = view.length > 0 && view.every((r) => checked.has(r.id));
   const template = `44px ${columns.map((c) => `${c.width}px`).join(" ")} 72px`;
-  const numCols = columns.filter((c) => c.type === "number");
+  const numCols = columns.filter((c) => c.type === "number" || c.type === "money");
+  const pickerCol = picker ? columns.find((c) => c.key === picker.key) : undefined;
+  const pickerRow = picker ? rows.find((r) => r.id === picker.rowId) : undefined;
   const menuEntry = menu ? layout.find((c) => c.id === menu.key) : undefined;
 
   // Пока открыты меню, карточка или окно, Esc закрывает их, а не полноэкранный режим
-  overlayOpen.current = !!(menu || cardId || aiOpen || colEditor || editing || sel);
+  overlayOpen.current = !!(menu || addMenu || picker || cardId || aiOpen || colEditor || editing || sel);
 
   const page = (
     <div className={`ws-section ${full ? "sheet-full" : ""}`}>
@@ -551,7 +627,7 @@ export function Clients({ userId }: { userId: string }) {
           {checked.size > 0 && <button type="button" className="btn danger sm" onClick={removeChecked}>Удалить ({checked.size})</button>}
           <button type="button" className="btn ghost sm ai-btn" onClick={() => setAiOpen(true)}>✦ Нейронка</button>
           <button type="button" className="btn ghost sm" onClick={() => setColEditor(true)}>Колонки</button>
-          {viewMode === "table" && <button type="button" className="btn ghost sm" onClick={() => insertColumn()}>+ Колонка</button>}
+          {viewMode === "table" && <button type="button" className="btn ghost sm" onClick={() => openAddMenu()}>+ Колонка</button>}
           <label className="btn ghost sm">Импорт CSV<input type="file" accept=".csv,.tsv,.txt" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) importCsv(f); e.target.value = ""; }} /></label>
           <button type="button" className="btn ghost sm" onClick={exportCsv}>Экспорт</button>
           <button type="button" className="btn ghost sm full-btn" onClick={() => setFull((f) => !f)} aria-pressed={full}
@@ -561,13 +637,13 @@ export function Clients({ userId }: { userId: string }) {
       </div>
 
       {viewMode === "pipeline" ? (
-        <Pipeline rows={view} onMove={(id, outcome) => setCell(id, "outcome", outcome)} onOpen={(id) => setCardId(id)} />
+        <Pipeline rows={view} outcomes={outcomeOpts} qualifies={qualifyOpts} onMove={(id, outcome) => setCell(id, "outcome", outcome)} onOpen={(id) => setCardId(id)} />
       ) : (<div className="sheet-wrap" ref={wrap}>
       <FormulaBar
         address={sel ? `${letter(sel.c)}${sel.r + 1}` : ""}
         title={sel ? columns[sel.c]?.title : ""}
         value={sel && view[sel.r] ? (editing && editing.r === sel.r && editing.c === sel.c ? editing.value : getVal(view[sel.r], columns[sel.c].key)) : ""}
-        disabled={!sel || !view[sel?.r ?? -1] || columns[sel?.c ?? 0]?.type === "select"}
+        disabled={!sel || !view[sel?.r ?? -1] || NO_TYPING.has(columns[sel?.c ?? 0]?.type ?? "")}
         onChange={(v) => { if (sel && view[sel.r]) setCell(view[sel.r].id, columns[sel.c].key, v); }}
       />
 
@@ -608,7 +684,7 @@ export function Clients({ userId }: { userId: string }) {
             </div>
           ))}
           <div className="sheet-cell th add-col">
-            <button type="button" onClick={() => insertColumn()} aria-label="Добавить колонку" title="Добавить колонку">+</button>
+            <button type="button" onClick={(e) => (addMenu ? setAddMenu(null) : openAddMenu(e.currentTarget.parentElement))} aria-label="Добавить колонку" title="Добавить колонку">+</button>
           </div>
         </div>
 
@@ -627,10 +703,11 @@ export function Clients({ userId }: { userId: string }) {
                 <div key={c.key} role="gridcell"
                   className={`sheet-cell ${isSel ? "sel" : ""} ${isEdit ? "editing" : ""} ${c.long ? "long" : ""}`}
                   onMouseDown={() => { if (!isEdit) { commit(); setSel({ r: ri, c: ci }); } }}
-                  onDoubleClick={() => c.type !== "select" && setEditing({ r: ri, c: ci, value: v })}
+                  onClick={(e) => { if (c.type === "select" || c.type === "multi") openPicker(r.id, c.key, e.currentTarget); }}
+                  onDoubleClick={() => !NO_TYPING.has(c.type) && setEditing({ r: ri, c: ci, value: v })}
                 >
-                  {c.type === "select" ? (
-                    <SelectCell value={v} options={c.options ?? []} onChange={(nv) => setCell(r.id, c.key, nv)} />
+                  {c.type !== "text" && c.type !== "user" && !isEdit ? (
+                    <span className={`kind-cell k-${c.type}`}><KindValue type={c.type} value={v} opts={c.options ?? []} onChange={(nv) => setCell(r.id, c.key, nv)} /></span>
                   ) : isEdit ? (
                     <CellEditor
                       value={editing.value} long={c.long} type={c.type}
@@ -655,9 +732,9 @@ export function Clients({ userId }: { userId: string }) {
           <div className="sheet-row foot" style={{ gridTemplateColumns: template }} role="row">
             <div className="sheet-cell idx"><span className="rownum">Σ</span></div>
             {columns.map((c) => {
-              if (c.type !== "number") return <div key={c.key} className="sheet-cell" />;
-              const sum = view.reduce((a, r) => a + (parseFloat(getVal(r, c.key).replace(",", ".")) || 0), 0);
-              return <div key={c.key} className="sheet-cell sum" title="Сумма по видимым строкам">{sum.toLocaleString("ru-RU", { maximumFractionDigits: 2 })}</div>;
+              if (c.type !== "number" && c.type !== "money") return <div key={c.key} className="sheet-cell" />;
+              const sum = view.reduce((a, r) => a + toNum(getVal(r, c.key)), 0);
+              return <div key={c.key} className="sheet-cell sum" title="Сумма по видимым строкам">{c.type === "money" ? fmtMoney(sum) : sum.toLocaleString("ru-RU", { maximumFractionDigits: 2 })}</div>;
             })}
             <div className="sheet-cell end" />
           </div>
@@ -676,16 +753,28 @@ export function Clients({ userId }: { userId: string }) {
           onClose={() => { setMenu(null); grid.current?.focus(); }}
           onPatch={(patch) => patchColumn(menu.key, patch)}
           onSort={(dir) => { setSort(dir ? { key: menu.key, dir } : null); setMenu(null); }}
-          onInsert={(side) => insertColumn(menu.key, side)}
+          onInsert={(side) => { const cell = grid.current?.querySelector<HTMLElement>(`[data-col="${menu.key}"]`); openAddMenu(cell, menu.key, side); }}
           onHide={() => { patchColumn(menu.key, { hidden: true }); setMenu(null); flash("Колонка скрыта. Вернуть можно в «Колонки»"); }}
           onDelete={() => deleteColumn(menu.key)}
+          distinct={(multi) => distinctValues(menu.key, multi)}
         />
+      )}
+      {addMenu && (
+        <AddColumnMenu x={addMenu.x} y={addMenu.y} onClose={() => setAddMenu(null)}
+          onPreset={(p) => insertColumn(addMenu.near, addMenu.side, p.type, p)}
+          onKind={(k) => insertColumn(addMenu.near, addMenu.side, k)} />
+      )}
+      {picker && pickerCol && pickerRow && (
+        <OptionPicker key={`${picker.rowId}:${picker.key}`} x={picker.x} y={picker.y}
+          opts={pickerCol.options ?? []} value={getVal(pickerRow, picker.key)} multi={pickerCol.type === "multi"} canCreate={!!pickerCol.custom}
+          onChange={(v) => setCell(picker.rowId, picker.key, v)} onCreate={(name) => createOption(picker.key, name)}
+          onClose={() => { setPicker(null); grid.current?.focus(); }} />
       )}
       </div>)}
 
       {viewMode === "table" && <p className="hint">
         Клик — выбрать ячейку, двойной клик или Enter — редактировать, стрелки и Tab — перемещаться, Delete — очистить.
-        Клик по заголовку — переименовать, сменить тип, сортировать, вставить или удалить колонку. Заголовок можно перетащить, «+» справа добавляет колонку. Кнопка ⤢ в конце строки открывает карточку клиента со всеми полями.
+        Клик по заголовку — переименовать, сменить тип и цвета вариантов, сортировать, вставить или удалить колонку. Заголовок можно перетащить, «+» справа — готовые колонки и 12 типов. Кнопка ⤢ в конце строки открывает карточку клиента со всеми полями.
         Можно вставить диапазон из Excel или Google Таблиц через Ctrl+V / ⌘V: если он шире таблицы, недостающие колонки появятся сами.
       </p>}
       {viewMode === "pipeline" && <p className="hint">Перетаскивай карточки между колонками, чтобы менять этап сделки. Двойной клик открывает карточку клиента.</p>}
@@ -708,6 +797,7 @@ export function Clients({ userId }: { userId: string }) {
             onNext={i >= 0 && i < view.length - 1 ? () => setCardId(view[i + 1].id) : undefined}
             onChange={(key, v) => setCell(row.id, key, v)}
             onAddField={appendColumn}
+            onCreateOption={createOption}
             onDelete={async () => { setCardId(null); await deleteRow(row.id); flash("Клиент удалён"); }}
             onClose={() => setCardId(null)}
           />
@@ -745,9 +835,9 @@ export function Clients({ userId }: { userId: string }) {
 }
 
 /** Воронка: клиенты по этапам сделки, карточки перетаскиваются между колонками */
-function Pipeline({ rows, onMove, onOpen }: { rows: Client[]; onMove: (id: string, outcome: string) => void; onOpen: (id: string) => void }) {
+function Pipeline({ rows, outcomes, qualifies, onMove, onOpen }: { rows: Client[]; outcomes: Opt[]; qualifies: Opt[]; onMove: (id: string, outcome: string) => void; onOpen: (id: string) => void }) {
   const [over, setOver] = useState<string | null>(null);
-  const cols = [{ v: "", c: "#C9C9C6", label: "Без статуса" }, ...OUTCOME.map((o) => ({ ...o, label: o.v }))];
+  const cols = [{ v: "", c: "#C9C9C6", label: "Без статуса" }, ...outcomes.map((o) => ({ ...o, label: o.v }))];
   return (
     <div className="pipeline">
       {cols.map((col) => {
@@ -759,7 +849,7 @@ function Pipeline({ rows, onMove, onOpen }: { rows: Client[]; onMove: (id: strin
             <header><i />{col.label}<em className="mono">{items.length}</em></header>
             <div className="pl-cards">
               {items.map((r, i) => {
-                const q = QUALIFY.find((x) => x.v === r.qualify);
+                const q = qualifies.find((x) => x.v === r.qualify);
                 return (
                   <article key={r.id} className="pl-card" draggable style={{ "--i": i } as React.CSSProperties}
                     onDragStart={(e) => { e.dataTransfer.setData("text/client", r.id); e.currentTarget.classList.add("dragging"); }}
@@ -811,32 +901,20 @@ function CellEditor({ value, long, type, onChange, onCommit, onCancel }: {
     else if (e.key === "Tab") { e.preventDefault(); onCommit(e.shiftKey ? "left" : "right"); }
     else if (e.key === "Escape") { e.preventDefault(); onCancel(); }
   };
-  if (type === "date" || type === "number") {
-    return <input ref={ref} className="cell-input" type={type} value={value} onChange={(e) => onChange(e.target.value)} onKeyDown={onKey} onBlur={() => onCommit()} />;
+  if (type === "date" || type === "number" || type === "money") {
+    return <input ref={ref} className="cell-input" type={type === "money" ? "number" : type} value={value} onChange={(e) => onChange(e.target.value)} onKeyDown={onKey} onBlur={() => onCommit()} />;
+  }
+  if (type === "link" || type === "phone" || type === "email") {
+    return <input ref={ref} className="cell-input" type={type === "link" ? "url" : type === "phone" ? "tel" : "email"} value={value} onChange={(e) => onChange(e.target.value)} onKeyDown={onKey} onBlur={() => onCommit()} />;
   }
   return <textarea ref={ref} className="cell-input" rows={long ? 3 : 1} value={value} onChange={(e) => onChange(e.target.value)} onKeyDown={onKey} onBlur={() => onCommit()} />;
 }
 
-function SelectCell({ value, options, onChange }: { value: string; options: { v: string; c?: string }[]; onChange: (v: string) => void }) {
-  const opt = options.find((o) => o.v === value);
-  return (
-    <span className="select-cell">
-      {value ? (
-        <span key={value} className="pill" style={{ "--c": opt?.c ?? "#8A8A87" } as React.CSSProperties}><i />{value}</span>
-      ) : <span className="pill empty">выбрать</span>}
-      <select value={value} onChange={(e) => onChange(e.target.value)} aria-label="Выбрать значение">
-        <option value="">—</option>
-        {options.map((o) => <option key={o.v} value={o.v}>{o.v}</option>)}
-      </select>
-    </span>
-  );
-}
-
 /** Карточка клиента сбоку: все поля (и скрытые в таблице), свои поля добавляются прямо здесь */
-function ClientCard({ row, layout, pos, onPrev, onNext, onChange, onAddField, onDelete, onClose }: {
+function ClientCard({ row, layout, pos, onPrev, onNext, onChange, onAddField, onCreateOption, onDelete, onClose }: {
   row: Client; layout: ClientColumn[]; pos: string; onPrev?: () => void; onNext?: () => void;
   onChange: (key: string, v: string) => void; onAddField: (title: string, type: ClientColumn["type"], options?: string[]) => void;
-  onDelete: () => void; onClose: () => void;
+  onCreateOption: (key: string, name: string) => void; onDelete: () => void; onClose: () => void;
 }) {
   const [adding, setAdding] = useState(false);
   const [title, setTitle] = useState("");
@@ -880,16 +958,11 @@ function ClientCard({ row, layout, pos, onPrev, onNext, onChange, onAddField, on
             return (
               <label key={col.key} className="cd-field" htmlFor={id}>
                 <span className="label">{col.title}{entry.hidden && <em className="cd-hidden"> · скрыта в таблице</em>}</span>
-                {col.type === "select" ? (
-                  <select id={id} className="mini-select" value={v} onChange={(e) => onChange(col.key, e.target.value)}>
-                    <option value="">Не выбрано</option>
-                    {(col.options ?? []).map((o) => <option key={o.v} value={o.v}>{o.v}</option>)}
-                  </select>
-                ) : col.long ? (
+                {col.long ? (
                   <textarea id={id} className="cd-input" rows={3} value={v} onChange={(e) => onChange(col.key, e.target.value)} />
                 ) : (
-                  <input id={id} className="cd-input" type={col.type === "number" || col.type === "date" ? col.type : "text"}
-                    value={v} placeholder={col.type === "user" ? "ник или ссылка" : ""} onChange={(e) => onChange(col.key, e.target.value)} />
+                  <KindField id={id} type={col.type} value={v} opts={col.options ?? []} canCreate={!!col.custom}
+                    onChange={(nv) => onChange(col.key, nv)} onCreate={(name) => onCreateOption(col.key, name)} />
                 )}
               </label>
             );
@@ -910,7 +983,7 @@ function ClientCard({ row, layout, pos, onPrev, onNext, onChange, onAddField, on
                 <button key={t} type="button" role="radio" aria-checked={type === t} className={type === t ? "on" : ""} onClick={() => setType(t)}>{TYPE_NAME[t]}</button>
               ))}
             </div>
-            {type === "select" && <div className="input"><input value={opts} onChange={(e) => setOpts(e.target.value)} placeholder="Варианты через запятую" aria-label="Варианты" /></div>}
+            {(type === "select" || type === "multi") && <div className="input"><input value={opts} onChange={(e) => setOpts(e.target.value)} placeholder="Варианты через запятую" aria-label="Варианты" /></div>}
             <p className="hint">Поле появится у всех клиентов и в таблице как новая колонка.</p>
             <div className="cd-actions">
               <button type="submit" className="btn sm" disabled={!title.trim()}>Добавить поле</button>
@@ -935,15 +1008,14 @@ function ClientCard({ row, layout, pos, onPrev, onNext, onChange, onAddField, on
 }
 
 /** Меню колонки: название, тип, варианты списка, сортировка, вставка, скрытие, удаление */
-function ColumnMenu({ entry, col, x, y, focusTitle, sort, onClose, onPatch, onSort, onInsert, onHide, onDelete }: {
+function ColumnMenu({ entry, col, x, y, focusTitle, sort, onClose, onPatch, onSort, onInsert, onHide, onDelete, distinct }: {
   entry: ClientColumn; col: Col; x: number; y: number; focusTitle?: boolean; sort: 0 | 1 | -1;
   onClose: () => void; onPatch: (p: Partial<ClientColumn>) => void; onSort: (dir: 1 | -1 | null) => void;
-  onInsert: (side: "left" | "right") => void; onHide: () => void; onDelete: () => void;
+  onInsert: (side: "left" | "right") => void; onHide: () => void; onDelete: () => void; distinct: (multi: boolean) => string[];
 }) {
   const box = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
   const [title, setTitle] = useState(col.title);
-  const [opt, setOpt] = useState("");
   const [confirm, setConfirm] = useState(false);
   const isCustom = !entry.base;
   const options = entry.options ?? [];
@@ -963,11 +1035,16 @@ function ColumnMenu({ entry, col, x, y, focusTitle, sort, onClose, onPatch, onSo
     if (t && t !== col.title) onPatch({ title: t });
     else setTitle(col.title);
   };
-  const addOpt = () => {
-    const v = opt.trim().slice(0, 40);
-    if (v && !options.includes(v) && options.length < 20) onPatch({ options: [...options, v] });
-    setOpt("");
+  // Смена типа: для списка и тегов варианты собираются из того, что уже записано в колонке
+  const changeType = (t: ClientColumn["type"]) => {
+    if (t === entry.type) return;
+    if ((t === "select" || t === "multi") && !options.length) {
+      const found = distinct(t === "multi");
+      return onPatch({ type: t, options: found, colors: Object.fromEntries(found.map((o, i) => [o, autoColor(i)])) });
+    }
+    onPatch({ type: t });
   };
+  const isList = col.type === "select" || col.type === "multi";
 
   return (
     <div className="col-menu card" ref={box} role="dialog" aria-label={`Колонка «${col.title}»`} style={{ left: x, top: y }}>
@@ -978,37 +1055,29 @@ function ColumnMenu({ entry, col, x, y, focusTitle, sort, onClose, onPatch, onSo
       </div>
 
       {isCustom ? (
-        <div className="cm-types" role="radiogroup" aria-label="Тип колонки">
-          {(Object.keys(TYPE_NAME) as ClientColumn["type"][]).map((t) => (
-            <button key={t} type="button" role="radio" aria-checked={entry.type === t} className={entry.type === t ? "on" : ""}
-              onClick={() => onPatch({ type: t, options: t === "select" ? options : entry.options })}>{TYPE_NAME[t]}</button>
+        <div className="cm-kinds" role="radiogroup" aria-label="Тип колонки">
+          {KINDS.map((k) => (
+            <button key={k.v} type="button" role="radio" aria-checked={entry.type === k.v} className={entry.type === k.v ? "on" : ""}
+              title={k.hint} onClick={() => changeType(k.v)}><i>{k.icon}</i>{k.label}</button>
           ))}
         </div>
       ) : (
-        <p className="cm-note">Базовая колонка: её можно переименовать, переставить или скрыть, но не удалить.</p>
+        <p className="cm-note">Базовая колонка: её можно переименовать, переставить или скрыть{isList ? ", а вариантам — поменять цвет" : ""}.</p>
       )}
 
-      {isCustom && entry.type === "select" && (
+      {isList && (
         <div className="cm-opts">
-          <span className="label">Варианты</span>
-          <div className="cm-chips">
-            {options.map((o) => (
-              <span key={o} className="cm-chip">{o}
-                <button type="button" aria-label={`Убрать вариант ${o}`} onClick={() => onPatch({ options: options.filter((x) => x !== o) })}>×</button>
-              </span>
-            ))}
-            {!options.length && <span className="hint">Пока пусто. Добавь первый вариант.</span>}
-          </div>
-          <form className="cm-add" onSubmit={(e) => { e.preventDefault(); addOpt(); }}>
-            <div className="input"><input value={opt} onChange={(e) => setOpt(e.target.value)} placeholder="Новый вариант" maxLength={40} aria-label="Новый вариант" /></div>
-            <button type="submit" className="btn ghost sm" disabled={!opt.trim()}>Добавить</button>
-          </form>
+          <span className="label">Варианты · нажми на кружок, чтобы сменить цвет</span>
+          <OptionsEditor opts={col.options ?? []} canEdit={isCustom}
+            onColor={(v, c) => onPatch({ colors: { ...entry.colors, [v]: c } })}
+            onAdd={(v) => onPatch({ options: [...options, v], colors: { ...entry.colors, [v]: autoColor(options.length) } })}
+            onRemove={(v) => onPatch({ options: options.filter((x) => x !== v) })} />
         </div>
       )}
 
       <div className="cm-list">
-        <button type="button" className={sort === 1 ? "on" : ""} onClick={() => onSort(sort === 1 ? null : 1)}>↑ Сортировать {col.type === "number" ? "по возрастанию" : "А → Я"}</button>
-        <button type="button" className={sort === -1 ? "on" : ""} onClick={() => onSort(sort === -1 ? null : -1)}>↓ Сортировать {col.type === "number" ? "по убыванию" : "Я → А"}</button>
+        <button type="button" className={sort === 1 ? "on" : ""} onClick={() => onSort(sort === 1 ? null : 1)}>↑ Сортировать {NUMERIC.has(col.type) ? "по возрастанию" : "А → Я"}</button>
+        <button type="button" className={sort === -1 ? "on" : ""} onClick={() => onSort(sort === -1 ? null : -1)}>↓ Сортировать {NUMERIC.has(col.type) ? "по убыванию" : "Я → А"}</button>
         <hr />
         <button type="button" onClick={() => onInsert("left")}>← Вставить колонку слева</button>
         <button type="button" onClick={() => onInsert("right")}>→ Вставить колонку справа</button>
@@ -1068,16 +1137,17 @@ function ColumnEditor({ columns, onClose, onSave }: { columns: ClientColumn[]; o
         <form className="col-add" onSubmit={(e) => {
           e.preventDefault();
           if (!title.trim()) return;
-          setList([...list, { id: newColId(), title: title.trim().slice(0, 40), type, options: type === "select" ? opts.split(",").map((s) => s.trim()).filter(Boolean).slice(0, 20) : undefined }]);
+          const o = type === "select" || type === "multi" ? opts.split(",").map((s) => s.trim()).filter(Boolean).slice(0, 50) : undefined;
+          setList([...list, { id: newColId(), title: title.trim().slice(0, 40), type, options: o, colors: o?.length ? Object.fromEntries(o.map((x, i) => [x, autoColor(i)])) : undefined }]);
           setTitle(""); setOpts("");
         }}>
           <div className="input"><input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Название новой колонки" maxLength={40} aria-label="Название колонки" /></div>
           <div className="input">
             <select value={type} onChange={(e) => setType(e.target.value as ClientColumn["type"])} aria-label="Тип колонки">
-              <option value="text">Текст</option><option value="number">Число</option><option value="date">Дата</option><option value="select">Список</option>
+              {KINDS.map((k) => <option key={k.v} value={k.v}>{k.label}</option>)}
             </select>
           </div>
-          {type === "select" && <div className="input"><input value={opts} onChange={(e) => setOpts(e.target.value)} placeholder="Варианты через запятую" aria-label="Варианты" /></div>}
+          {(type === "select" || type === "multi") && <div className="input"><input value={opts} onChange={(e) => setOpts(e.target.value)} placeholder="Варианты через запятую" aria-label="Варианты" /></div>}
           <button type="submit" className="btn ghost sm" disabled={!title.trim()}>Добавить</button>
         </form>
         <div className="editor-actions"><button type="button" className="btn" onClick={() => onSave(list.map((c) => ({ ...c, title: c.title.trim() || "Колонка" })))}>Сохранить</button></div>
