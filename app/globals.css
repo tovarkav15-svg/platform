@@ -5682,7 +5682,7 @@ button.pj-tl-name:hover { background: var(--paper); }
 .pj-link-btn:hover { text-decoration: underline; }
 .pj-muted { color: var(--mute); font-size: 13px; }
 
-.pj-track { display: flex; flex-direction: column; gap: 14px; }
+.pj-track { display: flex; flex-direction: column; gap: 14px; container-type: inline-size; }
 .pj-group { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 16px; background: #fff; overflow: hidden; }
 .pj-group > header { display: flex; align-items: center; gap: 8px; padding: 9px 14px; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--graphite); background: var(--paper); border-bottom: 1px solid var(--line); }
 .pj-group > header em { font-style: normal; color: var(--mute); }
@@ -5725,12 +5725,12 @@ button.pj-tl-name:hover { background: var(--paper); }
 .pj-money-cell small { font-size: 10px; font-weight: 600; color: var(--mute); text-transform: uppercase; letter-spacing: .06em; font-family: var(--display); }
 .pj-paid { color: #13704f; font-size: 12px; font-weight: 700; font-family: var(--display); }
 .pj-closed-toggle { align-self: flex-start; padding: 4px 2px; }
-@media (max-width: 1100px) {
+@container (max-width: 1080px) {
   .pj-row { grid-template-columns: 110px minmax(0, 1fr) minmax(0, 1fr) auto; grid-template-areas: "st main main money" "next next dl time"; row-gap: 8px; }
   .pj-st { grid-area: st; } .pj-main { grid-area: main; } .pj-next { grid-area: next; } .pj-deadline { grid-area: dl; } .pj-time { grid-area: time; } .pj-money-cell { grid-area: money; }
   .pj-prog { display: none; }
 }
-@media (max-width: 560px) {
+@container (max-width: 560px) {
   .pj-row { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "main money" "st dl" "next time"; }
   .pj-main small { padding-left: 0; }
 }
