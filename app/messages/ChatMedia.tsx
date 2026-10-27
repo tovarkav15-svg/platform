@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { chatFileUrl, formatBytes } from "@/lib/upload";
 
-export type MediaMeta = { name?: string; size?: number; duration?: number; w?: number; h?: number; local?: string };
+export type MediaMeta = { name?: string; size?: number; duration?: number; w?: number; h?: number; local?: string; no_preview?: boolean };
 
 /** Временная ссылка на файл чата (или локальная, пока файл ещё грузится) */
 function useMediaUrl(path: string | null, local?: string) {

@@ -5900,3 +5900,43 @@ button.pj-tl-name:hover { background: var(--paper); }
 .kf-new { border: 1px dashed #cfcfcc; border-radius: 99px; padding: 5px 11px; font: inherit; font-size: 13px; width: 110px; background: none; }
 .kf-new:focus { outline: none; border-color: var(--ink); border-style: solid; }
 .kf-inline { display: flex; align-items: center; min-height: 36px; }
+
+/* Чаты: карточка ссылки, как в Telegram */
+.link-card { display: flex; flex-direction: column; gap: 3px; margin-top: 6px; padding: 6px 10px 8px; border-left: 3px solid var(--c-ai); border-radius: 4px 8px 8px 4px;
+  background: color-mix(in srgb, var(--c-ai) 8%, transparent); color: inherit; text-decoration: none; max-width: 420px; transition: background .15s; }
+.link-card:hover { background: color-mix(in srgb, var(--c-ai) 14%, transparent); }
+.msg.mine .link-card { border-left-color: currentColor; background: rgba(255,255,255,.12); }
+.lc-site { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: var(--c-ai); }
+.msg.mine .lc-site { color: inherit; opacity: .9; }
+.lc-site img { width: 14px; height: 14px; border-radius: 3px; }
+.lc-title { font-size: 14px; line-height: 1.3; overflow-wrap: anywhere; }
+.lc-desc { font-size: 13px; line-height: 1.35; opacity: .85; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.lc-img { margin-top: 4px; width: 100%; max-height: 220px; object-fit: cover; border-radius: 8px; display: block; }
+.composer-link { display: flex; align-items: center; gap: 10px; padding: 8px 12px; margin: 0 12px; border-left: 3px solid var(--c-ai); background: color-mix(in srgb, var(--c-ai) 7%, var(--paper)); border-radius: 6px 10px 10px 6px; animation: fadeUp .2s var(--ease) both; }
+.composer-link .cl-ico { color: var(--c-ai); flex: none; }
+.cl-text { flex: 1; min-width: 0; display: flex; flex-direction: column; font-size: 13px; }
+.cl-text b { color: var(--c-ai); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cl-text small { color: var(--graphite); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cl-img { width: 40px; height: 40px; border-radius: 6px; object-fit: cover; flex: none; }
+
+/* Чаты: быстрый просмотр */
+.chat-item { -webkit-touch-callout: none; user-select: none; }
+.peek-bg { position: fixed; inset: 0; z-index: 70; background: rgba(14,14,15,.38); backdrop-filter: blur(6px); display: grid; place-items: center; padding: 16px; animation: fadeIn .15s ease; }
+.peek { width: min(440px, 100%); max-height: min(620px, calc(100dvh - 32px)); display: flex; flex-direction: column; border-radius: 18px; overflow: hidden; background: var(--paper);
+  box-shadow: 0 24px 60px rgba(14,14,15,.3); animation: peekIn .22s cubic-bezier(.2,1.2,.3,1); }
+@keyframes peekIn { from { opacity: 0; transform: scale(.92); } }
+.peek-head { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--line); background: #fff; }
+.peek-head .peek-title { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.peek-head b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.peek-head small { font-size: 12px; color: var(--mute); }
+.peek-body { flex: 1; overflow: auto; padding: 12px; display: flex; flex-direction: column; gap: 4px; min-height: 160px; }
+.peek-empty { margin: auto; color: var(--mute); font-size: 14px; }
+.peek-sys { align-self: center; font-size: 12px; color: var(--mute); padding: 4px 10px; border-radius: 99px; background: var(--paper-2); margin: 4px 0; }
+.peek-msg { display: flex; flex-direction: column; align-items: flex-start; max-width: 82%; }
+.peek-msg.mine { align-self: flex-end; align-items: flex-end; }
+.peek-msg > span { padding: 7px 11px; border-radius: 14px; background: #fff; box-shadow: 0 1px 1px rgba(14,14,15,.06); font-size: 14px; line-height: 1.35; white-space: pre-wrap; overflow-wrap: anywhere; }
+.peek-msg.mine > span { background: var(--ink); color: var(--paper); }
+.peek-msg.del > span { font-style: italic; opacity: .6; }
+.peek-msg time { margin-left: 8px; font-size: 11px; opacity: .55; }
+.peek-who { font-size: 12px; font-weight: 700; color: var(--c-ai); margin: 4px 0 2px 4px; }
+.peek-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--line); background: #fff; }

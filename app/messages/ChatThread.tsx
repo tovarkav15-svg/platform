@@ -16,6 +16,7 @@ import { FileMedia, ImageMedia, imageSize, VideoMedia, VoiceMedia, useVoiceRecor
 import { readPrefs } from "@/lib/prefs";
 import { MediaLibrary, ReportDialog } from "./ChatTools";
 import { Linkify } from "./Linkify";
+import { ComposerPreview, LinkCard, firstUrl } from "./LinkPreview";
 import { isOwner } from "@/lib/supabase";
 
 type Kind = "text" | "image" | "video" | "voice" | "file" | "system" | "sticker";
@@ -230,9 +231,17 @@ export function ChatThread({ chatId, meId, chat, onSettings, onCall }: { chatId:
     return deliver(draft("sticker", code), async () => ({}));
   }
 
-  function sendText(body: string) {
-    return deliver(draft("text", body), async () => ({}));
+  function sendText(body: string, meta: MediaMeta = {}) {
+    return deliver(draft("text", body, meta), async () => ({}));
   }
+
+  // Предпросмотр ссылки в поле ввода: ждём паузу в наборе, крестик отправляет без карточки
+  const [noPreview, setNoPreview] = useState<string | null>(null);
+  const [typedUrl, setTypedUrl] = useState<string | null>(null);
+  useEffect(() => {
+    const t = setTimeout(() => setTypedUrl(editing ? null : firstUrl(text)), 500);
+    return () => clearTimeout(t);
+  }, [text, editing]);
 
   async function sendFile(file: File, caption = "") {
     if (file.size > CHAT_MAX_BYTES) return setNotice(`Файл «${file.name}» больше 50 МБ`);
@@ -271,7 +280,9 @@ export function ChatThread({ chatId, meId, chat, onSettings, onCall }: { chatId:
       supabase.rpc("edit_message", { p_id: id, p_text: body }).then(({ error }) => { if (error) setNotice(error.message); });
       return;
     }
-    sendText(body);
+    const url = firstUrl(body);
+    sendText(body, url && noPreview === url ? { no_preview: true } : {});
+    setNoPreview(null); setTypedUrl(null);
   }
 
   function pickFiles(files: FileList | File[] | null) {
@@ -433,6 +444,7 @@ export function ChatThread({ chatId, meId, chat, onSettings, onCall }: { chatId:
                     {m.kind === "voice" && <VoiceMedia path={m.media_path} meta={m.media_meta} mine={mine} />}
                     {m.kind === "sticker" && <span className="msg-sticker"><StickerArt code={m.text} size={140} /></span>}
                     {m.text && m.kind !== "sticker" && <span className="msg-text"><Linkify text={m.text} /></span>}
+                    {m.kind === "text" && !m.media_meta?.no_preview && firstUrl(m.text) && <LinkCard url={firstUrl(m.text)!} />}
                   </>
                 )}
                 <span className="msg-meta">
@@ -500,6 +512,7 @@ export function ChatThread({ chatId, meId, chat, onSettings, onCall }: { chatId:
             <button type="button" className="icon-btn sm" aria-label="Отменить" onClick={() => { setEditing(null); setText(""); }}>×</button>
           </div>
         )}
+        {typedUrl && noPreview !== typedUrl && <ComposerPreview url={typedUrl} onDismiss={() => setNoPreview(typedUrl)} />}
         <form className="composer" onSubmit={submit}>
           <span className="stk-anchor">
             <button type="button" className={`attach stk-btn ${stickers ? "on" : ""}`} onClick={() => setStickers((v) => !v)} aria-label="Стикеры" title="Стикеры">

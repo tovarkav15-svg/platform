@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase, type ChatListItem } from "@/lib/supabase";
 import { chatHref } from "@/lib/links";
 import { shortTime } from "./time";
@@ -10,6 +10,7 @@ import { ChatAvatar, chatTitle } from "./ChatAvatar";
 import { CreateChat } from "./CreateChat";
 import { ChannelsBrowser } from "./ChannelsBrowser";
 import { useSession } from "@/lib/session";
+import { ChatPeek } from "./ChatPeek";
 
 const KIND_LABEL: Record<string, string> = { image: "Фото", video: "Видео", voice: "Голосовое сообщение", file: "Файл", sticker: "Стикер" };
 type Filter = "all" | "dm" | "group" | "channel" | "tickets";
@@ -28,6 +29,19 @@ export function MessengerShell({ chats, activeId, meId, children, onChanged }: P
   const wantNew = useSearchParams().get("new");
   useEffect(() => { if (wantNew === "channel" || wantNew === "group") setCreate(wantNew); }, [wantNew]);
   const [browse, setBrowse] = useState(false);
+  // Быстрый просмотр: долгое нажатие на телефоне, правый клик на компьютере
+  const [peek, setPeek] = useState<ChatListItem | null>(null);
+  const press = useRef<{ t?: ReturnType<typeof setTimeout>; fired: boolean; x: number; y: number }>({ fired: false, x: 0, y: 0 });
+  const startPress = (c: ChatListItem, e: React.TouchEvent) => {
+    const p = press.current; p.fired = false; p.x = e.touches[0].clientX; p.y = e.touches[0].clientY;
+    clearTimeout(p.t);
+    p.t = setTimeout(() => { p.fired = true; navigator.vibrate?.(12); setPeek(c); }, 420);
+  };
+  const movePress = (e: React.TouchEvent) => {
+    const p = press.current;
+    if (Math.hypot(e.touches[0].clientX - p.x, e.touches[0].clientY - p.y) > 10) clearTimeout(p.t);
+  };
+  const endPress = () => clearTimeout(press.current.t);
 
   const list = useMemo(() => chats ?? [], [chats]);
   const shown = useMemo(() => {
@@ -90,7 +104,11 @@ export function MessengerShell({ chats, activeId, meId, children, onChanged }: P
           )}
           {shown.map((c, i) => (
             <li key={c.chat_id} style={{ "--i": i } as React.CSSProperties}>
-              <Link href={chatHref(c.chat_id)} className={`chat-item k-${c.kind}`} aria-current={activeId === c.chat_id ? "page" : undefined}>
+              <Link href={chatHref(c.chat_id)} className={`chat-item k-${c.kind}`} aria-current={activeId === c.chat_id ? "page" : undefined}
+                title="Правый клик — быстрый просмотр"
+                onContextMenu={(e) => { e.preventDefault(); setPeek(c); }}
+                onTouchStart={(e) => startPress(c, e)} onTouchMove={movePress} onTouchEnd={endPress} onTouchCancel={endPress}
+                onClick={(e) => { if (press.current.fired) { e.preventDefault(); press.current.fired = false; } }}>
                 <ChatAvatar c={c} />
                 <span className="chat-item-text">
                   <span className="row">
@@ -121,6 +139,11 @@ export function MessengerShell({ chats, activeId, meId, children, onChanged }: P
 
       <CreateChat kind={create} onClose={() => setCreate(null)} meId={meId}
         onCreated={(id) => { setCreate(null); onChanged(); router.push(chatHref(id)); }} />
+      {peek && (
+        <ChatPeek chat={peek} meId={meId} onClose={() => setPeek(null)}
+          onOpen={() => { const id = peek.chat_id; setPeek(null); router.push(chatHref(id)); }}
+          onRead={async () => { await supabase.rpc("mark_chat_read", { p_chat: peek.chat_id }); setPeek(null); onChanged(); window.dispatchEvent(new Event("chats:refresh")); }} />
+      )}
       <ChannelsBrowser open={browse} onClose={() => setBrowse(false)} onJoined={(id) => { setBrowse(false); onChanged(); router.push(chatHref(id)); }} />
     </div>
   );
