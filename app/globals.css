@@ -6050,7 +6050,7 @@ button.pj-tl-name:hover { background: var(--paper); }
 @media (max-width: 520px) { .dp-ed-row { grid-template-columns: 1fr; } }
 
 /* Планирование дня: календарь месяца и заполнение наперёд */
-.dp-date-pick { position: relative; }
+.dp-date-pick { position: relative; flex: none; width: clamp(160px, 18.4vw, 210px); } /* ширина под самую длинную дату, чтобы стрелки не прыгали */
 .dp-date-btn { all: unset; cursor: pointer; display: flex; flex-direction: column; border-radius: 10px; padding: 2px 6px; margin: -2px -6px; }
 .dp-date-btn:hover { background: var(--paper-2); }
 .dp-date-btn:focus-visible { outline: 2px solid var(--ink); }
