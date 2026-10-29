@@ -98,6 +98,7 @@ export function DayPlanner({ userId }: { userId: string }) {
   const [edit, setEdit] = useState<string | null>(null);
   const [quick, setQuick] = useState("");
   const [toast, setToast] = useState("");
+  const [cal, setCal] = useState(false);
   const [focus, setFocus] = useState<{ end: number; total: number } | null>(null);
   const [tick, setTick] = useState(Date.now());
   const saveT = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -230,9 +231,15 @@ export function DayPlanner({ userId }: { userId: string }) {
       <header className="dp-head">
         <div className="dp-date">
           <button type="button" className="icon-btn" aria-label="Предыдущий день" onClick={() => setDay(iso(addDays(d, -1)))}>‹</button>
-          <div>
-            <span className="label">{dayName}</span>
-            <h1 className="dp-title">{d.toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}</h1>
+          <div className="dp-date-pick">
+            <button type="button" className="dp-date-btn" onClick={() => setCal((v) => !v)} aria-expanded={cal} aria-label="Выбрать день в календаре">
+              <span className="label">{dayName} ▾</span>
+              <h1 className="dp-title">{d.toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}</h1>
+            </button>
+            {cal && (
+              <MonthPicker userId={userId} day={day} current={plan.blocks} onPick={(v) => { setDay(v); setCal(false); }} onClose={() => setCal(false)}
+                onFilled={(n, first) => { flash(n ? `Расписано дней: ${n}${first ? `, с ${fromIso(first).toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}` : ""}` : "Свободных дней не нашлось: все уже расписаны"); setCal(false); }} />
+            )}
           </div>
           <button type="button" className="icon-btn" aria-label="Следующий день" onClick={() => setDay(iso(addDays(d, 1)))}>›</button>
           {!isToday && <button type="button" className="dp-chip" onClick={() => setDay(today())}>К сегодня</button>}
@@ -450,6 +457,96 @@ function BlockEditor({ b, onClose, onPatch, onDelete, onToggle }: { b: Block; on
           <button type="button" className="btn ghost sm" onClick={onToggle}>{b.done ? "Вернуть" : "Сделано"}</button>
           <button type="button" className="btn sm" onClick={onClose}>Готово</button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/** Календарь месяца: любой день вперёд и назад, отметки расписанных дней и заполнение месяца разом */
+function MonthPicker({ userId, day, current, onPick, onClose, onFilled }: {
+  userId: string; day: string; current: Block[]; onPick: (d: string) => void; onClose: () => void; onFilled: (n: number, first?: string) => void;
+}) {
+  const box = useRef<HTMLDivElement>(null);
+  const [month, setMonth] = useState(() => { const d = fromIso(day); return new Date(d.getFullYear(), d.getMonth(), 1); });
+  const [marks, setMarks] = useState<Map<string, number>>(new Map());
+  const existing = useRef<Map<string, Partial<Plan>>>(new Map());
+  const [src, setSrc] = useState<"template" | "day">(current.length ? "day" : "template");
+  const [which, setWhich] = useState<"weekdays" | "all">("weekdays");
+  const [busy, setBusy] = useState(false);
+  const td = today();
+  const first = iso(month), last = iso(new Date(month.getFullYear(), month.getMonth() + 1, 0));
+
+  const loadMarks = useCallback(async () => {
+    const { data } = await supabase.from("day_plans").select("day, blocks, big3, mood, note").eq("user_id", userId).gte("day", first).lte("day", last);
+    const list = (data as ({ day: string } & Plan)[]) ?? [];
+    existing.current = new Map(list.map((r) => [r.day, { big3: r.big3, mood: r.mood, note: r.note }]));
+    setMarks(new Map(list.map((r) => [r.day, Array.isArray(r.blocks) ? r.blocks.length : 0])));
+  }, [userId, first, last]);
+  useEffect(() => { loadMarks(); }, [loadMarks]);
+  useEffect(() => {
+    const down = (e: MouseEvent) => { if (box.current && !box.current.contains(e.target as Node)) onClose(); };
+    const key = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    const t = setTimeout(() => document.addEventListener("mousedown", down), 0);
+    document.addEventListener("keydown", key);
+    return () => { clearTimeout(t); document.removeEventListener("mousedown", down); document.removeEventListener("keydown", key); };
+  }, [onClose]);
+
+  const start = addDays(month, -((month.getDay() + 6) % 7));
+  const cells = Array.from({ length: 42 }, (_, i) => addDays(start, i));
+  // Дни месяца, которые будут заполнены: не раньше сегодня, только пустые, будни или все
+  const targets = cells.filter((c) => c.getMonth() === month.getMonth()).map(iso)
+    .filter((k) => k >= td && !(marks.get(k) ?? 0) && (which === "all" || ![0, 6].includes(fromIso(k).getDay())));
+  const source = src === "day" && current.length ? current.filter((b) => !b.task_id && !b.project_id) : TEMPLATE.map((b) => ({ ...b, id: "", done: false }));
+
+  async function fill() {
+    if (!targets.length || !source.length) return onFilled(0);
+    setBusy(true);
+    // Главные дела, настроение и заметка уже записанного дня сохраняются
+    const rows = targets.map((k) => ({
+      user_id: userId, day: k, big3: [], mood: null, note: "", ...existing.current.get(k),
+      blocks: source.map((b) => ({ ...b, id: newId(), done: false })), updated_at: new Date().toISOString(),
+    }));
+    const { error } = await supabase.from("day_plans").upsert(rows, { onConflict: "user_id,day" });
+    setBusy(false);
+    if (error) return onFilled(0);
+    await loadMarks();
+    onFilled(rows.length, targets[0]);
+  }
+
+  return (
+    <div className="dp-cal card" ref={box} role="dialog" aria-label="Календарь">
+      <div className="dp-cal-head">
+        <button type="button" className="icon-btn sm" aria-label="Предыдущий месяц" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}>‹</button>
+        <b>{month.toLocaleDateString("ru-RU", { month: "long", year: "numeric" })}</b>
+        <button type="button" className="icon-btn sm" aria-label="Следующий месяц" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}>›</button>
+      </div>
+      <div className="dp-cal-grid">
+        {["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"].map((w) => <span key={w} className="dp-cal-wd">{w}</span>)}
+        {cells.map((c) => {
+          const k = iso(c), n = marks.get(k) ?? 0;
+          return (
+            <button key={k} type="button" onClick={() => onPick(k)}
+              className={`${c.getMonth() !== month.getMonth() ? "out" : ""} ${k === td ? "td" : ""} ${k === day ? "sel" : ""} ${targets.includes(k) ? "will" : ""}`}
+              aria-label={`${c.toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}${n ? `, блоков: ${n}` : ""}`}>
+              {c.getDate()}{n > 0 && <i aria-hidden="true" />}
+            </button>
+          );
+        })}
+      </div>
+      <div className="dp-fill">
+        <span className="label">Заполнить {month.toLocaleDateString("ru-RU", { month: "long" })}</span>
+        <div className="dp-seg">
+          <button type="button" className={src === "template" ? "on" : ""} onClick={() => setSrc("template")}>Шаблоном дня</button>
+          <button type="button" className={src === "day" ? "on" : ""} disabled={!current.length} onClick={() => setSrc("day")}>Как {fromIso(day).toLocaleDateString("ru-RU", { day: "numeric", month: "short" })}</button>
+        </div>
+        <div className="dp-seg">
+          <button type="button" className={which === "weekdays" ? "on" : ""} onClick={() => setWhich("weekdays")}>Будни</button>
+          <button type="button" className={which === "all" ? "on" : ""} onClick={() => setWhich("all")}>Все дни</button>
+        </div>
+        <button type="button" className="btn sm" disabled={busy || !targets.length} onClick={fill}>
+          {busy ? "Заполняю…" : targets.length ? `Расписать ${targets.length} ${targets.length % 10 === 1 && targets.length % 100 !== 11 ? "день" : targets.length % 10 >= 2 && targets.length % 10 <= 4 && (targets.length % 100 < 10 || targets.length % 100 >= 20) ? "дня" : "дней"}` : "Пустых дней нет"}
+        </button>
+        <small className="hint">Заполняются только пустые дни начиная с сегодняшнего, они подсвечены. Уже расписанные не трогаются.</small>
       </div>
     </div>
   );
