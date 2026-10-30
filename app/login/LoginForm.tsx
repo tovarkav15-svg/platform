@@ -34,18 +34,14 @@ export function LoginForm() {
     if (!v) return setError("Введи почту или юзернейм");
     setPending(true);
     setError("");
-    const email = v.includes("@") && !v.startsWith("@") ? v : ((await supabase.rpc("login_email", { p_username: v })).data as string | null);
     const redirectTo = `${window.location.origin}${process.env.NODE_ENV === "production" ? "/platform" : ""}/reset/`;
-    if (email) {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
-      if (error) {
-        setPending(false);
-        return setError(/rate|seconds|limit/i.test(error.message) ? "Письмо уже отправлено недавно. Подожди минуту и попробуй снова." : "Не получилось отправить письмо. Попробуй позже.");
-      }
-    }
-    // Одинаковый ответ, есть такой аккаунт или нет, — чтобы нельзя было перебирать чужие почты
+    // Почту по юзернейму находит сервер и наружу её не отдаёт
+    const { error } = await supabase.functions.invoke("reset-password", { body: { login: v, redirectTo } });
     setPending(false);
-    setSent(email ? email.replace(/^(.)(.*)(@.*)$/, (_, a, b, c) => a + "•".repeat(Math.min(b.length, 6)) + c) : v);
+    if (error && (error as { context?: Response }).context?.status === 429) return setError("Письмо уже отправлено недавно. Подожди минуту и попробуй снова.");
+    if (error) return setError("Не получилось отправить письмо. Попробуй позже.");
+    // Одинаковый ответ, есть такой аккаунт или нет, — чтобы нельзя было перебирать чужие почты
+    setSent(v.includes("@") && !v.startsWith("@") ? v : "почту этого аккаунта");
   }
 
   if (forgot) return (

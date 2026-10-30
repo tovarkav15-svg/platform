@@ -17,7 +17,14 @@ export async function signUp(p: { username: string; displayName: string; email: 
 }
 
 export async function signIn(login: string, password: string) {
-  const { data: email } = await supabase.rpc("login_email", { p_username: login });
+  // По юзернейму почту отдаёт только сервер и только вместе с верным паролем
+  const v = login.trim();
+  let email: string | null = v.includes("@") && !v.startsWith("@") ? v.toLowerCase() : null;
+  if (!email) {
+    const { data, error } = await supabase.rpc("login_email", { p_username: v, p_password: password });
+    if (error && /попыток/.test(error.message)) return { error: error.message };
+    email = data as string | null;
+  }
   if (!email) return { error: "Неверный логин или пароль" };
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   return { error: error ? "Неверный логин или пароль" : null };
