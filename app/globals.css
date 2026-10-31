@@ -6241,3 +6241,49 @@ html .messenger .thread .msgs { background: transparent; padding: 18px clamp(14p
   .messenger .thread-tools .icon-btn { width: 34px; height: 34px; }
   .messenger .thread-tools .icon-btn[aria-label="Медиатека"] { display: none; }
 }
+
+/* ================= Шапка профиля: структура =================
+   Сверху «кто это»: имя, ник с ролью, значки одной строкой; кнопки справа.
+   Ниже, за тонкой линией, «чем занят» (Сейчас + о себе) и строка «где найти». */
+.ph2-body { align-items: flex-start; gap: 22px; padding-top: 16px; }
+.ph2-avatar .otw { display: none; }
+.ph2-id { gap: 8px; padding: 2px 0 0; min-width: 0; }
+.ph2-name { gap: 8px; flex-wrap: nowrap; min-width: 0; }
+.ph2-name h1 { overflow-wrap: anywhere; }
+.ph2-handle { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; font-size: 15px; color: var(--graphite); }
+.ph2-handle b { font-family: var(--serif); font-style: italic; font-weight: 400; font-size: 19px; color: var(--ink); }
+.ph2-handle span { font-weight: 600; }
+.ph2-handle span::before { content: ""; display: inline-block; width: 4px; height: 4px; border-radius: 50%; background: currentColor; opacity: .45; margin-right: 10px; vertical-align: 3px; }
+.ph2-tags { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+.ph2-tags .badge { margin: 0; }
+.ph2-otw {
+  display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 99px; white-space: nowrap;
+  font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em;
+  background: color-mix(in srgb, var(--good) 14%, #fff); color: color-mix(in srgb, var(--good) 75%, #000); border: 1px solid color-mix(in srgb, var(--good) 30%, transparent);
+}
+.ph2-otw::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--good); box-shadow: 0 0 0 3px color-mix(in srgb, var(--good) 25%, transparent); }
+.ph2-actions { margin-left: auto; padding: 4px 0 0; position: relative; z-index: 2; }
+
+.ph2-foot { gap: 14px; margin: 18px clamp(18px, 3vw, 32px) 0; padding: 16px 0 22px; border-top: 1px solid rgba(20,20,20,.07); }
+.ph2-text { display: flex; flex-direction: column; gap: 8px; max-width: 70ch; }
+.ph2-now { margin: 0; display: flex; align-items: baseline; gap: 10px; font-size: 15px; font-weight: 600; color: var(--ink); }
+.ph2-now span {
+  flex: none; display: inline-flex; align-items: center; gap: 6px; font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--c); padding: 3px 8px; border-radius: 99px; background: color-mix(in srgb, var(--c) 12%, #fff); position: relative; top: -1px;
+}
+.ph2-now span::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--c); animation: pulse 2.4s ease-in-out infinite; }
+.ph2-bio { font-size: 15px; line-height: 1.55; color: var(--graphite); }
+.ph2-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.ph2-meta .ph2-links { display: contents; }
+.ph2-meta .pres-label { padding: 6px 12px; border-radius: 99px; font-size: 13px; background: linear-gradient(135deg, #fff, var(--paper-2)); border: 1px solid rgba(20,20,20,.06); }
+.ph2.compact .ph2-foot { margin-top: 12px; padding: 12px 0 16px; }
+@media (max-width: 640px) {
+  .ph2-body { gap: 12px 16px; }
+  .ph2-id { flex-basis: 100%; }
+  .ph2-name { flex-wrap: wrap; }
+  .ph2-actions { margin-left: 0; width: 100%; }
+  .ph2-actions > * { flex: 1; justify-content: center; }
+  .ph2-foot { margin-top: 14px; }
+}
+/* На узком экране терминал из AURA Shop ложится поверх текста шапки */
+@media (max-width: 640px) { .ph2 .ba-term { display: none; } }

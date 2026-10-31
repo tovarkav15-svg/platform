@@ -51,8 +51,10 @@ export function Banner({ image, preset = "aurora", className = "", scene, overla
   );
 }
 
-// Шапка профиля: баннер, аватар с кольцом, имя. Используется в профиле и как живое превью в настройках
+// Шапка профиля: баннер, аватар с кольцом, имя. Используется в профиле и как живое превью в настройках.
+// Порядок блоков: кто это (имя, ник, значки) → чем занят сейчас и о себе → где найти (присутствие, город, ссылки)
 export function ProfileHeader({ displayName, username, headline, bio, status, openToWork, accent, avatar, role, banner, bannerPreset, meta, actions, compact, userId, ring = "spin", nameStyle = "plain", emoji, support, deco }: Props) {
+  const hasTags = isOwner(role) || support || !!deco?.title || openToWork;
   return (
     <section className={`ph2 ${compact ? "compact" : ""} ${deco?.banner ? "has-fx" : ""}`} style={{ "--c": accentColor(accent) } as React.CSSProperties}>
       <BannerFx id={deco?.banner} />
@@ -65,25 +67,37 @@ export function ProfileHeader({ displayName, username, headline, bio, status, op
             {avatar ? <img src={avatar} alt="" /> : (displayName || username || "?").slice(0, 1).toUpperCase()}
           </div>
           {userId && <span className="ph2-pres"><PresenceDot userId={userId} size={128} /></span>}
-          {openToWork && <span className="otw">Открыт к работе</span>}
         </div>
         <div className="ph2-id">
           <div className="ph2-name">
             <h1 className={`caps name-${nameStyle} ${deco?.name_fx ? `fx-name ${deco.name_fx}` : ""}`} data-text={displayName || "Имя"}>{displayName || "Имя"}</h1>
             {emoji && <span className="name-emoji" aria-hidden="true">{emoji}</span>}
-            <RoleBadge role={role} support={support} />
-            <TitleChip id={deco?.title} />
           </div>
-          <span className="handle">@{username || "username"}{headline && <span className="headline"> · {headline}</span>}</span>
-          {userId && <PresenceLabel userId={userId} />}
-          {status && <span className="status-line"><i />{status}</span>}
+          <span className="ph2-handle"><b>@{username || "username"}</b>{headline && <span>{headline}</span>}</span>
+          {hasTags && (
+            <div className="ph2-tags">
+              {openToWork && <span className="ph2-otw">Открыт к работе</span>}
+              <RoleBadge role={role} support={support} />
+              <TitleChip id={deco?.title} />
+            </div>
+          )}
         </div>
         {actions && <div className="ph2-actions">{actions}</div>}
       </div>
-      {(bio || meta) && (
+      {(bio || status || meta || userId) && (
         <div className="ph2-foot">
-          {bio && <p className="ph2-bio">{bio}</p>}
-          {meta}
+          {(bio || status) && (
+            <div className="ph2-text">
+              {status && <p className="ph2-now"><span>Сейчас</span>{status}</p>}
+              {bio && <p className="ph2-bio">{bio}</p>}
+            </div>
+          )}
+          {(meta || userId) && (
+            <div className="ph2-meta">
+              {userId && <PresenceLabel userId={userId} />}
+              {meta}
+            </div>
+          )}
         </div>
       )}
     </section>
