@@ -72,6 +72,17 @@ export function ChatThread({ chatId, meId, chat, onSettings, onCall }: { chatId:
   const [library, setLibrary] = useState(false);
   const [report, setReport] = useState<{ user: string; message?: string | null; name: string } | null>(null);
   const [headMenu, setHeadMenu] = useState(false);
+  // Ответ на сообщение: цитата уходит вместе с новым сообщением в media_meta.reply
+  const [reply, setReplyState] = useState<Msg | null>(null);
+  const replyRef = useRef<Msg | null>(null);
+  const setReply = (m: Msg | null) => { replyRef.current = m; setReplyState(m); if (m) setTimeout(() => input.current?.focus(), 0); };
+  const [typing, setTyping] = useState<string | null>(null);   // кто печатает прямо сейчас
+  const typingT = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const live = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const lastTypingSent = useRef(0);
+  const [below, setBelow] = useState(false);   // лента прокручена вверх — показываем кнопку «вниз»
+  const [unseen, setUnseen] = useState(0);     // новые сообщения, пришедшие, пока человек читал выше
+  const [flash, setFlash] = useState<string | null>(null);
   const [block, setBlock] = useState<{ any: boolean; mine: boolean }>({ any: false, mine: false });
   const moderator = isOwner(me?.role);
 
@@ -150,7 +161,19 @@ export function ChatThread({ chatId, meId, chat, onSettings, onCall }: { chatId:
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: `chat_id=eq.${chatId}` }, (payload) => {
         const m = payload.new as Msg;
         merge([m]);
-        if (m.sender_id !== meId && !document.hidden) markRead();
+        if (m.sender_id !== meId) {
+          setTyping(null);
+          if (!stick.current) setUnseen((n) => n + 1);
+          if (!document.hidden) markRead();
+        }
+      })
+      // «Печатает…»: короткий сигнал без записи в базу
+      .on("broadcast", { event: "typing" }, ({ payload }) => {
+        const t = payload as { user: string; name: string };
+        if (t.user === meId) return;
+        setTyping(t.name || "Собеседник");
+        clearTimeout(typingT.current);
+        typingT.current = setTimeout(() => setTyping(null), 4000);
       })
       // Изменили или удалили сообщение — обновляем на месте
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "messages", filter: `chat_id=eq.${chatId}` }, (payload) => {
@@ -163,6 +186,7 @@ export function ChatThread({ chatId, meId, chat, onSettings, onCall }: { chatId:
         if (row.user_id !== meId) setOtherReadAt((prev) => (!prev || row.last_read_at > prev ? row.last_read_at : prev));
       })
       .subscribe();
+    live.current = channel;
 
     const t = setInterval(() => { if (!document.hidden) load(); }, POLL_MS);
     const onVisible = () => { if (!document.hidden) { load(); markRead(); } };
@@ -172,6 +196,8 @@ export function ChatThread({ chatId, meId, chat, onSettings, onCall }: { chatId:
       clearInterval(t);
       document.removeEventListener("visibilitychange", onVisible);
       supabase.removeChannel(channel);
+      live.current = null;
+      clearTimeout(typingT.current);
     };
   }, [chatId, meId, merge, markRead, loadReadState]);
 
@@ -184,8 +210,32 @@ export function ChatThread({ chatId, meId, chat, onSettings, onCall }: { chatId:
 
   function onScroll() {
     const el = scroller.current;
-    if (el) stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    if (!el) return;
+    stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    setBelow(el.scrollHeight - el.scrollTop - el.clientHeight > 320);
+    if (stick.current) setUnseen(0);
   }
+  function toBottom() {
+    const el = scroller.current;
+    stick.current = true; setUnseen(0);
+    el?.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  }
+  function jumpTo(id: string) {
+    const el = document.getElementById(`m-${id}`);
+    if (!el) return setNotice("Это сообщение уже не загружено в ленте");
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    setFlash(id);
+    setTimeout(() => setFlash((f) => (f === id ? null : f)), 1600);
+  }
+  function signalTyping() {
+    const now = Date.now();
+    if (now - lastTypingSent.current < 2500 || !live.current) return;
+    lastTypingSent.current = now;
+    live.current.send({ type: "broadcast", event: "typing", payload: { user: meId, name: me?.display_name ?? "" } });
+  }
+
+  const nameOf = (m: Msg) => (m.sender_id === meId ? me?.display_name ?? "Ты" : people.get(m.sender_id)?.display_name ?? (other.displayName || "Собеседник"));
+  const snippet = (m: Msg) => (m.kind === "text" ? m.text : m.kind === "sticker" ? "Стикер" : m.text || { image: "Фото", video: "Видео", voice: "Голосовое", file: m.media_meta?.name || "Файл" }[m.kind as string] || "Вложение").slice(0, 140);
 
   // Общая отправка: черновик сразу в ленте, потом загрузка файла и запись в базу
   async function deliver(temp: Msg, prepare: () => Promise<Partial<Msg>>) {
@@ -220,10 +270,14 @@ export function ChatThread({ chatId, meId, chat, onSettings, onCall }: { chatId:
     await attempt();
   }
 
-  const draft = (kind: Kind, body: string, meta: MediaMeta = {}): Msg => ({
-    id: `tmp-${crypto.randomUUID()}`, text: body, sender_id: meId, created_at: new Date().toISOString(),
-    kind, media_path: null, media_meta: meta,
-  });
+  const draft = (kind: Kind, body: string, meta: MediaMeta = {}): Msg => {
+    const r = replyRef.current;
+    if (r) setReply(null);
+    return {
+      id: `tmp-${crypto.randomUUID()}`, text: body, sender_id: meId, created_at: new Date().toISOString(),
+      kind, media_path: null, media_meta: r ? { ...meta, reply: { id: r.id, user: r.sender_id, name: nameOf(r), text: snippet(r) } } : meta,
+    };
+  };
 
   const [stickers, setStickers] = useState(false);
   function sendSticker(code: string) {
@@ -292,6 +346,7 @@ export function ChatThread({ chatId, meId, chat, onSettings, onCall }: { chatId:
   }
 
   function onKey(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === "Escape" && (reply || editing)) { e.preventDefault(); setReply(null); if (editing) { setEditing(null); setText(""); } return; }
     if (e.key !== "Enter" || e.nativeEvent.isComposing) return;
     // Отправка по Enter или по Ctrl/⌘+Enter — как выбрано в Settings
     const send = readPrefs().enterSend ? !e.shiftKey : e.metaKey || e.ctrlKey;
@@ -321,7 +376,7 @@ export function ChatThread({ chatId, meId, chat, onSettings, onCall }: { chatId:
         {isDm ? (
           <Link href={profileHref(other.username)} className="thread-who">
             <Avatar name={other.displayName} avatar={other.avatar} accent={other.accent} size={40} userId={other.id} />
-            <span><b>{other.displayName}</b><PresenceLabel userId={other.id} /></span>
+            <span><b>{other.displayName}</b>{typing ? <TypingLabel /> : <PresenceLabel userId={other.id} />}</span>
           </Link>
         ) : (
           <button type="button" className="thread-who as-btn" onClick={onSettings}>
@@ -329,7 +384,7 @@ export function ChatThread({ chatId, meId, chat, onSettings, onCall }: { chatId:
             <span>
               <b>{chatTitle(chat)}</b>
               <small className="thread-sub">
-                {chat.kind === "support"
+                {typing ? <TypingLabel name={typing} /> : chat.kind === "support"
                   ? (staffView ? "Обращение пользователя · отвечает команда" : "Команда платформы: @fedonko, @awiny")
                   : `${extra?.username ? `@${extra.username} · ` : ""}${chat.member_count} ${chat.kind === "channel" ? "подписчиков" : "участников"}`}
               </small>
@@ -424,6 +479,7 @@ export function ChatThread({ chatId, meId, chat, onSettings, onCall }: { chatId:
           );
           const author = multi && !mine && !(chat.kind === "channel" && extra && !extra.sign_posts) ? people.get(m.sender_id) : undefined;
           const groupStart = !prev || prev.sender_id !== m.sender_id || prev.kind === "system" || newDay;
+          const canReply = canWrite && !(isDm && block.any) && !m.deleted_at && !m.pending && !m.failed;
           return (
             <div key={m.id} id={`m-${m.id}`} className={`msg-wrap ${author ? "with-author" : ""} ${extra?.pinned_message === m.id ? "is-pinned" : ""}`}>
               {newDay && <div className="day-sep"><span>{dayLabel(m.created_at)}</span></div>}
@@ -435,7 +491,14 @@ export function ChatThread({ chatId, meId, chat, onSettings, onCall }: { chatId:
                   {chat.kind !== "support" && author.role !== "member" && <em>{author.role === "owner" ? "владелец" : "админ"}</em>}
                 </Link>
               )}
-              <div className={`msg kind-${m.kind} ${(visual && !m.text) || m.kind === "sticker" ? "bare" : ""} ${mine ? "mine" : ""} ${groupEnd ? "end" : ""} ${m.pending ? "pending" : ""} ${m.failed ? "failed" : ""}`}>
+              <div className={`msg kind-${m.kind} ${(visual && !m.text) || m.kind === "sticker" ? "bare" : ""} ${mine ? "mine" : ""} ${groupStart ? "start" : ""} ${groupEnd ? "end" : ""} ${m.pending ? "pending" : ""} ${m.failed ? "failed" : ""} ${flash === m.id ? "flash" : ""} ${m.media_meta?.reply && !m.deleted_at ? "has-reply" : ""}`}
+                onDoubleClick={(e) => { if (canReply && !(e.target as HTMLElement).closest("a, button, audio, video")) { window.getSelection()?.removeAllRanges(); setReply(m); } }}>
+                {m.media_meta?.reply && !m.deleted_at && (
+                  <button type="button" className="msg-quote" onClick={() => jumpTo(m.media_meta.reply!.id)}>
+                    <b>{m.media_meta.reply.user === meId ? "Ты" : m.media_meta.reply.name}</b>
+                    <span>{m.media_meta.reply.text}</span>
+                  </button>
+                )}
                 {m.deleted_at ? <span className="msg-deleted">Сообщение удалено</span> : (
                   <>
                     {m.kind === "image" && <ImageMedia path={m.media_path} meta={m.media_meta} />}
@@ -453,10 +516,14 @@ export function ChatThread({ chatId, meId, chat, onSettings, onCall }: { chatId:
                   {mine && <Ticks state={m.failed ? "failed" : m.pending ? "pending" : read ? "read" : "sent"} />}
                 </span>
                 {!m.deleted_at && !m.pending && !m.failed && (
-                  <span className={`msg-more-anchor ${mine ? "mine" : ""}`}>
+                  <span className={`msg-more-anchor ${mine ? "mine" : ""} ${menu === m.id ? "open" : ""}`}>
+                    {canReply && <button type="button" className="msg-more" onClick={() => setReply(m)} aria-label="Ответить" title="Ответить (или двойной клик)">
+                      <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M10 8V4l-7 7 7 7v-4.1c5 0 8.5 1.6 11 5.1-1-5-4-10-11-11z" /></svg>
+                    </button>}
                     <button type="button" className="msg-more" onClick={() => setMenu(menu === m.id ? null : m.id)} aria-label="Действия с сообщением">⋯</button>
                     {menu === m.id && (
                       <div className="msg-menu" role="menu" onMouseLeave={() => setMenu(null)}>
+                        {canReply && <button type="button" role="menuitem" onClick={() => { setMenu(null); setReply(m); }}>↩ Ответить</button>}
                         {m.kind === "text" && <button type="button" role="menuitem" onClick={() => { navigator.clipboard?.writeText(m.text); setMenu(null); }}>⧉ Копировать</button>}
                         {canEdit && <button type="button" role="menuitem" onClick={() => startEdit(m)}>✎ Изменить</button>}
                         {!mine && <button type="button" role="menuitem" onClick={() => { setMenu(null); setReport({ user: m.sender_id, message: m.id, name: people.get(m.sender_id)?.display_name ?? other.displayName }); }}>⚑ Пожаловаться</button>}
@@ -475,6 +542,12 @@ export function ChatThread({ chatId, meId, chat, onSettings, onCall }: { chatId:
           );
         })}
       </div>
+      {(below || unseen > 0) && (
+        <button type="button" className="to-bottom" onClick={toBottom} aria-label="К последним сообщениям">
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          {unseen > 0 && <em>{unseen}</em>}
+        </button>
+      )}
 
       {dragging && <div className="drop-hint">Отпусти, чтобы отправить</div>}
       {(notice || voice.state === "denied") && (
@@ -512,6 +585,13 @@ export function ChatThread({ chatId, meId, chat, onSettings, onCall }: { chatId:
             <button type="button" className="icon-btn sm" aria-label="Отменить" onClick={() => { setEditing(null); setText(""); }}>×</button>
           </div>
         )}
+        {reply && !editing && (
+          <div className="edit-bar reply-bar">
+            <i>↩</i>
+            <button type="button" className="reply-bar-text" onClick={() => jumpTo(reply.id)}><b>{reply.sender_id === meId ? "В ответ себе" : `В ответ: ${nameOf(reply)}`}</b><small>{snippet(reply)}</small></button>
+            <button type="button" className="icon-btn sm" aria-label="Отменить ответ" onClick={() => setReply(null)}>×</button>
+          </div>
+        )}
         {typedUrl && noPreview !== typedUrl && <ComposerPreview url={typedUrl} onDismiss={() => setNoPreview(typedUrl)} />}
         <form className="composer" onSubmit={submit}>
           <span className="stk-anchor">
@@ -533,7 +613,7 @@ export function ChatThread({ chatId, meId, chat, onSettings, onCall }: { chatId:
             value={text}
             maxLength={MAX_LEN}
             placeholder="Сообщение"
-            onChange={(e) => { setText(e.target.value); autosize(e.target); }}
+            onChange={(e) => { setText(e.target.value); autosize(e.target); if (e.target.value) signalTyping(); }}
             onKeyDown={onKey}
             onPaste={onPaste}
           />
@@ -572,4 +652,9 @@ function Ticks({ state }: { state: "pending" | "sent" | "read" | "failed" }) {
       )}
     </span>
   );
+}
+
+/** «печатает…» с тремя прыгающими точками */
+function TypingLabel({ name }: { name?: string }) {
+  return <span className="typing-label"><i /><i /><i />{name ? `${name} печатает` : "печатает"}</span>;
 }
