@@ -178,91 +178,98 @@ function ProfileView({ user, earnings, friends, state, works, projects, aura, ch
         </div>
       </section>
 
+      {/* Слева — кто он и чем занят, справа — короткие факты: деньги, биржа, каналы */}
       <div className="pv-bricks">
-        <Reviews userId={user.id} meId={meId} name={user.display_name} />
-        <section className="pf-card pf-about">
-          <header><span className="pf-dot" /><b>О себе</b>{isMe && <Link href="/settings/#about" className="link-btn">Изменить</Link>}</header>
-          {user.about ? (
-            <div className="pf-about-text">{user.about.split(/\n{2,}/).map((p, i) => <p key={i}>{p}</p>)}</div>
-          ) : (
-            <p className="pf-muted">{isMe ? "Расскажи подробнее, чем занимаешься, с кем работал и что ищешь. Это видят все, кто открыл профиль." : "Пока ничего не рассказал о себе."}</p>
-          )}
-          {niches.length > 0 && (
-            <div className="pf-tags">
-              {niches.map((n) => <span key={n.id} className="tag" style={{ "--c": n.color } as React.CSSProperties}>{n.title}</span>)}
-            </div>
-          )}
-          {skills.length > 0 && (
-            <div className="pf-skills">
-              <span className="label">Навыки</span>
-              <div className="tags">{skills.map((s, i) => <span key={s} className="skill" style={{ "--i": i } as React.CSSProperties}>{s}</span>)}</div>
-            </div>
-          )}
-        </section>
-
-        {(user.looking_for || isMe) && (
-          <section className="pf-card pf-looking">
-            <header><span className="pf-dot" /><b>Ищу</b>{isMe && <Link href="/settings/#looking" className="link-btn">Изменить</Link>}</header>
-            {user.looking_for ? <p className="pf-looking-text">{user.looking_for}</p> : <p className="pf-muted">Напиши, кого или что ищешь: команду, клиентов, наставника. Это видят все.</p>}
-            {projects.filter((p) => p.looking_for).slice(0, 3).map((p) => (
-              <Link key={p.id} href={`/project/?id=${p.id}`} className="pf-looking-proj"><b>{p.name}</b><span>{p.looking_for}</span></Link>
-            ))}
-          </section>
-        )}
-
-        {pinned && (
-          <section className="pf-card pf-pinned">
-            <header><span className="pf-dot" /><b>Сейчас строю</b></header>
-            <ProjectCard project={pinned} pinned />
-          </section>
-        )}
-
-        {jobs.length > 0 && (
-          <section className="pf-card pf-jobs">
-            <header><span className="pf-dot" /><b>На бирже</b><Link href="/jobs/" className="link-btn">Биржа →</Link></header>
-            {jobs.map((j) => (
-              <div key={j.id} className="pf-job"><b>{j.service}</b><span className="mono">{j.avg_check ? `${Math.round(j.avg_check).toLocaleString("ru-RU").replace(/\u00a0/g, " ")} ₽` : "по договорённости"}</span></div>
-            ))}
-          </section>
-        )}
-
-        {earnings && (
-          <section className="card money">
-            <div className="label">{isMe ? "Сколько ты заработал" : "Заработал в этом месяце"}</div>
-            <div className="sum"><CountUp value={earnings.amount} format={fmt} ms={900} /><span className="it">₽</span></div>
-            {isMe && <div className="private"><i></i>{earnings.is_public ? "Видят все" : "Видишь только ты"}</div>}
-            {earnings.goal > 0 && (
-              <>
-                <div className="bar"><b style={{ width: `${pct}%` }} /></div>
-                <div className="money-row"><span>Цель: {fmt(earnings.goal)} ₽</span><span>{pct}%</span></div>
-              </>
+        <div className="pv-col pv-col-main">
+          <section className="pf-card pf-about">
+            <header><span className="pf-dot" /><b>О себе</b>{isMe && <Link href="/settings/#about" className="link-btn">Изменить</Link>}</header>
+            {user.about ? (
+              <div className="pf-about-text">{user.about.split(/\n{2,}/).map((p, i) => <p key={i}>{p}</p>)}</div>
+            ) : (
+              <p className="pf-muted">{isMe ? "Расскажи подробнее, чем занимаешься, с кем работал и что ищешь. Это видят все, кто открыл профиль." : "Пока ничего не рассказал о себе."}</p>
+            )}
+            {(niches.length > 0 || skills.length > 0) && (
+              <div className="pf-about-sub">
+                {niches.length > 0 && (
+                  <div className="pf-tags">
+                    {niches.map((n) => <span key={n.id} className="tag" style={{ "--c": n.color } as React.CSSProperties}>{n.title}</span>)}
+                  </div>
+                )}
+                {skills.length > 0 && (
+                  <div className="pf-skills">
+                    <span className="label">Навыки</span>
+                    <div className="tags">{skills.map((s, i) => <span key={s} className="skill" style={{ "--i": i } as React.CSSProperties}>{s}</span>)}</div>
+                  </div>
+                )}
+              </div>
+            )}
+            {(user.looking_for || isMe) && (
+              <div className="pf-about-sub pf-looking">
+                <span className="label">Ищу{isMe && <Link href="/settings/#looking" className="link-btn">Изменить</Link>}</span>
+                {user.looking_for ? <p className="pf-looking-text">{user.looking_for}</p> : <p className="pf-muted">Напиши, кого или что ищешь: команду, клиентов, наставника. Это видят все.</p>}
+                {projects.some((p) => p.looking_for) && (
+                  <div className="pf-looking-list">
+                    {projects.filter((p) => p.looking_for).slice(0, 3).map((p) => (
+                      <Link key={p.id} href={`/project/?id=${p.id}`} className="pf-looking-proj"><b>{p.name}</b><span>{p.looking_for}</span></Link>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
           </section>
-        )}
-
-        {channels.length > 0 && (
-          <section className="pf-card pf-channels">
-            <header><span className="pf-dot" /><b>Каналы</b></header>
-            <ul>
-              {channels.map((c) => (
-                <li key={c.chat_id}>
-                  <Link href={c.username ? `/c/?u=${c.username}` : "/messages/"} className="pf-channel">
-                    <ChatAvatar size={40} c={{ kind: "channel", avatar: c.avatar, accent: c.accent, emoji: c.emoji, title: c.title, other_id: null, other_name: null, other_avatar: null, other_accent: null }} />
-                    <span><b>{c.title}</b><small>{c.username ? `@${c.username} · ` : ""}{c.member_count} подписчиков</small></span>
-                  </Link>
-                </li>
+          {pinned && (
+            <section className="pf-card pf-pinned">
+              <header><span className="pf-dot" /><b>Сейчас строю</b></header>
+              <ProjectCard project={pinned} pinned />
+            </section>
+          )}
+          <Reviews userId={user.id} meId={meId} name={user.display_name} />
+        </div>
+        <div className="pv-col pv-col-side">
+          {earnings && (
+            <section className="card money">
+              <div className="label">{isMe ? "Сколько ты заработал" : "Заработал в этом месяце"}</div>
+              <div className="sum"><CountUp value={earnings.amount} format={fmt} ms={900} /><span className="it">₽</span></div>
+              {isMe && <div className="private"><i></i>{earnings.is_public ? "Видят все" : "Видишь только ты"}</div>}
+              {earnings.goal > 0 && (
+                <>
+                  <div className="bar"><b style={{ width: `${pct}%` }} /></div>
+                  <div className="money-row"><span>Цель: {fmt(earnings.goal)} ₽</span><span>{pct}%</span></div>
+                </>
+              )}
+            </section>
+          )}
+          {jobs.length > 0 && (
+            <section className="pf-card pf-jobs">
+              <header><span className="pf-dot" /><b>На бирже</b><Link href="/jobs/" className="link-btn">Биржа →</Link></header>
+              {jobs.map((j) => (
+                <div key={j.id} className="pf-job"><b>{j.service}</b><span className="mono">{j.avg_check ? `${Math.round(j.avg_check).toLocaleString("ru-RU").replace(/\u00a0/g, " ")} ₽` : "по договорённости"}</span></div>
               ))}
-            </ul>
-          </section>
-        )}
-
-        {user.is_support && (
-          <section className="pf-card pf-support">
-            <header><span className="pf-dot" /><b>Команда поддержки</b></header>
-            <p className="pf-muted">{isMe ? "Ты в команде поддержки: обращения приходят тебе во вкладку «Обращения» в чатах." : `${user.display_name} из команды платформы. Если что-то не работает или есть идея, напиши в поддержку, ответим.`}</p>
-            {!isMe && <SupportButton />}
-          </section>
-        )}
+            </section>
+          )}
+          {channels.length > 0 && (
+            <section className="pf-card pf-channels">
+              <header><span className="pf-dot" /><b>Каналы</b></header>
+              <ul>
+                {channels.map((c) => (
+                  <li key={c.chat_id}>
+                    <Link href={c.username ? `/c/?u=${c.username}` : "/messages/"} className="pf-channel">
+                      <ChatAvatar size={40} c={{ kind: "channel", avatar: c.avatar, accent: c.accent, emoji: c.emoji, title: c.title, other_id: null, other_name: null, other_avatar: null, other_accent: null }} />
+                      <span><b>{c.title}</b><small>{c.username ? `@${c.username} · ` : ""}{c.member_count} подписчиков</small></span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+          {user.is_support && (
+            <section className="pf-card pf-support">
+              <header><span className="pf-dot" /><b>Команда поддержки</b></header>
+              <p className="pf-muted">{isMe ? "Ты в команде поддержки: обращения приходят тебе во вкладку «Обращения» в чатах." : `${user.display_name} из команды платформы. Если что-то не работает или есть идея, напиши в поддержку, ответим.`}</p>
+              {!isMe && <SupportButton />}
+            </section>
+          )}
+        </div>
       </div>
 
       <div className="pv-main">

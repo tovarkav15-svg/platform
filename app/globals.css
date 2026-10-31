@@ -6287,3 +6287,34 @@ html .messenger .thread .msgs { background: transparent; padding: 18px clamp(14p
 }
 /* На узком экране терминал из AURA Shop ложится поверх текста шапки */
 @media (max-width: 640px) { .ph2 .ba-term { display: none; } }
+
+/* ================= Профиль: две колонки вместо мозаики =================
+   Слева широкая — о человеке: о себе (с навыками и «Ищу»), закреплённый проект, отзывы.
+   Справа узкая — короткие факты: деньги, биржа, каналы, поддержка. */
+.pv-bricks { columns: auto; display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.pv-bricks > .pv-col { margin: 0; display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.pv-col > * { margin: 0; }
+.pv-col > .card.money { display: block; }
+.pv-col-main .pf-card { padding: 22px 24px; gap: 14px; }
+
+.pf-about-sub { display: flex; flex-direction: column; gap: 12px; padding-top: 14px; border-top: 1px solid rgba(20,20,20,.07); }
+.pf-about-sub > .label, .pf-skills > .label { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.pf-about-sub .label .link-btn { font-size: 13px; text-transform: none; letter-spacing: 0; }
+.pf-looking .pf-looking-text { font-size: 16px; }
+.pf-looking-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+.pf-looking-proj { gap: 2px; padding: 10px 12px; border-radius: 14px; transition: transform .25s var(--spring); }
+.pf-looking-proj:hover { transform: translateY(-2px); }
+
+/* Закреплённый проект лежит горизонтально: картинка слева, текст справа */
+.pf-pinned .pcard { flex-direction: row; }
+.pf-pinned .pcard-media { flex: 0 0 40%; aspect-ratio: auto; min-height: 200px; }
+.pf-pinned .pcard-glyph { font-size: 80px; }
+
+@media (max-width: 900px) {
+  .pv-bricks { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 560px) {
+  .pv-col-main .pf-card { padding: 18px; }
+  .pf-pinned .pcard { flex-direction: column; }
+  .pf-pinned .pcard-media { flex: none; aspect-ratio: 16 / 10; min-height: 0; }
+}
