@@ -9,6 +9,8 @@ import { NICHE_INFO, nicheHref } from "@/lib/learn";
 import { TopBar } from "../TopBar";
 import { CountUp } from "../CountUp";
 
+const COUNT_WORD: Record<number, string> = { 8: "Восемь", 9: "Девять", 10: "Десять", 11: "Одиннадцать", 12: "Двенадцать" };
+
 export default function LearnPage() {
   const { ready } = useSession();
   const [counts, setCounts] = useState<Record<string, number> | null>(null);
@@ -29,7 +31,7 @@ export default function LearnPage() {
         <header className="lr-hero">
           <div>
             <span className="label">Обучение</span>
-            <h1 className="h-xl caps">Девять <span className="it">ниш</span>, одна платформа</h1>
+            <h1 className="h-xl caps">{COUNT_WORD[NICHES.length] ?? NICHES.length} <span className="it">ниш</span>, одна платформа</h1>
             <p className="lead">Статьи и разборы от практиков. Выбери нишу: внутри материалы от первых шагов до профи. Новые статьи появляются каждую неделю.</p>
           </div>
           <div className="lr-hero-stat">

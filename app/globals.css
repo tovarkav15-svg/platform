@@ -6318,3 +6318,51 @@ html .messenger .thread .msgs { background: transparent; padding: 18px clamp(14p
   .pf-pinned .pcard { flex-direction: column; }
   .pf-pinned .pcard-media { flex: none; aspect-ratio: 16 / 10; min-height: 0; }
 }
+
+/* ================= Обновление 2026-11: свежее и спокойнее =================
+   1) Заголовки без КАПСА: строчные, плотный трекинг. Капс остаётся только у маленьких меток и имени в профиле.
+   2) Шапка без жёсткой линии, стеклянная и ниже.
+   3) Боковое меню: мягкая подсветка вместо обводки, активный пункт с цветной меткой.
+   4) Кнопки и поля: мягкое нажатие, аккуратный фокус. */
+h1.caps, h2.caps, .h-xl, .h-md {
+  text-transform: none; letter-spacing: -.035em; font-variation-settings: "wdth" 100;
+}
+h1.caps, h2.caps, .h-xl { font-weight: 750; }
+.h-xl { line-height: 1; }
+.h-md { letter-spacing: -.025em; }
+.caps .it, .h-xl .it, .h-md .it, h1 .it, h2 .it { text-transform: none; letter-spacing: -.03em; }
+/* Имя в шапке профиля — как раньше, капсом: это «вывеска» человека */
+.ph2-name h1.caps { text-transform: uppercase; letter-spacing: .02em; font-variation-settings: "wdth" 112; font-weight: 800; }
+
+.topbar {
+  border-bottom: 0; padding-block: 10px;
+  background: color-mix(in srgb, var(--paper) 70%, transparent);
+  backdrop-filter: blur(18px) saturate(1.5); -webkit-backdrop-filter: blur(18px) saturate(1.5);
+}
+.topbar::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 1px; pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(20,20,20,.07) 20%, rgba(20,20,20,.07) 80%, transparent);
+}
+.topbar nav .btn { padding: 8px 16px; }
+
+@media (min-width: 761px) {
+  .sd { background: color-mix(in srgb, var(--paper-2) 45%, var(--paper)); border-right-color: rgba(20,20,20,.06); }
+  .sd-item { border-radius: 10px; padding-block: 8px; }
+  .sd-item[aria-current="page"] { background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.05), 0 4px 14px -6px rgba(0,0,0,.08); }
+  .sd-item[aria-current="page"]::before {
+    content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px; border-radius: 0 3px 3px 0;
+    background: linear-gradient(180deg, #7B61FF, #2F7BFF);
+  }
+  .sd-item[aria-current="page"] .sd-ico svg { color: #5B47E0; }
+}
+
+.btn { transition: transform .18s var(--ease), opacity .15s, box-shadow .2s var(--ease), background-color .2s; }
+.btn:not(.ghost):not(.light):hover { box-shadow: 0 8px 20px -10px rgba(20,20,20,.45); }
+.btn:active { transform: scale(.97); }
+.btn.ghost:hover { background: rgba(20,20,20,.04); }
+.input { border-radius: 14px; }
+.input:focus-within { border-color: rgba(20,20,20,.35); box-shadow: 0 0 0 4px rgba(123,97,255,.12); }
+:focus-visible { outline-color: #7B61FF; }
+::selection { background: rgba(123,97,255,.2); }
+.lr-hero .h-xl { margin-bottom: 12px; }
+.lr-title.caps { text-transform: none; letter-spacing: -.03em; font-variation-settings: "wdth" 100; }

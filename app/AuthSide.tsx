@@ -11,7 +11,7 @@ export function AuthSide({ title, text }: { title: React.ReactNode; text: string
       </div>
       <div className="side-dots">
         {NICHES.map((n) => (
-          <span key={n.id} style={{ "--c": n.id === "scaling" ? "#fff" : n.color } as React.CSSProperties}>{n.title}</span>
+          <span key={n.id} style={{ "--c": n.color } as React.CSSProperties}>{n.title}</span>
         ))}
       </div>
     </aside>
