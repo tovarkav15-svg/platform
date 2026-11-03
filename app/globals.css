@@ -6617,3 +6617,54 @@ h1, h2, h3, .h-xl, .h-md, .caps { font-variation-settings: normal; }
 /* Тёмная тема инвертирует цвета: чтобы карточки были светлее фона (как в тёмном Apple), фон делаем белым, карточки — серыми */
 html[data-theme="dark"] { --paper: #fff; --card: #e6e6ea; --line: #d9d9de; }
 html[data-theme="dark"] .topbar { background: color-mix(in srgb, #fff 82%, transparent); }
+
+/* ================= Плёнка 2026-11: тёплая фотобумага вместо белого =================
+   Как коллаж на главной: серо-бежевый фон, карточки чуть светлее, графитовый текст,
+   лёгкое зерно по всему сайту и строгие углы, как у отпечатков. */
+:root {
+  --paper: #e9e7e2;
+  --paper-2: #dedbd5;
+  --card: #f1efeb;
+  --line: #d6d3cc;
+  --ink: #1f1e1c;
+  --night: #1f1e1c;
+  --graphite: #64615b;
+  --mute: #8d8982;
+  --accent: #2c5d8f;
+  --r: 10px;
+}
+body { background: var(--paper); }
+body::after { /* зерно поверх всего сайта, клики проходят насквозь */
+  content: ""; position: fixed; inset: 0; z-index: 9999; pointer-events: none; opacity: .09; mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+::selection { background: rgba(31,30,28,.14); }
+
+.card, .input, .chip span, .ws2-rail, .ov-hello, .ov-card, .lr-card, .ln-hero, .hm-tile, .hm-steps li, .hm-aura, .hm-niches span,
+.auth-side, .rg-side, .btn.ghost, .focus-btn, .ph2-otw, .ph2-meta .pres-label, .me-pop, .ia-sheet { background-color: var(--card); }
+.card { border-radius: var(--r); }
+.topbar { background: color-mix(in srgb, var(--paper) 84%, transparent); }
+@media (min-width: 761px) { .sd { background: var(--paper); } .sd-item[aria-current="page"] { background: var(--card); } }
+
+/* Строгие углы, как у фотоотпечатков */
+.hm-tile, .hm-steps li, .hm-aura, .hm-final, .ov-hello, .ov-card, .ws2-rail, .lr-card, .ln-hero { border-radius: 10px; }
+.btn, .hm-btn { border-radius: 8px; }
+.hm-niches span { border-radius: 6px; }
+.btn.ghost { border-color: var(--line); }
+.btn.ghost:hover { background: var(--paper-2); }
+.hm-tile:hover { background: #f5f3ef; }
+
+/* Фото — чёрно-белые с тёплым плёночным оттенком */
+.hm-ph img { filter: grayscale(.55) sepia(.12) contrast(1.05); }
+.hm-ph { background: var(--paper-2); }
+.hm-stamp { background: #f6f4f0; color: var(--ink); }
+
+/* Заголовки чуть мягче по цвету, выделенное — тёплым серым */
+.hm-title span, .caps .it, .h-xl .it, h1 .it, h2 .it { color: var(--mute); }
+.hm-final { background: var(--ink); }
+.hm-final .btn { background: var(--card); color: var(--ink); }
+.hm-steps span { border-radius: 6px; }
+.hm-tiers li { background: var(--paper); }
+
+html[data-theme="dark"] { --paper: #fff; --card: #e6e4df; --line: #d9d6cf; }
+html[data-theme="dark"] body::after { mix-blend-mode: normal; opacity: .05; }
