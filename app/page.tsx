@@ -10,7 +10,7 @@ import { TopBar } from "./TopBar";
 
 const BASE = process.env.NODE_ENV === "production" ? "/platform" : "";
 
-// Фото для коллажа на первом экране: кладутся в public/photos/ (1.jpg … 6.jpg). Пока файла нет — серая плитка
+// Фото для коллажа на первом экране: кладутся в public/photos/ (1.jpg … 6.jpg)
 const PHOTOS = [1, 2, 3, 4, 5, 6];
 
 const MAP = [
@@ -59,7 +59,7 @@ export default function Home() {
           <div className="hm-collage" aria-hidden="true">
             {PHOTOS.map((n) => (
               <span key={n} className={`hm-ph p${n}`}>
-                <img src={`${BASE}/photos/${n}.jpg`} alt="" loading="lazy" onLoad={(e) => e.currentTarget.parentElement?.classList.add("on")} />
+                <img src={`${BASE}/photos/${n}.jpg`} alt="" loading="lazy" />
               </span>
             ))}
             <b className="hm-stamp">relic</b>
