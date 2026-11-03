@@ -7,6 +7,8 @@ import { supabase, type Earnings } from "@/lib/supabase";
 import { signOut, useRequireMe } from "@/lib/session";
 import { profileHref } from "@/lib/links";
 import { DEFAULT_PREFS, savePrefs, usePrefs, type Prefs } from "@/lib/prefs";
+import { InstallButton } from "../InstallApp";
+import { useInstall } from "@/lib/pwa";
 import { TopBar } from "../TopBar";
 import { ProfileForm } from "./ProfileForm";
 import { PasswordForm } from "./PasswordForm";
@@ -162,6 +164,7 @@ function General() {
           ))}
         </div>
       </Group>
+      <AppGroup />
       <Group title="Детали">
         <Toggle k="dots" label="Декоративный фон" sub="Цветные пятна и точки за страницами" />
         <Toggle k="contrast" label="Повышенный контраст" sub="Текст и линии чётче" />
@@ -170,6 +173,17 @@ function General() {
         <button type="button" className="btn ghost st-danger" onClick={() => savePrefs(DEFAULT_PREFS)}>Сбросить настройки устройства</button>
       </Group>
     </>
+  );
+}
+
+/** Relic как приложение: иконка на экране и запуск без браузера */
+function AppGroup() {
+  const { installed, mode } = useInstall();
+  if (!installed && !mode) return null;
+  return (
+    <Group title="Приложение" hint={installed ? "Relic уже установлен на этом устройстве" : "Иконка на экране, запуск без адресной строки, быстрее открывается"}>
+      {installed ? <p className="st-app-ok">✓ Открыт как приложение</p> : <InstallButton className="btn" />}
+    </Group>
   );
 }
 

@@ -10,6 +10,7 @@ import { NavTabs } from "./NavTabs";
 import { Avatar, PresenceLabel } from "./Avatar";
 import { FocusButton, focusLeft } from "./focus/Focus";
 import { StreakChip } from "./workspace/Streak";
+import { InstallButton } from "./InstallApp";
 
 export function TopBar() {
   const { ready, me, refreshMe } = useSession();
@@ -23,7 +24,8 @@ export function TopBar() {
 
   useEffect(() => {
     if (!menu) return;
-    const close = (e: MouseEvent) => { if (!box.current?.contains(e.target as Node)) { setMenu(false); setConfirmOut(false); } };
+    // Подсказка установки для iPhone открыта поверх страницы — клики по ней меню не закрывают
+    const close = (e: MouseEvent) => { if (!box.current?.contains(e.target as Node) && !(e.target as Element).closest?.(".ia-shade")) { setMenu(false); setConfirmOut(false); } };
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
   }, [menu]);
@@ -61,6 +63,7 @@ export function TopBar() {
                     const { data } = await supabase.rpc("open_support");
                     if (data) router.push(chatHref(data as string));
                   }}><i>✚</i>Поддержка</button>
+                  <InstallButton onDone={() => setMenu(false)}><i>⤓</i>Установить приложение</InstallButton>
                   <span className="me-pop-sep" />
                   {confirmOut ? (
                     <button role="menuitem" type="button" className="danger" onClick={async () => { await signOut(); router.replace("/login"); }}><i>⏻</i>Точно выйти</button>

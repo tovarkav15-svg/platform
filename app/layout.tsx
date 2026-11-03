@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { SessionProvider } from "@/lib/session";
 import { CallLayer } from "./calls/CallLayer";
 import { FocusGuard } from "./focus/Focus";
@@ -10,6 +10,7 @@ import { PrefsSync } from "./PrefsSync";
 import { BanGate } from "./BanGate";
 import { JumpLayer } from "./JumpLayer";
 import { RefCatcher } from "./RefCatcher";
+import { PwaLayer } from "./InstallApp";
 
 const BASE = process.env.NODE_ENV === "production" ? "/platform" : "";
 const DESCRIPTION = "Relic — платформа для фрилансеров: профиль, который продаёт, Workspace, обучение по нишам, биржа заказов и чаты.";
@@ -18,7 +19,10 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://tovarkav15-svg.github.io"),
   title: "Relic",
   description: DESCRIPTION,
-  icons: { icon: `${BASE}/brand/relic-mark-app.png`, apple: `${BASE}/brand/relic-mark-app.png` },
+  icons: { icon: `${BASE}/brand/relic-mark-app.png`, apple: `${BASE}/app/apple-touch-icon.png` },
+  // Установка как приложения: паспорт для Android/компьютера и настройки для iPhone
+  manifest: `${BASE}/manifest.webmanifest`,
+  appleWebApp: { capable: true, title: "Relic", statusBarStyle: "default" },
   openGraph: {
     title: "Relic — платформа для фрилансеров",
     description: DESCRIPTION,
@@ -31,11 +35,15 @@ export const metadata: Metadata = {
   twitter: { card: "summary", title: "Relic", description: DESCRIPTION, images: [`${BASE}/relic-avatar.png`] },
 };
 
+export const viewport: Viewport = { themeColor: "#fbfbfa" };
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ru" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: PREFS_BOOT }} />
+        {/* Старые iPhone понимают «запуск без браузера» только по этому тегу */}
+        <meta name="apple-mobile-web-app-capable" content="yes" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link
@@ -44,7 +52,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body>
-        <PrefsSync /><SessionProvider><BanGate /><CallLayer><FocusGuard>{children}</FocusGuard><Suspense fallback={null}><NotifyLayer /><JumpLayer /><RefCatcher /></Suspense></CallLayer></SessionProvider>
+        <PrefsSync /><PwaLayer /><SessionProvider><BanGate /><CallLayer><FocusGuard>{children}</FocusGuard><Suspense fallback={null}><NotifyLayer /><JumpLayer /><RefCatcher /></Suspense></CallLayer></SessionProvider>
       </body>
     </html>
   );
