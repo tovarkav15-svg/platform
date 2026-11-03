@@ -6401,3 +6401,220 @@ h1.caps, h2.caps, .h-xl { font-weight: 750; }
   .sd-top a, .sd-top button { -webkit-app-region: no-drag; app-region: no-drag; }
   html[data-side] .topbar { padding-left: 12px; }
 }
+
+/* ================= Минимализм 2026-11: чёрно-белый, спокойный, как у Apple =================
+   Основа — белый и почти чёрный. Цвет остаётся только там, где он что-то значит (ниша, статус, ссылка),
+   и он приглушённый. Никаких плавающих пятен, переливов и радужных градиентов. */
+:root {
+  --paper: #f5f5f7;
+  --paper-2: #ececef;
+  --line: #e3e3e8;
+  --graphite: #6e6e73;
+  --ink: #1d1d1f;
+  --night: #1d1d1f;
+  --mute: #8e8e93;
+  --accent: #0071e3;
+  --card: #fff;
+
+  /* ниши: те же оттенки, только мягче и тише */
+  --c-edit: #d98266;
+  --c-vibe: #8f86c9;
+  --c-ai: #6b93d6;
+  --c-media: #cf8aa3;
+  --c-prod: #c4a24a;
+  --c-brand: #6aa28a;
+  --c-info: #b57a5c;
+  --c-graph: #6aa7ae;
+  --c-scale: #48484a;
+  --c-design: #b48cc0;
+  --good: #34a274;
+  --bad: #d9534f;
+
+  --display: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --r: 18px;
+}
+body { background: var(--paper); color: var(--ink); font-size: 15px; letter-spacing: -.005em; }
+::selection { background: rgba(0,113,227,.16); }
+:focus-visible { outline-color: var(--accent); }
+a { text-decoration-color: color-mix(in srgb, currentColor 30%, transparent); }
+
+/* Заголовки: прямые, плотные, без наклона и переливов. Выделенное слово — просто серым */
+h1, h2, h3, .h-xl, .h-md, .caps { font-variation-settings: normal; }
+.caps .it, .h-xl .it, .h-md .it, h1 .it, h2 .it, .auth-form h1 .it, .auth-side .h-xl .it {
+  font-family: var(--display); font-style: normal; font-weight: inherit; text-transform: none; letter-spacing: inherit;
+  background: none; -webkit-background-clip: border-box; background-clip: border-box; color: var(--mute); animation: none; padding: 0; margin: 0;
+}
+.it { font-family: var(--display); font-style: normal; }
+.h-xl { letter-spacing: -.035em; font-weight: 700; color: var(--ink); }
+.label { color: var(--mute); letter-spacing: .08em; font-weight: 600; }
+.ph2-handle b, .profile-head .handle, .rg-handle { font-family: var(--display); font-style: normal; font-size: 16px; font-weight: 600; }
+.ph2-name h1.caps { letter-spacing: -.02em; text-transform: none; font-weight: 700; }
+
+/* Логотип: чёрный квадрат вместо радуги */
+.relic-logo i { background: var(--ink); box-shadow: inset 0 0 0 6px #fff, 0 0 0 1.5px var(--ink); animation: none; border-radius: 6px; }
+
+/* Шапка: белое стекло, тонкая линия */
+.topbar { background: color-mix(in srgb, #fff 78%, transparent); }
+.topbar::after { background: var(--line); }
+
+/* Боковое меню: белое, активный пункт — серая плашка без цветной полосы */
+@media (min-width: 761px) {
+  .sd { background: var(--card); border-right-color: var(--line); }
+  .sd-item[aria-current="page"] { background: var(--paper); box-shadow: none; }
+  .sd-item[aria-current="page"]::before { background: var(--ink); width: 2px; }
+  .sd-item[aria-current="page"] .sd-ico svg { color: var(--ink); }
+}
+
+/* Кнопки: чёрная капсула, белая с линией. Без градиентов и теней */
+.btn { border-radius: 99px; font-weight: 600; letter-spacing: -.01em; }
+.btn:not(.ghost):not(.light):hover { box-shadow: none; filter: brightness(.85); }
+.btn:hover { transform: none; }
+.btn.ghost { background: var(--card); border-color: var(--line); }
+.btn.ghost:hover { background: var(--paper); }
+.link-btn { color: var(--accent); }
+
+/* Поля: спокойный синий фокус */
+.input { background: var(--card); border-color: var(--line); }
+.input:focus-within, .rg-form .input:focus-within { border-color: var(--accent); box-shadow: 0 0 0 4px rgba(0,113,227,.1); transform: none; }
+
+/* Карточки: белые на светло-сером, без теней и цветных подложек */
+.card { border-color: transparent; border-radius: var(--r); }
+.chip span { background: var(--card); border-color: var(--line); }
+.chip input:checked + span { background: var(--card); border-color: var(--ink); color: var(--ink); }
+.tag { background: color-mix(in srgb, var(--c) 10%, #fff); color: color-mix(in srgb, var(--c) 70%, #000); }
+.badge { font-weight: 600; letter-spacing: .06em; }
+
+/* Фоны: никаких плавающих пятен — ровный светло-серый */
+.ws2-aurora, .rg-bg, .pf-aurora { display: none; }
+
+/* Шапка профиля: значки тише */
+.ph2-otw { background: var(--card); border-color: var(--line); color: var(--ink); font-weight: 600; }
+.ph2-now span { background: var(--paper); }
+.ph2-meta .pres-label { background: var(--card); border-color: var(--line); }
+
+/* Плашка денег: чёрная, без оранжевого свечения */
+.money { background: var(--ink); }
+.money::after { display: none; }
+.bar b { background: var(--card); }
+
+/* Вход и регистрация: белая карточка вместо цветной */
+.auth-side, .rg-side { background: var(--card); border-color: transparent; box-shadow: none; }
+.auth-side::after, .rg-side::before { display: none; }
+.rg-banner { background: var(--paper-2); }
+.rg-banner i { display: none; }
+.rg-ava { background: var(--ink); animation: none; }
+.rg-ava span { background: var(--ink); animation: none; }
+.rg-orbit { border-color: var(--line); }
+.rg-orbit i { box-shadow: 0 0 0 4px var(--paper); }
+.rg-card { box-shadow: 0 30px 60px -40px rgba(0,0,0,.25); }
+.rg-gift { background: var(--paper); color: var(--ink); }
+.rg-steps i::after { background: var(--ink); }
+.rg-form > .btn { background: var(--ink); border-radius: 99px; }
+.rg-form .chip input:checked + span { box-shadow: none; transform: none; }
+.side-dots span { background: var(--paper); border-color: transparent; }
+
+/* ----- Главная в минимализме: по центру, крупно, коллаж из фото с зерном ----- */
+.hm { gap: clamp(72px, 10vw, 120px); padding-top: clamp(32px, 6vw, 72px); }
+.hm-hero { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 18px; min-height: 0; animation: fadeUp .7s var(--ease) both; }
+.hm-kicker { padding: 0; border: 0; background: none; font-size: 15px; font-weight: 600; color: var(--mute); }
+.hm-title { font-size: clamp(38px, 6.4vw, 80px); font-weight: 700; letter-spacing: -.045em; line-height: 1.02; max-width: 20ch; }
+.hm-title span { color: var(--mute); }
+.hm-lead { font-size: clamp(17px, 1.6vw, 21px); color: var(--graphite); max-width: 44ch; }
+.hm-cta { justify-content: center; margin-top: 4px; }
+.hm-btn { height: 48px; padding: 0 26px; border-radius: 99px; font-size: 16px; }
+
+.hm-collage { position: relative; width: min(1000px, 100%); aspect-ratio: 1336 / 802; margin-top: clamp(28px, 5vw, 56px); }
+.hm-ph::after { /* зерно, как на плёнке */
+  content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none; opacity: .16; mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.hm-ph { position: absolute; overflow: hidden; background: #dcdce0; box-shadow: 0 1px 2px rgba(0,0,0,.08), 0 18px 40px -28px rgba(0,0,0,.35); }
+.hm-ph img { width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0; filter: grayscale(.25) contrast(1.04); transition: opacity .8s ease; }
+.hm-ph.on img { opacity: 1; }
+.hm-ph.p1 { left: 0; top: 6%; width: 39%; height: 41%; background: #d6d6da; }
+.hm-ph.p2 { left: 41%; top: 8%; width: 23.6%; height: 40%; background: #e6e6e9; }
+.hm-ph.p3 { left: 65%; top: 0; width: 26.4%; height: 47%; background: #cfcfd4; }
+.hm-ph.p4 { left: 4%; top: 48.5%; width: 28%; height: 51.5%; background: #c4c4c9; }
+.hm-ph.p5 { left: 32.6%; top: 48.5%; width: 39%; height: 37%; background: #e0e0e4; }
+.hm-ph.p6 { left: 73%; top: 48.5%; width: 26.4%; height: 44%; background: #d2d2d6; }
+.hm-stamp { position: absolute; z-index: 2; left: 50%; top: 47.5%; transform: translate(-50%, -50%); padding: .04em .22em .1em; background: #fff; color: #111;
+  font-size: clamp(30px, 7vw, 76px); font-weight: 700; letter-spacing: -.06em; line-height: 1; }
+
+.hm-sec { gap: 28px; }
+.hm-sec-head { align-items: flex-start; gap: 8px; }
+.hm-sec-head h2, .hm-aura h2, .hm-final h2 { font-size: clamp(30px, 4.2vw, 52px); font-weight: 700; letter-spacing: -.04em; }
+.hm-sec-head p { font-size: 17px; color: var(--graphite); }
+
+.hm-map { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.hm-tile { gap: 6px; padding: 26px; border: 0; border-radius: 22px; background: var(--card); animation: none; transition: background-color .25s; }
+.hm-tile::after { display: none; }
+.hm-tile:hover { transform: none; box-shadow: none; background: #fbfbfc; }
+.hm-tile .mono { font-size: 12px; color: var(--mute); margin-bottom: 14px; }
+.hm-tile b { font-size: 21px; letter-spacing: -.02em; }
+.hm-tile p { font-size: 15px; color: var(--graphite); }
+.hm-tile em { margin-top: 10px; font-size: 15px; font-weight: 500; color: var(--accent); }
+.hm-tile em::after { content: " ›"; }
+.hm-tile:hover em { transform: none; text-decoration: underline; text-underline-offset: 3px; }
+
+.hm-steps { gap: 12px; border: 0; background: none; border-radius: 0; overflow: visible; }
+.hm-steps li { gap: 6px; padding: 26px; border: 0; border-radius: 22px; background: var(--card); animation: none; }
+.hm-steps span { width: 30px; height: 30px; display: grid; place-items: center; margin-bottom: 12px; border-radius: 50%; background: var(--ink); color: #fff; font-size: 14px; font-weight: 600; }
+.hm-steps b { font-size: 18px; letter-spacing: -.02em; }
+.hm-steps p, .hm-tile p, .hm-aura p { color: var(--graphite); }
+
+.hm-aura { padding: clamp(26px, 4vw, 48px); border: 0; border-radius: 28px; background: var(--card); }
+.hm-aura p { font-size: 17px; max-width: 42ch; }
+.hm-aura .link-btn::after { content: " ›"; }
+.hm-tiers li { background: var(--paper); border: 0; animation: none; }
+.hm-tiers i { box-shadow: none; width: 10px; height: 10px; }
+
+.hm-niches span { background: var(--card); border: 0; font-weight: 500; padding: 10px 18px; animation: none; }
+.hm-niches i { width: 8px; height: 8px; }
+
+.hm-final { padding: clamp(40px, 7vw, 80px); border-radius: 28px; background: var(--ink); }
+.hm-final p { font-size: 17px; color: rgba(255,255,255,.6); }
+.hm-final .btn { background: #fff; color: var(--ink); }
+.hm-final .btn:hover { filter: none; background: #e8e8ed; }
+.hm-foot { border-top-color: var(--line); }
+@media (max-width: 860px) { .hm-steps { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 520px) { .hm-steps { grid-template-columns: 1fr; } .hm-tile, .hm-steps li { padding: 22px; } }
+
+/* ----- Workspace и общие элементы в минимализме ----- */
+.ws2-rail { background: var(--card); border-color: transparent; box-shadow: none; backdrop-filter: none; }
+.ws2-me b { font-weight: 700; text-transform: none; letter-spacing: -.02em; color: var(--ink); }
+.ws2-me small { font-family: var(--display); font-style: normal; font-size: 13px; }
+.ws2-link b { font-weight: 600; }
+.ws2-link:hover { transform: none; background: var(--paper); }
+.ws2-ico { background: var(--paper); color: var(--graphite); }
+.ws2-link[aria-current="page"] { background: var(--paper); }
+.ws2-link[aria-current="page"] .ws2-ico { transform: none; background: var(--ink); color: #fff; box-shadow: none; }
+.ws2-link[aria-current="page"]::before, .ws2-nav-glow { display: none; }
+
+.ov-hello { background: var(--card); border-color: transparent; animation: fadeUp .5s var(--ease) both; }
+.ov-hello h2, .ov-hello h1 { color: var(--ink); }
+.ov-hello::after { background: var(--ink); opacity: 1; animation: none; mask: radial-gradient(circle, transparent 60%, #000 62%); -webkit-mask: radial-gradient(circle, transparent 60%, #000 62%); width: 44px; height: 44px; }
+.ov-card { background: var(--card); border-color: transparent; box-shadow: none; }
+.ov-card:hover { transform: none; box-shadow: none; }
+.ov-card header b { font-size: 15px; font-weight: 600; text-transform: none; letter-spacing: -.01em; color: var(--ink); }
+.ov-dot { width: 8px; height: 8px; box-shadow: none; animation: none; }
+.ov-card .link-btn, .ov-card header a { color: var(--accent); font-weight: 500; }
+
+.focus-btn { background: var(--card); border-color: var(--line); color: var(--ink); font-weight: 600; }
+.focus-btn:hover { box-shadow: none; transform: none; background: var(--paper); }
+.focus-orb { background: var(--ink); animation: none; width: 8px; height: 8px; }
+.focus-pill { background: var(--ink); box-shadow: none; animation: none; }
+
+/* Подписи капсом в карточках — обычным регистром */
+.ph2-tags .badge.support { background: color-mix(in srgb, var(--good) 12%, #fff); color: color-mix(in srgb, var(--good) 70%, #000); }
+.ph2-tags .badge.owner { background: var(--ink); }
+.hm-tiers i { filter: saturate(.55); }
+
+/* ----- Обучение: белые карточки, ниша — только маленькой меткой ----- */
+.lr-card, .ln-hero { background: var(--card); border-color: transparent; box-shadow: none; }
+.lr-orb { display: none; }
+.lr-card .mono { color: var(--c); }
+.ln-big { color: color-mix(in srgb, var(--c) 6%, transparent); animation: none; }
+
+/* Тёмная тема инвертирует цвета: чтобы карточки были светлее фона (как в тёмном Apple), фон делаем белым, карточки — серыми */
+html[data-theme="dark"] { --paper: #fff; --card: #e6e6ea; --line: #d9d9de; }
+html[data-theme="dark"] .topbar { background: color-mix(in srgb, #fff 82%, transparent); }
