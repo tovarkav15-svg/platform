@@ -6516,7 +6516,7 @@ h1, h2, h3, .h-xl, .h-md, .caps { font-variation-settings: normal; }
 /* ----- Главная в минимализме: по центру, крупно, коллаж из фото с зерном ----- */
 .hm { gap: clamp(72px, 10vw, 120px); padding-top: clamp(32px, 6vw, 72px); }
 .hm-hero { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 18px; min-height: 0; animation: fadeUp .7s var(--ease) both; }
-.hm-kicker { padding: 0; border: 0; background: none; font-size: 15px; font-weight: 600; color: var(--mute); }
+.hm-kicker { align-self: center; padding: 0; border: 0; background: none; font-size: 15px; font-weight: 600; color: var(--mute); }
 .hm-title { font-size: clamp(38px, 6.4vw, 80px); font-weight: 700; letter-spacing: -.045em; line-height: 1.02; max-width: 20ch; }
 .hm-title span { color: var(--mute); }
 .hm-lead { font-size: clamp(17px, 1.6vw, 21px); color: var(--graphite); max-width: 44ch; }
