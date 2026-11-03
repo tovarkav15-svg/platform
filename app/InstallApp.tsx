@@ -10,6 +10,18 @@ let started = false;
 /** Подключает помощника приложения и ловит предложение установки. Стоит один раз в layout */
 export function PwaLayer() {
   useEffect(() => { if (!started) { started = true; initPwa(BASE); } }, []);
+  // Цвет полосы окна установленного приложения — в тон теме, иначе на тёмной теме сверху белая полоса
+  useEffect(() => {
+    const html = document.documentElement;
+    const paint = () => {
+      const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+      if (meta) meta.content = html.dataset.theme === "dark" ? "#0b0b0c" : html.dataset.theme === "warm" ? "#f7f1e6" : "#fbfbfa";
+    };
+    paint();
+    const mo = new MutationObserver(paint);
+    mo.observe(html, { attributes: true, attributeFilter: ["data-theme"] });
+    return () => mo.disconnect();
+  }, []);
   return null;
 }
 
