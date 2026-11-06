@@ -15,7 +15,7 @@ export function PwaLayer() {
     const html = document.documentElement;
     const paint = () => {
       const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
-      if (meta) meta.content = html.dataset.theme === "dark" ? "#0b0b0c" : html.dataset.theme === "warm" ? "#f7f1e6" : "#e9e7e2";
+      if (meta) meta.content = html.dataset.theme === "dark" ? "#0b0b0c" : html.dataset.theme === "warm" ? "#f7f1e6" : "#d8d2c6";
     };
     paint();
     const mo = new MutationObserver(paint);

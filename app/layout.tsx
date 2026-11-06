@@ -35,7 +35,7 @@ export const metadata: Metadata = {
   twitter: { card: "summary", title: "Relic", description: DESCRIPTION, images: [`${BASE}/relic-avatar.png`] },
 };
 
-export const viewport: Viewport = { themeColor: "#e9e7e2" };
+export const viewport: Viewport = { themeColor: "#d8d2c6" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

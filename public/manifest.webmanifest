@@ -12,8 +12,8 @@
     "standalone"
   ],
   "orientation": "any",
-  "background_color": "#e9e7e2",
-  "theme_color": "#e9e7e2",
+  "background_color": "#d8d2c6",
+  "theme_color": "#d8d2c6",
   "icons": [
     {
       "src": "app/icon-192.png",
