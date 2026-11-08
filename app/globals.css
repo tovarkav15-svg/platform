@@ -6401,3 +6401,46 @@ h1.caps, h2.caps, .h-xl { font-weight: 750; }
   .sd-top a, .sd-top button { -webkit-app-region: no-drag; app-region: no-drag; }
   html[data-side] .topbar { padding-left: 12px; }
 }
+
+/* ================= Подход мессенджеров 2026-11 =================
+   Как в Telegram, WhatsApp, iMessage: системный шрифт, спокойные заголовки, один акцентный цвет
+   для важного (непрочитанное, активное), цифры обычным шрифтом, страницы открываются сразу. */
+:root {
+  --display: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --accent: #2f7bff;
+}
+
+/* Мгновенно: без долгого проявления и выезда блоков по очереди */
+.page-enter { animation-duration: .16s; }
+.page > *, .page > *:nth-child(n) { animation-duration: .2s; animation-delay: 0s; }
+.messenger .chat-list li { animation: none; }
+
+/* Заголовки страниц — как «Чаты» в мессенджере: жирно, но не на пол-экрана */
+h1, h2, h3, .caps, .h-xl, .h-md { font-variation-settings: normal; }
+.h-xl, .cm-title, .st-title, .md-title, .ar-title { font-size: clamp(28px, 3.6vw, 40px); font-weight: 750; letter-spacing: -.025em; line-height: 1.08; }
+.h-xl.caps, h1.caps, h2.caps { text-transform: none; letter-spacing: -.02em; }
+.ph2-name h1.caps { text-transform: none; letter-spacing: -.02em; font-variation-settings: normal; }
+/* Выделенное слово — просто акцентным цветом, без переливов и антиквы */
+.it, .caps .it, .h-xl .it, .h-md .it, h1 .it, h2 .it {
+  font-family: inherit; font-style: normal; font-weight: inherit; text-transform: none; font-variation-settings: normal;
+  background: none; -webkit-background-clip: border-box; background-clip: border-box; color: var(--accent); animation: none; padding: 0; margin: 0;
+}
+.chat-list-unread { font-family: inherit; font-style: normal; font-size: 14px; font-weight: 600; color: var(--accent); }
+
+/* Цифры — обычным шрифтом с ровными столбиками, как суммы и время в мессенджерах */
+.mono, .ws-clients .rownum, .ws-clients .ws-stat b, .ws-finance .fin-tile b, .ws-finance .tx-sum, .ws-finance .hb-value,
+.ws-finance .pay-date b, .ws-finance .tx-day header b, .ws-finance .tx-fields .input.amount input, .sh-coin, .bl-rate input, .bl-calc .field em {
+  font-family: inherit; font-variant-numeric: tabular-nums; letter-spacing: -.01em;
+}
+
+/* Один цвет для «новое и непрочитанное» */
+.count-badge, .messenger .chat-item .count-badge { background: var(--accent); box-shadow: none; }
+.messenger .chat-item.has-unread time { color: var(--accent); }
+.nav-burger-dot, .sd-dot { background: var(--accent); }
+.messenger .chat-filters button[aria-selected="true"] em { background: var(--accent); }
+/* Ники, подписи и даты — тем же шрифтом, серым, как подзаголовок в шапке чата */
+.profile-head .handle, .person-text small, .thread-who small, .studio-date, .ws2-me small, .ph2 .handle, .pf-sub, .job-hint,
+.bt-sum em, .dv-who small, .rg-handle, .ph2-handle b, .pf-about-text p:first-child::first-letter {
+  font-family: inherit; font-style: normal; font-weight: 500; font-size: max(13px, .82em);
+}
+.pf-about-text p:first-child::first-letter { font-size: inherit; float: none; font-weight: inherit; }
