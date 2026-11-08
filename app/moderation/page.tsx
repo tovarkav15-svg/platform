@@ -31,7 +31,7 @@ const TABS = [
 ] as const;
 type Tab = (typeof TABS)[number]["id"];
 
-const ACTION: Record<string, string> = { ban: "забанил", unban: "разбанил", approve_job: "одобрил бейдж", reject_job: "отклонил бейдж", approve_order: "одобрил заказ", reject_order: "отклонил заказ", delete_order: "удалил заказ", clear_profile: "очистил в профиле", wipe: "стёр весь контент", delete_work: "удалил работу", delete_project: "удалил проект", delete_job: "удалил бейдж", delete_review: "удалил отзыв", delete_chat: "удалил канал", delete_message: "удалил сообщение", account_view: "смотрел историю аккаунта", end_sessions: "отключил на всех устройствах", recovery_reset: "отправил ссылку для пароля", recovery_email: "заменил почту аккаунта" };
+const ACTION: Record<string, string> = { ban: "забанил", unban: "разбанил", approve_job: "одобрил бейдж", reject_job: "отклонил бейдж", approve_order: "одобрил заказ", reject_order: "отклонил заказ", delete_order: "удалил заказ", clear_profile: "очистил в профиле", wipe: "стёр весь контент", delete_work: "удалил работу", delete_project: "удалил проект", delete_job: "удалил бейдж", delete_review: "удалил отзыв", delete_chat: "удалил канал", delete_message: "удалил сообщение", account_view: "смотрел историю аккаунта", end_sessions: "отключил на всех устройствах", recovery_reset: "отправил ссылку для пароля", recovery_email: "заменил почту аккаунта", check_code: "проверил код восстановления" };
 
 /** Модерация: только для @fedonko и @awiny (роль owner). Права проверяет база, страница лишь показывает */
 export default function ModerationPage() {

@@ -13,6 +13,8 @@ import { useInstall } from "@/lib/pwa";
 import { TopBar } from "../TopBar";
 import { ProfileForm } from "./ProfileForm";
 import { PasswordForm } from "./PasswordForm";
+import { SecurityPanel } from "./SecurityPanel";
+import { downloadMyData } from "@/lib/export";
 
 const SECTIONS = [
   { id: "general", label: "Внешний вид", sub: "Тема, текст, анимации", icon: "◐" },
@@ -21,7 +23,7 @@ const SECTIONS = [
   { id: "privacy", label: "Приватность", sub: "Кто пишет, кто находит", icon: "◍" },
   { id: "community", label: "Community", sub: "Что открывать первым", icon: "◎" },
   { id: "profile", label: "Профиль", sub: "Имя, фото, баннер, ниши", icon: "☺" },
-  { id: "security", label: "Безопасность", sub: "Пароль", icon: "⚿" },
+  { id: "security", label: "Безопасность", sub: "Пароль, устройства, восстановление", icon: "⚿" },
   { id: "account", label: "Аккаунт", sub: "Выход", icon: "⏻" },
 ] as const;
 type Section = (typeof SECTIONS)[number]["id"];
@@ -85,8 +87,8 @@ export default function SettingsPage() {
                 }}
               />
             ) : <div className="skeleton profile-skeleton" />)}
-            {s === "security" && (session ? <PasswordForm authEmail={session.user.email ?? ""} /> : <div className="skeleton list-skeleton" />)}
-            {s === "account" && me && <AccountBlock username={me.username} />}
+            {s === "security" && (session ? <><PasswordForm authEmail={session.user.email ?? ""} /><SecurityPanel /></> : <div className="skeleton list-skeleton" />)}
+            {s === "account" && me && <AccountBlock username={me.username} userId={me.id} />}
           </section>
         </div>
       </main>
@@ -305,13 +307,20 @@ function ProfilePrivacy() {
   );
 }
 
-function AccountBlock({ username }: { username: string }) {
+function AccountBlock({ username, userId }: { username: string; userId: string }) {
   const router = useRouter();
   const [confirm, setConfirm] = useState(false);
+  const [exporting, setExporting] = useState(false);
   return (
     <Group title="Аккаунт">
       <p className="st-note">Ты вошёл как @{username}. На этом устройстве вход сохраняется, пока не выйдешь.</p>
-      <p className="st-note">Как мы обращаемся с твоими данными — в <Link href="/privacy/">Политике конфиденциальности</Link>. Удалить аккаунт или получить свои данные можно по запросу на <a href="mailto:knmi2000@mail.ru">knmi2000@mail.ru</a>.</p>
+      <p className="st-note">Как мы обращаемся с твоими данными — в <Link href="/privacy/">Политике конфиденциальности</Link>. Удалить аккаунт можно по запросу на <a href="mailto:knmi2000@mail.ru">knmi2000@mail.ru</a>.</p>
+      <div className="save-row">
+        <button type="button" className="btn ghost" disabled={exporting} onClick={async () => { setExporting(true); await downloadMyData(userId, username).catch(() => {}); setExporting(false); }}>
+          {exporting ? "Собираю…" : "Скачать мои данные"}
+        </button>
+        <span className="hint">Профиль, работы, заказы, Workspace, твои сообщения и журнал входов — одним файлом</span>
+      </div>
       <div className="save-row">
         {confirm
           ? <button type="button" className="btn danger" onClick={async () => { await signOut(); router.replace("/login"); }}>Точно выйти</button>
