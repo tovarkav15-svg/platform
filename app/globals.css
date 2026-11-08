@@ -6454,3 +6454,22 @@ h1, h2, h3, .caps, .h-xl, .h-md { font-variation-settings: normal; }
 .push-banner-t small { font-size: 12.5px; color: var(--graphite); }
 .push-banner .btn.sm { flex: none; padding: 7px 12px; }
 .push-banner-x { flex: none; border: 0; background: none; color: var(--mute); font-size: 20px; line-height: 1; padding: 2px 4px; cursor: pointer; }
+
+/* ================= Модерация: восстановление аккаунтов ================= */
+.rc-how { padding: 14px 16px; border-radius: 14px; background: var(--paper-2); font-size: 14px; color: var(--graphite); }
+.rc-how b { color: var(--ink); }
+.rc-how ol { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.rc-card { display: grid; gap: 10px; padding: 16px; border-radius: 16px; background: var(--card, #fff); border: 1px solid var(--line); }
+.rc-who { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; font-size: 18px; }
+.rc-who a, .rc-who span { font-size: 14px; color: var(--graphite); }
+.rc-deleted { font-style: normal; font-size: 12px; font-weight: 700; color: var(--bad); }
+.rc-facts { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 0; font-size: 14px; }
+.rc-facts dt { color: var(--mute); }
+.rc-facts dd { margin: 0; overflow-wrap: anywhere; }
+.rc-id { font-size: 12px; color: var(--mute); }
+.rc-actions { display: grid; gap: 8px; }
+.rc-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.rc-input { flex: 1; min-width: 220px; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--card, #fff); font: inherit; font-size: 14px; }
+.rc-msg { margin: 0; font-size: 14px; font-weight: 600; color: var(--ink); }
+.rc-h { font-size: 16px; margin: 6px 0 0; }
+.md-log s { color: var(--mute); }

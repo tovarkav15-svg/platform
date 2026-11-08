@@ -11,6 +11,7 @@ import { Avatar } from "../Avatar";
 import { JobBadge, rub, type JobRow } from "../jobs/JobCard";
 import { UserPanel } from "./UserPanel";
 import { Analytics } from "./Analytics";
+import { Recovery } from "./Recovery";
 import { budgetText, type Order } from "../jobs/Orders";
 import { NICHES } from "@/lib/niches";
 import { useLive } from "@/lib/live";
@@ -25,11 +26,12 @@ const TABS = [
   { id: "orders", label: "Заказы", sub: "От заказчиков" },
   { id: "reports", label: "Жалобы", sub: "От пользователей" },
   { id: "users", label: "Пользователи", sub: "Поиск и баны" },
+  { id: "recovery", label: "Восстановление", sub: "Вернуть аккаунт" },
   { id: "log", label: "Журнал", sub: "Кто что сделал" },
 ] as const;
 type Tab = (typeof TABS)[number]["id"];
 
-const ACTION: Record<string, string> = { ban: "забанил", unban: "разбанил", approve_job: "одобрил бейдж", reject_job: "отклонил бейдж", approve_order: "одобрил заказ", reject_order: "отклонил заказ", delete_order: "удалил заказ", clear_profile: "очистил в профиле", wipe: "стёр весь контент", delete_work: "удалил работу", delete_project: "удалил проект", delete_job: "удалил бейдж", delete_review: "удалил отзыв", delete_chat: "удалил канал", delete_message: "удалил сообщение" };
+const ACTION: Record<string, string> = { ban: "забанил", unban: "разбанил", approve_job: "одобрил бейдж", reject_job: "отклонил бейдж", approve_order: "одобрил заказ", reject_order: "отклонил заказ", delete_order: "удалил заказ", clear_profile: "очистил в профиле", wipe: "стёр весь контент", delete_work: "удалил работу", delete_project: "удалил проект", delete_job: "удалил бейдж", delete_review: "удалил отзыв", delete_chat: "удалил канал", delete_message: "удалил сообщение", account_view: "смотрел историю аккаунта", end_sessions: "отключил на всех устройствах", recovery_reset: "отправил ссылку для пароля", recovery_email: "заменил почту аккаунта" };
 
 /** Модерация: только для @fedonko и @awiny (роль owner). Права проверяет база, страница лишь показывает */
 export default function ModerationPage() {
@@ -78,6 +80,7 @@ export default function ModerationPage() {
             {tab === "reports" && <Reports onChange={loadCounts} />}
             {tab === "orders" && <OrdersQueue onChange={loadCounts} />}
             {tab === "users" && <Users initial={sp.get("u")} />}
+            {tab === "recovery" && <Recovery />}
             {tab === "log" && <LogView />}
           </div>
         )}
