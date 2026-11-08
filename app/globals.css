@@ -6709,3 +6709,60 @@ html[data-theme="dark"] .relic-logo i { box-shadow: inset 0 0 0 5px #141414, 0 0
   html[data-theme="dark"] .sd-item:hover { background: #eaecf0; }
   html[data-theme="dark"] .sd-item[aria-current="page"], html[data-theme="dark"] .sd-item[data-open] { background: color-mix(in srgb, var(--c, #2f5bff) 16%, #fff); color: color-mix(in srgb, var(--c, #2f5bff) 75%, #000); }
 }
+
+/* ================= Workspace, новый вид (пока только @fedonko) =================
+   Без отдельной боковой карточки: заголовок, цветные вкладки разделов строкой, белые карточки на сером фоне. */
+.ws2.wsv2 { display: flex; flex-direction: column; gap: 18px; max-width: 1240px; padding-top: 18px; }
+.wsv2-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; padding: 0 2px; }
+.wsv2-title h1 { margin: 0; font-family: "Archivo", var(--display); font-variation-settings: "wdth" 112; font-weight: 800; font-size: clamp(28px, 3.4vw, 38px); letter-spacing: -.035em; line-height: 1.05; }
+.wsv2-title p { display: flex; align-items: center; gap: 6px; margin: 6px 0 0; font-size: 13.5px; color: #8b8e96; }
+.wsv2-old, .wsv2-new-toggle { border: 0; background: none; color: #8b8e96; font: inherit; font-size: 13px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.wsv2-old:hover { color: var(--ink); }
+.wsv2-new-toggle { display: block; margin: 12px auto -8px; color: #7b61ff; font-weight: 600; text-decoration: none; }
+.wsv2-tabs { display: flex; gap: 6px; padding: 6px; border-radius: 18px; background: #fff; box-shadow: 0 0 0 1px rgba(16,24,40,.05); overflow-x: auto; scrollbar-width: none; position: sticky; top: 64px; z-index: 4; }
+.wsv2-tabs::-webkit-scrollbar { display: none; }
+.wsv2-tab { flex: 1 0 auto; display: flex; align-items: center; justify-content: center; gap: 8px; height: 40px; padding: 0 14px; border-radius: 13px; color: #55585f; text-decoration: none; font-size: 14px; font-weight: 600; white-space: nowrap; transition: background .2s, color .2s; }
+.wsv2-tab svg { color: var(--c); }
+.wsv2-tab:hover { background: color-mix(in srgb, var(--c) 8%, #fff); color: var(--ink); }
+.wsv2-tab[aria-current="page"] { background: color-mix(in srgb, var(--c) 13%, #fff); color: color-mix(in srgb, var(--c) 80%, #000); }
+.wsv2-tab em { min-width: 20px; height: 20px; padding: 0 6px; border-radius: 99px; display: grid; place-items: center; font-style: normal; font-size: 11.5px; font-weight: 700; background: var(--c); color: #fff; }
+.wsv2-main { min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+
+/* Поверхности внутри разделов — белые карточки без рамок, как на Обзоре */
+.wsv2 .sheet, .wsv2 .plans-side, .wsv2 .plan-detail, .wsv2 .card, .wsv2 .fin-tile, .wsv2 .quad, .wsv2 .cal-grid, .wsv2 .ov-card {
+  background: #fff; border-color: transparent; border-radius: 20px; box-shadow: 0 1px 2px rgba(16,24,40,.04), 0 6px 24px -12px rgba(16,24,40,.08);
+}
+.wsv2 .planner-day { background: #fff; animation: none; }
+.wsv2 .formula-bar { background: #fff; }
+.wsv2 .ov-card { animation: none; }
+.wsv2 .ov-card:hover { transform: none; }
+.wsv2 .ov-card header b { font-size: 15.5px; }
+.wsv2 .ov-tasks { --c: #2F7BFF; } .wsv2 .ov-money { --c: #D99A00; } .wsv2 .ov-funnel { --c: #1FA67A; } .wsv2 .ov-pays { --c: #FF6A3D; }
+.wsv2 .ov-dot { background: var(--c); box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 18%, transparent); }
+
+/* Верхний ряд цифр */
+.ovk { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.ovk-card { position: relative; overflow: hidden; isolation: isolate; display: flex; flex-direction: column; gap: 4px; padding: 18px; border-radius: 20px; background: #fff; color: var(--ink); text-decoration: none;
+  box-shadow: 0 1px 2px rgba(16,24,40,.04), 0 6px 24px -12px rgba(16,24,40,.08); border-top: 3px solid var(--c, transparent); transition: transform .2s var(--ease); }
+.ovk-card:hover { transform: translateY(-2px); }
+.ovk-card small { font-size: 13px; color: #8b8e96; }
+.ovk-card b { font-family: "Archivo", var(--display); font-variation-settings: "wdth" 108; font-weight: 800; font-size: clamp(26px, 2.6vw, 34px); letter-spacing: -.03em; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.ovk-card > span { font-size: 12.5px; color: #8b8e96; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ovk-violet, .ovk-green { border-top: 0; color: #fff; }
+.ovk-violet { background: linear-gradient(150deg, #7b61ff, #5a5cff 60%, #2f7bff); box-shadow: 0 16px 36px -20px rgba(123,97,255,.75); }
+.ovk-green { background: linear-gradient(150deg, #1fa67a, #23b48a 55%, #3cc6a0); box-shadow: 0 16px 36px -20px rgba(31,166,122,.7); }
+.ovk-violet small, .ovk-violet > span, .ovk-green small, .ovk-green > span { color: rgba(255,255,255,.82); }
+.ovk-violet::after, .ovk-green::after { content: ""; position: absolute; z-index: -1; inset: 0; background: radial-gradient(120% 90% at 100% 0%, rgba(255,255,255,.26), transparent 55%); }
+@media (max-width: 1000px) { .ovk { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 760px) { .wsv2-tabs { top: 56px; } .wsv2-tab { flex: 0 0 auto; } }
+
+html[data-theme="dark"] .wsv2-tabs, html[data-theme="dark"] .ovk-card:not(.ovk-violet):not(.ovk-green),
+html[data-theme="dark"] .wsv2 .sheet, html[data-theme="dark"] .wsv2 .plans-side, html[data-theme="dark"] .wsv2 .plan-detail, html[data-theme="dark"] .wsv2 .card,
+html[data-theme="dark"] .wsv2 .fin-tile, html[data-theme="dark"] .wsv2 .quad, html[data-theme="dark"] .wsv2 .cal-grid, html[data-theme="dark"] .wsv2 .ov-card,
+html[data-theme="dark"] .wsv2 .planner-day, html[data-theme="dark"] .wsv2 .formula-bar { background: #eceef3; box-shadow: 0 0 0 1px rgba(0,0,0,.07); }
+html[data-theme="dark"] .ovk-violet, html[data-theme="dark"] .ovk-green, html[data-theme="dark"] .wsv2-tab em { filter: invert(1) hue-rotate(180deg) contrast(1.19); }
+.wsv2-head { width: 100%; }
+.wsv2 .ov-card header b { text-transform: none; letter-spacing: -.01em; font-weight: 700; }
+.ws2.wsv2 { min-width: 0; width: 100%; }
+.ws2.wsv2 > * { min-width: 0; max-width: 100%; }
+.wsv2-main > .ws2-body { min-width: 0; }

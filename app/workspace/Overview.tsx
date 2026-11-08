@@ -11,7 +11,7 @@ type Tx = { type: "income" | "expense"; amount: number; date: string };
 type Pay = { id: string; direction: "in" | "out"; title: string; amount: number; due_date: string; status: string };
 
 /** Обзор дня: всё важное из Clients, Plans и Finance на одном экране */
-export function Overview({ userId, name }: { userId: string; name: string }) {
+export function Overview({ userId, name, v2 = false }: { userId: string; name: string; v2?: boolean }) {
   const [tasks, setTasks] = useState<PlanTask[] | null>(null);
   const [clients, setClients] = useState<Pick<Client, "id" | "outcome" | "qualify">[]>([]);
   const [txs, setTxs] = useState<Tx[]>([]);
@@ -54,18 +54,7 @@ export function Overview({ userId, name }: { userId: string; name: string }) {
   const maxN = Math.max(1, ...funnel.map((f) => f.n));
   const hot = clients.filter((c) => c.qualify === "Горячий" && c.outcome !== "Сделка" && c.outcome !== "Отказ").length;
 
-  return (
-    <div className="ov">
-      <section className="ov-hello">
-        <span className="label">{new Date().toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long" })}</span>
-        <h2 className="caps">{hello}, <span className="it">{name}</span></h2>
-        <p className="lead">
-          {todayTasks.length ? `${todayTasks.length} ${todayTasks.length === 1 ? "задача" : todayTasks.length < 5 ? "задачи" : "задач"} на сегодня` : "На сегодня задач нет"}
-          {pays.length ? ` · ${pays.length} ${pays.length === 1 ? "оплата" : "оплат"} в ближайшие две недели` : ""}
-          {hot ? ` · ${hot} горячих клиентов ждут` : ""}
-        </p>
-      </section>
-
+  const grid = (
       <div className="ov-grid">
         <section className="ov-card ov-tasks">
           <header><span className="ov-dot" /><b>Задачи</b><Link href="/workspace/?tab=plans" className="link-btn">Все планы →</Link></header>
@@ -128,6 +117,48 @@ export function Overview({ userId, name }: { userId: string; name: string }) {
           ) : <p className="ov-empty">Ближайших оплат нет.</p>}
         </section>
       </div>
+  );
+
+  if (v2) {
+    const inWork = clients.filter((c) => c.outcome === "В работе").length;
+    return (
+      <div className="ov ov-v2">
+        <div className="ovk">
+          <Link href="/workspace/?tab=plans" className="ovk-card ovk-violet">
+            <small>Задачи на сегодня</small><b><CountUp value={todayTasks.length} /></b>
+            <span>{tasks.length - todayTasks.length ? `и ${tasks.length - todayTasks.length} на завтра` : "Всё под контролем"}</span>
+          </Link>
+          <Link href="/workspace/?tab=finance" className="ovk-card ovk-green">
+            <small>Прибыль за месяц</small><b><CountUp value={income - expense} format={(n) => rub(n, true)} /></b>
+            <span>Доход {rub(income)} · расход {rub(expense)}</span>
+          </Link>
+          <Link href="/workspace/?tab=clients" className="ovk-card" style={{ "--c": "#1FA67A" } as React.CSSProperties}>
+            <small>Сделок в работе</small><b><CountUp value={inWork} /></b>
+            <span>{hot ? `${hot} горячих ждут ответа` : `Всего клиентов: ${clients.length}`}</span>
+          </Link>
+          <Link href="/workspace/?tab=finance" className="ovk-card" style={{ "--c": "#D99A00" } as React.CSSProperties}>
+            <small>Оплаты за 2 недели</small><b><CountUp value={pays.length} /></b>
+            <span>{pays.length ? `Ближайшая — ${new Date(pays[0].due_date + "T00:00:00").toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}` : "Ничего не ждём"}</span>
+          </Link>
+        </div>
+        {grid}
+      </div>
+    );
+  }
+
+  return (
+    <div className="ov">
+      <section className="ov-hello">
+        <span className="label">{new Date().toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long" })}</span>
+        <h2 className="caps">{hello}, <span className="it">{name}</span></h2>
+        <p className="lead">
+          {todayTasks.length ? `${todayTasks.length} ${todayTasks.length === 1 ? "задача" : todayTasks.length < 5 ? "задачи" : "задач"} на сегодня` : "На сегодня задач нет"}
+          {pays.length ? ` · ${pays.length} ${pays.length === 1 ? "оплата" : "оплат"} в ближайшие две недели` : ""}
+          {hot ? ` · ${hot} горячих клиентов ждут` : ""}
+        </p>
+      </section>
+
+      {grid}
     </div>
   );
 }

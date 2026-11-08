@@ -17,6 +17,13 @@ import { Notes } from "./Notes";
 import { DayPlanner } from "./DayPlanner";
 import { Projects } from "./Projects";
 import { iso, addDays } from "@/lib/plans";
+import { WsTabIco } from "./WsTabIco";
+
+// Новый вид Workspace — пока только для аккаунта основателя (@fedonko); остальные видят прежний
+const V2_USERS = ["12c5c6fd-d1e9-49e7-a01d-3f9ed63b07fc"];
+const V2_KEY = "ws:v2";
+const SHORT: Record<Tab, string> = { overview: "Обзор", day: "День", clients: "Клиенты", projects: "Проекты", plans: "Задачи", finance: "Финансы", notes: "Заметки" };
+const COLOR: Record<Tab, string> = { overview: "#7B61FF", day: "#0EA5B7", clients: "#1FA67A", projects: "#FF6A3D", plans: "#2F7BFF", finance: "#D99A00", notes: "#FF4F8B" };
 
 type Tab = "overview" | "day" | "clients" | "projects" | "plans" | "finance" | "notes";
 const TABS: { id: Tab; label: string; sub: string; icon: string }[] = [
@@ -38,6 +45,10 @@ export function WorkspaceView({ me }: { me: Profile | null }) {
   const [counters, setCounters] = useState<Counters | null>(null);
   const nav = useRef<HTMLElement>(null);
   const [pill, setPill] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
+  const allowed = !!me && V2_USERS.includes(me.id);
+  const [v2, setV2] = useState(false);
+  useEffect(() => { let off = false; try { off = localStorage.getItem(V2_KEY) === "off"; } catch {} setV2(allowed && !off); }, [allowed]);
+  const switchV2 = (on: boolean) => { try { localStorage.setItem(V2_KEY, on ? "on" : "off"); } catch {} setV2(on); };
 
   useEffect(() => { document.title = `Workspace · ${TABS.find((t) => t.id === tab)!.label}`; }, [tab]);
 
@@ -83,9 +94,48 @@ export function WorkspaceView({ me }: { me: Profile | null }) {
     return null;
   };
 
+  const body = !me ? <div className="skeleton profile-skeleton" /> : (
+    <div key={tab} className="ws2-body">
+      {tab === "overview" && <Overview userId={me.id} name={me.display_name} v2={v2} />}
+      {tab === "clients" && <Clients userId={me.id} />}
+      {tab === "projects" && <Projects userId={me.id} />}
+      {tab === "plans" && <Plans userId={me.id} />}
+      {tab === "finance" && <Finance userId={me.id} />}
+      {tab === "notes" && <Notes userId={me.id} />}
+      {tab === "day" && <DayPlanner userId={me.id} />}
+    </div>
+  );
+
+  if (v2) return (
+    <>
+      <TopBar />
+      <main className="ws2 wsv2" style={{ "--c": COLOR[tab] } as React.CSSProperties}>
+        <header className="wsv2-head">
+          <div className="wsv2-title">
+            <h1>Workspace</h1>
+            <p><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><rect x="5" y="10.5" width="14" height="9.5" rx="2.5" /><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5" /></svg>Видишь только ты</p>
+          </div>
+          <button type="button" className="wsv2-old" onClick={() => switchV2(false)}>Старый вид</button>
+        </header>
+        <nav className="wsv2-tabs" aria-label="Разделы Workspace">
+          {TABS.map((t) => (
+            <Link key={t.id} href={`/workspace/?tab=${t.id}`} replace scroll={false} className="wsv2-tab"
+              aria-current={tab === t.id ? "page" : undefined} style={{ "--c": COLOR[t.id] } as React.CSSProperties}>
+              <WsTabIco id={t.id} />
+              <span>{SHORT[t.id]}</span>
+              {count(t.id) && t.id !== "finance" && <em>{count(t.id)!.split(" ")[0]}</em>}
+            </Link>
+          ))}
+        </nav>
+        <section className={`wsv2-main ws-${tab}`}>{body}</section>
+      </main>
+    </>
+  );
+
   return (
     <>
       <TopBar />
+      {allowed && <button type="button" className="wsv2-new-toggle" onClick={() => switchV2(true)}>Новый вид Workspace</button>}
       <main className="ws2">
         <div className="ws2-aurora" aria-hidden="true"><i /><i /><i /></div>
 
@@ -129,17 +179,7 @@ export function WorkspaceView({ me }: { me: Profile | null }) {
         </aside>
 
         <section className={`ws2-main ws-${tab}`}>
-          {!me ? <div className="skeleton profile-skeleton" /> : (
-            <div key={tab} className="ws2-body">
-              {tab === "overview" && <Overview userId={me.id} name={me.display_name} />}
-              {tab === "clients" && <Clients userId={me.id} />}
-              {tab === "projects" && <Projects userId={me.id} />}
-              {tab === "plans" && <Plans userId={me.id} />}
-              {tab === "finance" && <Finance userId={me.id} />}
-              {tab === "notes" && <Notes userId={me.id} />}
-              {tab === "day" && <DayPlanner userId={me.id} />}
-            </div>
-          )}
+          {body}
         </section>
       </main>
     </>
