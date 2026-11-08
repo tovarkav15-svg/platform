@@ -6766,3 +6766,74 @@ html[data-theme="dark"] .ovk-violet, html[data-theme="dark"] .ovk-green, html[da
 .ws2.wsv2 { min-width: 0; width: 100%; }
 .ws2.wsv2 > * { min-width: 0; max-width: 100%; }
 .wsv2-main > .ws2-body { min-width: 0; }
+
+/* ================= Профиль, новый вид (пока видит только @fedonko) =================
+   Фирменный цветной баннер, крупное имя шрифтом Archivo, цифры — отдельными цветными плитками,
+   заработок — зелёной карточкой, вкладки — как в Workspace. Кнопка внизу возвращает старый вид. */
+.pfv2-switch { align-self: center; margin-top: 8px; border: 0; background: none; color: #8b8e96; font: inherit; font-size: 13px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.pfv2-switch:hover { color: var(--ink); }
+
+/* Шапка */
+.pfv2 .ph2 { border: 0; border-radius: 26px; background: #fff; backdrop-filter: none; box-shadow: 0 1px 2px rgba(16,24,40,.04), 0 10px 34px -16px rgba(16,24,40,.14); }
+.pfv2 .ph2-banner { margin: 8px 8px 0; border-radius: 20px; height: clamp(150px, 20vw, 220px); }
+.pfv2 .ph2-banner::after { content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 2;
+  background: radial-gradient(rgba(255,255,255,.35) 1px, transparent 1.5px) 0 0 / 16px 16px; mask: linear-gradient(180deg, #000, transparent 85%); -webkit-mask: linear-gradient(180deg, #000, transparent 85%); }
+/* Готовые баннеры — сочнее, в цветах логотипа */
+.pfv2 .ph2-banner:not(.bn-image) { background: linear-gradient(135deg, #efe9ff, #e6f0ff 50%, #e3f7ef); }
+.pfv2 .ph2-banner:not(.bn-image) > i { filter: blur(46px); opacity: .9; }
+.pfv2 .ph2-banner:not(.bn-image) .bn-l1 { background: #9f8bff; }
+.pfv2 .ph2-banner:not(.bn-image) .bn-l2 { background: #ff8fb8; }
+.pfv2 .ph2-banner:not(.bn-image) .bn-l3 { background: #ffd66b; }
+.pfv2 .bn-accent { background: linear-gradient(135deg, color-mix(in srgb, var(--c) 18%, #fff), #fff) !important; }
+.pfv2 .bn-accent .bn-l1 { background: color-mix(in srgb, var(--c) 75%, #fff) !important; }
+.pfv2 .bn-accent .bn-l2 { background: color-mix(in srgb, var(--c) 45%, #ff8fb8) !important; }
+.pfv2 .bn-mint .bn-l1 { background: #5fd3a8 !important; } .pfv2 .bn-mint .bn-l2 { background: #7cc4ff !important; } .pfv2 .bn-mint .bn-l3 { background: #c8f56b !important; }
+.pfv2 .bn-sunset .bn-l1 { background: #ff9a6b !important; } .pfv2 .bn-sunset .bn-l2 { background: #ff6fa3 !important; } .pfv2 .bn-sunset .bn-l3 { background: #ffd166 !important; }
+.pfv2 .ph2-avatar .avatar { box-shadow: 0 0 0 5px #fff, 0 12px 30px -12px rgba(16,24,40,.4); }
+.pfv2 .ph2-name h1, .pfv2 .ph2-name h1.caps { font-family: "Archivo", var(--display); font-variation-settings: "wdth" 112; font-weight: 800; letter-spacing: -.035em; color: var(--ink); font-size: clamp(30px, 4vw, 48px); }
+.pfv2 .ph2-handle b { color: color-mix(in srgb, var(--c, #7b61ff) 85%, #000); }
+.pfv2 .ph2-otw { background: #e7f8f1; color: #138a62; border-color: transparent; }
+.pfv2 .ph2-now span { background: linear-gradient(135deg, #ff6a3d, #ff4f8b); color: #fff; border-color: transparent; }
+.pfv2 .ph2-foot { border-top-color: #f0f1f4; }
+.pfv2 .chip-soft { background: #f3f4f7; border-color: transparent; }
+
+/* Цифры — четыре отдельные плитки, у каждой свой цвет */
+.pfv2 .pv-stats { gap: 12px; background: none; border: 0; box-shadow: none; overflow: visible; border-radius: 0; }
+.pfv2 .pv-stat { border: 0; border-radius: 20px; background: #fff; min-height: 110px; border-top: 3px solid var(--sc); box-shadow: 0 1px 2px rgba(16,24,40,.04), 0 6px 24px -12px rgba(16,24,40,.08); transition: transform .2s var(--ease); }
+.pfv2 a.pv-stat:hover { transform: translateY(-2px); background: #fff; }
+.pfv2 .pv-stat:nth-child(1) { --sc: #FF6A3D; } .pfv2 .pv-stat:nth-child(2) { --sc: #2F7BFF; } .pfv2 .pv-stat:nth-child(3) { --sc: #1FA67A; } .pfv2 .pv-stat:nth-child(4) { --sc: #7B61FF; }
+.pfv2 .pv-stat b { font-family: "Archivo", var(--display); font-variation-settings: "wdth" 108; font-weight: 800; font-size: clamp(26px, 2.6vw, 34px); letter-spacing: -.03em; color: color-mix(in srgb, var(--sc) 80%, #000); }
+.pfv2 .pv-stat span { color: #8b8e96; }
+.pfv2 .pf-aura { border: 0; box-shadow: 0 16px 36px -22px color-mix(in srgb, var(--t, #7b61ff) 80%, transparent); }
+
+/* Карточки */
+.pfv2 .pf-card { border: 0; background: #fff; box-shadow: 0 1px 2px rgba(16,24,40,.04), 0 6px 24px -12px rgba(16,24,40,.08); animation: none; }
+.pfv2 .pf-card header b { text-transform: none; letter-spacing: -.01em; font-size: 15.5px; font-weight: 700; color: var(--ink); }
+.pfv2 .pf-dot { animation: none; }
+.pfv2 .pf-about { --c: #FF6A3D; } .pfv2 .pf-jobs .pf-dot { background: #D99A00; box-shadow: 0 0 0 4px rgba(217,154,0,.16); }
+.pfv2 .pf-channels .pf-dot { background: #0EA5B7; box-shadow: 0 0 0 4px rgba(14,165,183,.16); }
+.pfv2 .pf-support .pf-dot { background: #FF4F8B; box-shadow: 0 0 0 4px rgba(255,79,139,.16); }
+.pfv2 .pf-about-text p:first-child::first-letter { font-family: inherit; font-style: normal; font-size: 1em; float: none; margin: 0; color: inherit; }
+
+/* Заработок — зелёная карточка */
+.pfv2 .card.money { border: 0 !important; color: #fff; background: linear-gradient(150deg, #1fa67a, #23b48a 55%, #3cc6a0); box-shadow: 0 18px 40px -22px rgba(31,166,122,.75); }
+.pfv2 .card.money::after { background: radial-gradient(circle, rgba(255,255,255,.3), transparent 65%); }
+.pfv2 .money .label, .pfv2 .money .private, .pfv2 .money .money-row, .pfv2 .money .sum .it { color: rgba(255,255,255,.85); }
+.pfv2 .money .sum { font-family: "Archivo", var(--display); font-variation-settings: "wdth" 108; font-weight: 800; }
+.pfv2 .money .bar { background: rgba(255,255,255,.25); }
+.pfv2 .money .bar b { background: #fff; }
+.pfv2 .money .private i { background: #fff; }
+
+/* Вкладки и заголовки разделов */
+.pfv2 .pf-tabs { background: #fff; border: 0; box-shadow: 0 0 0 1px rgba(16,24,40,.05); border-radius: 18px; padding: 6px; }
+.pfv2 .pf-tabs-pill { top: 6px; bottom: 6px; border-radius: 13px; background: linear-gradient(135deg, #7b61ff, #2f7bff); box-shadow: 0 8px 20px -10px rgba(123,97,255,.8); }
+.pfv2 .section-head h2, .pfv2 .section-head h2.caps { font-family: "Archivo", var(--display); font-variation-settings: "wdth" 110; font-weight: 800; text-transform: none; letter-spacing: -.03em; }
+.pfv2 .section-head h2 .it { background: linear-gradient(95deg, #7b61ff, #ff4f8b 50%, #e8b100); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+/* Тёмная тема */
+html[data-theme="dark"] .pfv2 .ph2, html[data-theme="dark"] .pfv2 .pv-stat, html[data-theme="dark"] .pfv2 .pf-card, html[data-theme="dark"] .pfv2 .pf-tabs { background: #eceef3; box-shadow: 0 0 0 1px rgba(0,0,0,.07); }
+html[data-theme="dark"] .pfv2 .chip-soft { background: #e0e3ea; }
+html[data-theme="dark"] .pfv2 .ph2-avatar .avatar { box-shadow: 0 0 0 5px #eceef3; }
+html[data-theme="dark"] .pfv2 .ph2-banner:not(.bn-image), html[data-theme="dark"] .pfv2 .card.money, html[data-theme="dark"] .pfv2 .pf-tabs-pill,
+html[data-theme="dark"] .pfv2 .section-head h2 .it, html[data-theme="dark"] .pfv2 .ph2-now span { filter: invert(1) hue-rotate(180deg) contrast(1.19); }
+html[data-theme="dark"] .pfv2 .pf-tab[aria-current="page"] { color: #000; }
