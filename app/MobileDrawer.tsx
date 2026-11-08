@@ -37,6 +37,8 @@ const ICON: Record<string, React.ReactNode> = {
   settings: <><circle cx="12" cy="12" r="3" /><path d="M12 3.5v2.2M12 18.3v2.2M20.5 12h-2.2M5.7 12H3.5M18 6l-1.6 1.6M7.6 16.4 6 18M18 18l-1.6-1.6M7.6 7.6 6 6" /></>,
   moderation: <path d="M12 3.5 19 6v5.5c0 4.3-3 7.6-7 9-4-1.4-7-4.7-7-9V6z" />,
 };
+/** Цвет раздела — из палитры Relic (как квадратики логотипа) */
+export const SECTION_COLOR: Record<string, string> = { home: "#7B61FF", chats: "#0EA5B7", jobs: "#D99A00", workspace: "#2F7BFF", profile: "#FF6A3D", moderation: "#FF4F8B" };
 export const Ico = ({ name }: { name: string }) => (
   <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{ICON[name]}</svg>
 );
@@ -135,7 +137,7 @@ export function MobileDrawer({ me, tabs, chats }: { me: Profile; tabs: NavTab[];
           <nav className="md-nav" aria-label="Разделы">
             {tabs.map((t, i) => (
               <div key={t.label} className="md-group">
-                <Link href={t.href} className="md-item" aria-current={t.active && !t.subs ? "page" : undefined} style={{ "--i": i } as React.CSSProperties}>
+                <Link href={t.href} className="md-item" aria-current={t.active && !t.subs ? "page" : undefined} style={{ "--i": i, "--c": SECTION_COLOR[t.icon] } as React.CSSProperties}>
                   <Ico name={t.icon} />
                   <span>{t.label}</span>
                   {!!t.count && !(t.subs && t.active) && <em className="count-badge">{t.count > 99 ? "99+" : t.count}</em>}

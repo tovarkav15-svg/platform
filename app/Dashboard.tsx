@@ -8,7 +8,7 @@ import { rub } from "@/lib/workspace";
 import { PRIORITY, addDays, dueLabel, iso, nextDue, today, type PlanTask } from "@/lib/plans";
 import { tierOf } from "@/lib/aura";
 import { ChatAvatar, chatTitle } from "./messages/ChatAvatar";
-import { Ico } from "./MobileDrawer";
+import { Ico, SECTION_COLOR } from "./MobileDrawer";
 
 const plural = (n: number, one: string, few: string, many: string) => {
   const a = n % 10, b = n % 100;
@@ -67,7 +67,7 @@ export function Dashboard({ me }: { me: Profile }) {
   return (
     <main className="page wide db">
       <header className="db-hello">
-        <h1>{hello}, {first}</h1>
+        <h1>{hello}, <span className="db-grad">{first}</span><i className="db-ring" aria-hidden="true" /></h1>
         <p>{tasks === null ? "Собираем твой день…" : left.length ? `В плане ${left.length} ${plural(left.length, "дело", "дела", "дел")}${unread ? `, и ${unread} ${plural(unread, "новое сообщение", "новых сообщения", "новых сообщений")}` : ""}.` : "План на сегодня пуст — загляни на Биржу за новым заказом."}</p>
       </header>
 
@@ -84,7 +84,7 @@ export function Dashboard({ me }: { me: Profile }) {
           <b>{rub(money.income)}</b>
           <span className="db-foot"><span>Потрачено {rub(money.expense)}</span><span>Финансы →</span></span>
         </Link>
-        <Link href="/messages/" className="db-card">
+        <Link href="/messages/" className="db-card db-tint" style={{ "--c": SECTION_COLOR.chats } as React.CSSProperties}>
           <span className="db-ico"><Ico name="chats" /></span>
           <small>Новые сообщения</small>
           <b>{unread}</b>
@@ -93,8 +93,8 @@ export function Dashboard({ me }: { me: Profile }) {
       </div>
 
       <div className="db-row two">
-        <section className="db-card db-list">
-          <header><b>Сегодня</b><Link href="/workspace/?tab=plans&focus=new-task" className="db-plus" aria-label="Добавить задачу">+</Link></header>
+        <section className="db-card db-list" style={{ "--c": SECTION_COLOR.workspace } as React.CSSProperties}>
+          <header><b><i className="db-dot" />Сегодня</b><Link href="/workspace/?tab=plans&focus=new-task" className="db-plus" aria-label="Добавить задачу">+</Link></header>
           {tasks === null ? <div className="skeleton list-skeleton" /> : left.length === 0 ? (
             <p className="db-empty">Дел нет. <Link href="/workspace/?tab=plans&focus=new-task">Добавить задачу</Link></p>
           ) : (
@@ -110,8 +110,8 @@ export function Dashboard({ me }: { me: Profile }) {
           )}
         </section>
 
-        <section className="db-card db-list">
-          <header><b>Чаты</b><Link href="/messages/" className="link-btn">Все</Link></header>
+        <section className="db-card db-list" style={{ "--c": SECTION_COLOR.chats } as React.CSSProperties}>
+          <header><b><i className="db-dot" />Чаты</b><Link href="/messages/" className="link-btn">Все</Link></header>
           {chats.length === 0 ? <p className="db-empty">Пока пусто. <Link href="/community/">Найти людей</Link></p> : (
             <ul>
               {chats.slice(0, 5).map((c) => (
@@ -129,13 +129,13 @@ export function Dashboard({ me }: { me: Profile }) {
       </div>
 
       <div className="db-row">
-        <Link href="/jobs/?tab=my-orders" className="db-card db-mini">
+        <Link href="/jobs/?tab=my-orders" className="db-card db-mini" style={{ "--c": SECTION_COLOR.jobs } as React.CSSProperties}>
           <small>Отклики на мои заказы</small><b>{responses}</b><span>{responses ? "Ждут ответа" : "Разместить заказ на Бирже"}</span>
         </Link>
-        <Link href="/aura/" className="db-card db-mini">
+        <Link href="/aura/" className="db-card db-mini" style={{ "--c": "#FF4F8B" } as React.CSSProperties}>
           <small>AURA — рейтинг за дела</small><b>{aura ?? "—"}</b><span>{tier ? `Уровень «${tier.fullName}»` : ""}</span>
         </Link>
-        <Link href={profileHref(me.username)} className="db-card db-mini">
+        <Link href={profileHref(me.username)} className="db-card db-mini" style={{ "--c": SECTION_COLOR.profile } as React.CSSProperties}>
           <small>Мой профиль</small><b className="db-name">@{me.username}</b><span>Ссылка для клиентов</span>
         </Link>
       </div>
@@ -149,7 +149,7 @@ export function Dashboard({ me }: { me: Profile }) {
             { href: "/workspace/", icon: "workspace", t: "Workspace", s: "Твои дела: задачи, клиенты, проекты, деньги, заметки." },
             { href: profileHref(me.username), icon: "profile", t: "Профиль", s: "Твоя витрина: работы, отзывы, AURA, настройки." },
           ].map((x) => (
-            <Link key={x.t} href={x.href} className="db-map-i">
+            <Link key={x.t} href={x.href} className="db-map-i" style={{ "--c": SECTION_COLOR[x.icon] } as React.CSSProperties}>
               <span className="db-ico"><Ico name={x.icon} /></span>
               <b>{x.t}</b><small>{x.s}</small>
             </Link>

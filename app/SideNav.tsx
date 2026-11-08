@@ -7,7 +7,7 @@ import type { ChatListItem, Profile } from "@/lib/supabase";
 import { chatHref, profileHref } from "@/lib/links";
 import { Avatar } from "./Avatar";
 import { ChatAvatar, chatTitle } from "./messages/ChatAvatar";
-import { Ico, usePrevOpen, type NavTab } from "./MobileDrawer";
+import { Ico, SECTION_COLOR, usePrevOpen, type NavTab } from "./MobileDrawer";
 
 type Mode = "full" | "rail";
 const KEY = "nav:side";
@@ -46,13 +46,13 @@ export function SideNav({ me, tabs, chats }: { me: Profile; tabs: NavTab[]; chat
         <nav className="sd-nav">
           {tabs.map((t) => (
             <div key={t.label} className="sd-group">
-              <Link href={t.href} className="sd-item" aria-current={t.active && (rail || !t.subs) ? "page" : undefined} title={rail ? t.label : undefined}>
+              <Link href={t.href} className="sd-item" aria-current={t.active && (rail || !t.subs) ? "page" : undefined} data-open={t.active || undefined} title={rail ? t.label : undefined} style={{ "--c": SECTION_COLOR[t.icon] } as React.CSSProperties}>
                 <span className="sd-ico"><Ico name={t.icon} />{rail && !!t.count && <i className="sd-dot" aria-hidden="true" />}</span>
                 {!rail && <span className="sd-label">{t.label}</span>}
                 {!rail && !!t.count && !(t.subs && t.active) && <em className="count-badge">{t.count > 99 ? "99+" : t.count}</em>}
               </Link>
               {!rail && t.subs && (
-                <div className="sd-subs" data-open={t.active} data-anim={t.active && openedBefore !== t.label ? "" : undefined}>
+                <div className="sd-subs" data-open={t.active} style={{ "--c": SECTION_COLOR[t.icon] } as React.CSSProperties} data-anim={t.active && openedBefore !== t.label ? "" : undefined}>
                   <div>
                     {t.subs.map((x) => (
                       <Link key={x.href} href={x.href} className="sd-sub" aria-current={x.active ? "page" : undefined} tabIndex={t.active ? undefined : -1}>
