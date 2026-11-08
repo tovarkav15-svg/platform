@@ -2,7 +2,7 @@
 // Запоминает только «оболочку» сайта: код, стили, шрифты, иконки. Ответы базы (чаты, Workspace, деньги)
 // идут на другой адрес, их помощник не трогает и на устройстве не хранит.
 // Страницы сначала грузятся из сети, сохранённое — только когда сети нет, поэтому новая версия приходит сразу.
-const VERSION = "v9";
+const VERSION = "v10";
 const STATIC = `relic-static-${VERSION}`;
 const PAGES = `relic-pages-${VERSION}`;
 const FONTS = "relic-fonts";
@@ -39,17 +39,21 @@ async function cacheFirst(req, name, max) {
   return res;
 }
 
+const isHtml = (res) => (res.headers.get("content-type") || "").includes("text/html");
+
 async function networkFirst(req, fallbackToRoot) {
+  const nav = req.mode === "navigate";
   try {
     const res = await fetch(req);
-    if (res.ok) {
+    // Данные для переходов (…/index.txt) не храним: их нельзя показывать как страницу
+    if (res.ok && (!nav || isHtml(res)) && !new URL(req.url).pathname.endsWith(".txt")) {
       const c = await caches.open(PAGES);
       c.put(req, res.clone()).then(() => trim(PAGES, 80));
     }
     return res;
   } catch (err) {
-    const hit = await caches.match(req, { ignoreSearch: req.mode === "navigate" });
-    if (hit) return hit;
+    const hit = await caches.match(req, { ignoreSearch: nav });
+    if (hit && (!nav || isHtml(hit))) return hit;
     if (fallbackToRoot) {
       const root = await caches.match(BASE);
       if (root) return root;
@@ -74,6 +78,13 @@ self.addEventListener("fetch", (e) => {
   // Код и стили с отпечатком в имени не меняются — берём из памяти
   if (url.pathname.startsWith(`${BASE}_next/static/`) || url.pathname.startsWith(`${BASE}app/`) || url.pathname.startsWith(`${BASE}brand/`)) {
     e.respondWith(cacheFirst(req, STATIC, 300));
+    return;
+  }
+  // Если браузер открыл служебный файл страницы (…/index.txt) как страницу — ведём на саму страницу
+  if (req.mode === "navigate" && url.pathname.endsWith(".txt")) {
+    url.searchParams.delete("_rsc");
+    url.pathname = url.pathname.endsWith("/index.txt") ? url.pathname.slice(0, -9) : url.pathname.slice(0, -4);
+    e.respondWith(Response.redirect(url.href, 302));
     return;
   }
   // Страницы и данные для переходов — сначала сеть
