@@ -11,6 +11,7 @@ import { CreateChat } from "./CreateChat";
 import { ChannelsBrowser } from "./ChannelsBrowser";
 import { useSession } from "@/lib/session";
 import { ChatPeek } from "./ChatPeek";
+import { PushBanner } from "../PushPrompt";
 
 const KIND_LABEL: Record<string, string> = { image: "Фото", video: "Видео", voice: "Голосовое сообщение", file: "Файл", sticker: "Стикер" };
 type Filter = "all" | "dm" | "group" | "channel" | "tickets";
@@ -94,6 +95,7 @@ export function MessengerShell({ chats, activeId, meId, children, onChanged }: P
           <input id="chatSearch" value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === "Escape") setQ(""); }} placeholder="Поиск" autoComplete="off" aria-label="Поиск по чатам" />
           {q && <button type="button" onClick={() => setQ("")} aria-label="Очистить поиск">×</button>}
         </label>
+        <PushBanner />
         <div className="chat-filters" role="tablist" aria-label="Виды чатов">
           {([["all", "Все"], ["dm", "Личные"], ["group", "Группы"], ["channel", "Каналы"], ...(staff ? [["tickets", "Обращения"]] : [])] as [Filter, string][]).map(([k, l]) => (
             <button key={k} type="button" role="tab" aria-selected={filter === k} className={k === "tickets" ? "tickets" : ""} onClick={() => setFilter(k)}>

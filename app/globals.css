@@ -6444,3 +6444,13 @@ h1, h2, h3, .caps, .h-xl, .h-md { font-variation-settings: normal; }
   font-family: inherit; font-style: normal; font-weight: 500; font-size: max(13px, .82em);
 }
 .pf-about-text p:first-child::first-letter { font-size: inherit; float: none; font-weight: inherit; }
+
+/* Подсказка включить уведомления — сверху списка чатов */
+.push-banner { display: flex; align-items: center; gap: 10px; margin: 0 14px 10px; padding: 10px 10px 10px 12px; border-radius: 14px;
+  background: color-mix(in srgb, var(--accent, #2f7bff) 8%, transparent); }
+.push-banner-ico { flex: none; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--accent, #2f7bff); color: #fff; }
+.push-banner-t { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.3; }
+.push-banner-t b { font-size: 14px; }
+.push-banner-t small { font-size: 12.5px; color: var(--graphite); }
+.push-banner .btn.sm { flex: none; padding: 7px 12px; }
+.push-banner-x { flex: none; border: 0; background: none; color: var(--mute); font-size: 20px; line-height: 1; padding: 2px 4px; cursor: pointer; }

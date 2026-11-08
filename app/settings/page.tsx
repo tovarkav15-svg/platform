@@ -8,6 +8,7 @@ import { signOut, useRequireMe } from "@/lib/session";
 import { profileHref } from "@/lib/links";
 import { DEFAULT_PREFS, savePrefs, usePrefs, type Prefs } from "@/lib/prefs";
 import { InstallButton } from "../InstallApp";
+import { PushRow } from "../PushPrompt";
 import { useInstall } from "@/lib/pwa";
 import { TopBar } from "../TopBar";
 import { ProfileForm } from "./ProfileForm";
@@ -190,6 +191,7 @@ function AppGroup() {
 function Notify() {
   return (
     <Group title="Новые сообщения" hint="В режиме фокуса уведомлений нет в любом случае">
+      <PushRow />
       <Toggle k="popups" label="Всплывающие уведомления" sub="Карточка в углу экрана, когда тебе пишут" />
       <Toggle k="sound" label="Звук" sub="Тихий «тук» при новом сообщении" />
       <Toggle k="notifyText" label="Показывать текст сообщения" sub="Выключи, если рядом кто-то смотрит в экран" />

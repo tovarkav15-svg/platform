@@ -416,3 +416,7 @@ enabled = true
 
 [functions.ai]
 verify_jwt = false
+
+# Уведомления зовёт сама база (триггер), без входа
+[functions.push]
+verify_jwt = false

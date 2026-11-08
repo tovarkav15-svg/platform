@@ -2,7 +2,7 @@
 // Запоминает только «оболочку» сайта: код, стили, шрифты, иконки. Ответы базы (чаты, Workspace, деньги)
 // идут на другой адрес, их помощник не трогает и на устройстве не хранит.
 // Страницы сначала грузятся из сети, сохранённое — только когда сети нет, поэтому новая версия приходит сразу.
-const VERSION = "v6";
+const VERSION = "v7";
 const STATIC = `relic-static-${VERSION}`;
 const PAGES = `relic-pages-${VERSION}`;
 const FONTS = "relic-fonts";
@@ -78,4 +78,30 @@ self.addEventListener("fetch", (e) => {
   }
   // Страницы и данные для переходов — сначала сеть
   e.respondWith(networkFirst(req, req.mode === "navigate"));
+});
+
+// Уведомления на телефон: новое сообщение пришло, когда сайт закрыт
+self.addEventListener("push", (e) => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch {}
+  e.waitUntil(self.registration.showNotification(d.title || "Relic", {
+    body: d.body || "Новое сообщение",
+    tag: d.tag,
+    renotify: !!d.tag,
+    icon: `${BASE}app/icon-192.png`,
+    badge: `${BASE}app/icon-192.png`,
+    data: { url: d.url || "messages/" },
+  }));
+});
+
+// Нажали на уведомление — открываем этот чат в уже открытом окне Relic или в новом
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  const url = new URL(e.notification.data?.url || "messages/", self.registration.scope).href;
+  e.waitUntil((async () => {
+    const wins = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    const win = wins.find((w) => w.url.startsWith(self.registration.scope));
+    if (win) { await win.focus(); return win.navigate ? win.navigate(url) : undefined; }
+    return self.clients.openWindow(url);
+  })());
 });
