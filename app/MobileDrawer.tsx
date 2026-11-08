@@ -26,6 +26,7 @@ export function usePrevOpen(key: string, tabs: NavTab[]) {
 
 /** Иконки разделов — тонкие линии, как в мобильном ChatGPT */
 const ICON: Record<string, React.ReactNode> = {
+  home: <><rect x="4" y="4" width="7" height="7" rx="2" /><rect x="13" y="4" width="7" height="7" rx="2" /><rect x="4" y="13" width="7" height="7" rx="2" /><rect x="13" y="13" width="7" height="7" rx="2" /></>,
   profile: <><circle cx="12" cy="8.5" r="3.5" /><path d="M5 19.5c1.2-3.3 3.8-5 7-5s5.8 1.7 7 5" /></>,
   workspace: <><rect x="4" y="5" width="16" height="14" rx="3" /><path d="M4 10h16M9 10v9" /></>,
   learn: <><path d="M4 6.5c2.8-1.3 5.5-1.3 8 0v12c-2.5-1.3-5.2-1.3-8 0z" /><path d="M20 6.5c-2.8-1.3-5.5-1.3-8 0v12c2.5-1.3 5.2-1.3 8 0z" /></>,

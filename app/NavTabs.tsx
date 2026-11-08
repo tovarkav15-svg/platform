@@ -70,6 +70,7 @@ export function NavTabs({ me }: { me: Profile }) {
   const inPeople = ["/community", "/people", "/discover", "/project"].some((p) => path.startsWith(p));
   // Четыре главных раздела, как вкладки в мессенджере; остальное — внутри них
   const tabs: NavTab[] = [
+    { href: "/", label: "Обзор", active: path === "/", icon: "home" },
     { href: "/messages/", label: "Чаты", active: path.startsWith("/messages") || inPeople, count: unread + requests, icon: "chats", subs: [
       { href: "/messages/", label: "Сообщения", active: path.startsWith("/messages"), count: unread },
       { href: "/community/", label: "Люди и лента", active: inPeople, count: requests },

@@ -11,6 +11,7 @@ import { Avatar, PresenceLabel } from "./Avatar";
 import { FocusButton, focusLeft } from "./focus/Focus";
 import { StreakChip } from "./workspace/Streak";
 import { InstallButton } from "./InstallApp";
+import { CommandBar } from "./CommandBar";
 
 export function TopBar() {
   const { ready, me, refreshMe } = useSession();
@@ -36,6 +37,7 @@ export function TopBar() {
       {me ? (
         <>
           <NavTabs me={me} />
+          <CommandBar me={me} />
           <div className="topbar-me">
             <StreakChip />
             <FocusButton />

@@ -7,6 +7,7 @@ import { profileHref } from "@/lib/links";
 import { NICHES } from "@/lib/niches";
 import { TIERS } from "@/lib/aura";
 import { TopBar } from "./TopBar";
+import { Dashboard } from "./Dashboard";
 
 const PILLARS = [
   { icon: "↗", title: "Расти", text: "Обучение по 10 нишам, цели и задачи, AURA за реальные дела. Видно, как ты движешься.", color: "#7B61FF" },
@@ -34,8 +35,11 @@ const STEPS = [
 
 export default function Home() {
   const { me, ready } = useSession();
-  useEffect(() => { document.title = "Relic — платформа для фрилансеров"; }, []);
+  useEffect(() => { if (ready && !me) document.title = "Relic — платформа для фрилансеров"; }, [ready, me]);
   const hrefOf = (h: string) => (h === "profile" ? (me ? profileHref(me.username) : "/register") : h);
+
+  // Вошёл — сразу «Обзор» дня, а не рекламная страница
+  if (ready && me) return (<><TopBar /><Dashboard me={me} /></>);
 
   return (
     <>
