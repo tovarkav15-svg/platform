@@ -6473,3 +6473,26 @@ h1, h2, h3, .caps, .h-xl, .h-md { font-variation-settings: normal; }
 .rc-msg { margin: 0; font-size: 14px; font-weight: 600; color: var(--ink); }
 .rc-h { font-size: 16px; margin: 6px 0 0; }
 .md-log s { color: var(--mute); }
+
+/* ================= Меню: 4 главных раздела, остальное внутри ================= */
+/* Строка подразделов под шапкой — как переключатель вкладок в мессенджере */
+.topbar { flex-wrap: wrap; row-gap: 8px; }
+.subnav { order: 10; flex-basis: 100%; display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; margin-bottom: -2px; }
+.subnav::-webkit-scrollbar { display: none; }
+.subnav-i { flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 99px; font-size: 13.5px; font-weight: 600;
+  color: var(--graphite); text-decoration: none; transition: background-color .2s, color .2s; }
+.subnav-i:hover { color: var(--ink); background: rgba(20,20,20,.05); }
+.subnav-i[aria-current="page"] { background: var(--ink); color: #fff; }
+.subnav-i .count-badge { min-width: 17px; height: 17px; font-size: 10.5px; padding: 0 5px; }
+/* На компьютере с раскрытой панелью подразделы видны в самой панели */
+@media (min-width: 761px) { html[data-side="full"] .subnav { display: none; } }
+
+/* Подразделы в боковой панели и в шторке — под своим разделом, чуть с отступом */
+.sd-sub, .md-sub { display: flex; align-items: center; gap: 8px; text-decoration: none; color: var(--graphite); font-weight: 500; border-radius: 9px; transition: background .2s, color .2s; }
+.sd-sub { margin-left: 32px; padding: 6px 10px; font-size: 13.5px; }
+.md-sub { margin-left: 44px; padding: 8px 12px; font-size: 14.5px; }
+.sd-sub span, .md-sub span { flex: 1; }
+.sd-sub:hover { background: rgba(20,20,20,.04); color: var(--ink); }
+.sd-sub[aria-current="page"], .md-sub[aria-current="page"] { color: var(--ink); font-weight: 700; background: var(--card, #fff); box-shadow: 0 0 0 1px var(--line); }
+.sd-sub .count-badge, .md-sub .count-badge { min-width: 17px; height: 17px; font-size: 10.5px; padding: 0 5px; }
+.sd-group, .md-group { display: flex; flex-direction: column; gap: 2px; }

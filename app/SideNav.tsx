@@ -44,11 +44,19 @@ export function SideNav({ me, tabs, chats }: { me: Profile; tabs: NavTab[]; chat
       <div className="sd-scroll">
         <nav className="sd-nav">
           {tabs.map((t) => (
-            <Link key={t.label} href={t.href} className="sd-item" aria-current={t.active ? "page" : undefined} title={rail ? t.label : undefined}>
-              <span className="sd-ico"><Ico name={t.icon} />{rail && !!t.count && <i className="sd-dot" aria-hidden="true" />}</span>
-              {!rail && <span className="sd-label">{t.label}</span>}
-              {!rail && !!t.count && <em className="count-badge">{t.count > 99 ? "99+" : t.count}</em>}
-            </Link>
+            <div key={t.label} className="sd-group">
+              <Link href={t.href} className="sd-item" aria-current={t.active && (rail || !t.subs) ? "page" : undefined} title={rail ? t.label : undefined}>
+                <span className="sd-ico"><Ico name={t.icon} />{rail && !!t.count && <i className="sd-dot" aria-hidden="true" />}</span>
+                {!rail && <span className="sd-label">{t.label}</span>}
+                {!rail && !!t.count && !t.subs && <em className="count-badge">{t.count > 99 ? "99+" : t.count}</em>}
+              </Link>
+              {!rail && t.subs?.map((x) => (
+                <Link key={x.href} href={x.href} className="sd-sub" aria-current={x.active ? "page" : undefined}>
+                  <span>{x.label}</span>
+                  {!!x.count && <em className="count-badge">{x.count > 99 ? "99+" : x.count}</em>}
+                </Link>
+              ))}
+            </div>
           ))}
         </nav>
 

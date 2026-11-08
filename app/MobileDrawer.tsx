@@ -9,7 +9,8 @@ import { chatHref, profileHref } from "@/lib/links";
 import { Avatar } from "./Avatar";
 import { ChatAvatar, chatTitle } from "./messages/ChatAvatar";
 
-export type NavTab = { href: string; label: string; active: boolean; count?: number; icon: string };
+export type NavSub = { href: string; label: string; active: boolean; count?: number };
+export type NavTab = { href: string; label: string; active: boolean; count?: number; icon: string; subs?: NavSub[] };
 
 const W = 300; // ширина шторки
 
@@ -121,11 +122,19 @@ export function MobileDrawer({ me, tabs, chats }: { me: Profile; tabs: NavTab[];
         <div className="md-scroll">
           <nav className="md-nav" aria-label="Разделы">
             {tabs.map((t, i) => (
-              <Link key={t.label} href={t.href} className="md-item" aria-current={t.active ? "page" : undefined} style={{ "--i": i } as React.CSSProperties}>
-                <Ico name={t.icon} />
-                <span>{t.label}</span>
-                {!!t.count && <em className="count-badge">{t.count > 99 ? "99+" : t.count}</em>}
-              </Link>
+              <div key={t.label} className="md-group">
+                <Link href={t.href} className="md-item" aria-current={t.active && !t.subs ? "page" : undefined} style={{ "--i": i } as React.CSSProperties}>
+                  <Ico name={t.icon} />
+                  <span>{t.label}</span>
+                  {!!t.count && !t.subs && <em className="count-badge">{t.count > 99 ? "99+" : t.count}</em>}
+                </Link>
+                {t.subs?.map((x) => (
+                  <Link key={x.href} href={x.href} className="md-sub" aria-current={x.active ? "page" : undefined}>
+                    <span>{x.label}</span>
+                    {!!x.count && <em className="count-badge">{x.count > 99 ? "99+" : x.count}</em>}
+                  </Link>
+                ))}
+              </div>
             ))}
           </nav>
 

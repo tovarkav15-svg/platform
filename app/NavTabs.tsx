@@ -67,21 +67,30 @@ export function NavTabs({ me }: { me: Profile }) {
   }, [me.id, navTick]);
 
   const isMyProfile = path.startsWith("/u") && params.get("n") === me.username;
+  const inPeople = ["/community", "/people", "/discover", "/project"].some((p) => path.startsWith(p));
+  // Четыре главных раздела, как вкладки в мессенджере; остальное — внутри них
   const tabs: NavTab[] = [
-    { href: profileHref(me.username), label: "Профиль", active: isMyProfile, icon: "profile" },
-    { href: "/workspace/", label: "Workspace", active: path.startsWith("/workspace"), icon: "workspace" },
-    { href: "/learn/", label: "Обучение", active: path.startsWith("/learn"), icon: "learn" },
-    { href: "/community/", label: "Community", active: ["/community", "/people", "/discover", "/project"].some((p) => path.startsWith(p)), count: requests, icon: "community" },
+    { href: "/messages/", label: "Чаты", active: path.startsWith("/messages") || inPeople, count: unread + requests, icon: "chats", subs: [
+      { href: "/messages/", label: "Сообщения", active: path.startsWith("/messages"), count: unread },
+      { href: "/community/", label: "Люди и лента", active: inPeople, count: requests },
+    ] },
     { href: "/jobs/", label: "Биржа", active: path.startsWith("/jobs") || path.startsWith("/deal"), count: jobCount, icon: "jobs" },
-    { href: "/aura/", label: "AURA", active: path.startsWith("/aura"), icon: "aura" },
-    { href: "/messages/", label: "Чаты", active: path.startsWith("/messages"), count: unread, icon: "chats" },
-    { href: "/settings/", label: "Settings", active: path.startsWith("/settings"), icon: "settings" },
+    { href: "/workspace/", label: "Workspace", active: path.startsWith("/workspace") || path.startsWith("/learn"), icon: "workspace", subs: [
+      { href: "/workspace/", label: "Мои дела", active: path.startsWith("/workspace") },
+      { href: "/learn/", label: "Обучение", active: path.startsWith("/learn") },
+    ] },
+    { href: profileHref(me.username), label: "Профиль", active: isMyProfile || path.startsWith("/aura") || path.startsWith("/settings"), icon: "profile", subs: [
+      { href: profileHref(me.username), label: "Моя страница", active: isMyProfile },
+      { href: "/aura/", label: "AURA", active: path.startsWith("/aura") },
+      { href: "/settings/", label: "Настройки", active: path.startsWith("/settings") },
+    ] },
     ...(me.role === "owner" || me.role === "founder" ? [{ href: "/moderation/", label: "Модерация", active: path.startsWith("/moderation"), count: modCount, icon: "moderation" }] : []),
   ];
 
-  // В фокусе виден только Workspace
+  // В фокусе виден только Workspace (с обучением)
   const inFocus = !!me.focus_until && new Date(me.focus_until) > new Date();
-  const visible = inFocus ? tabs.filter((t) => t.href === "/workspace/" || t.href === "/learn/") : tabs;
+  const visible = inFocus ? tabs.filter((t) => t.href === "/workspace/") : tabs;
+  const group = visible.find((t) => t.active && t.subs);
 
   return (
     <>
@@ -95,6 +104,15 @@ export function NavTabs({ me }: { me: Profile }) {
         </Link>
       ))}
     </nav>
+    {group?.subs && (
+      <nav className="subnav" aria-label={`Разделы: ${group.label}`}>
+        {group.subs.map((t) => (
+          <Link key={t.href} href={t.href} className="subnav-i" aria-current={t.active ? "page" : undefined}>
+            {t.label}{!!t.count && <span className="count-badge">{t.count > 99 ? "99+" : t.count}</span>}
+          </Link>
+        ))}
+      </nav>
+    )}
     </>
   );
 }
