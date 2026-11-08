@@ -14,6 +14,16 @@ export type NavTab = { href: string; label: string; active: boolean; count?: num
 
 const W = 300; // ширина шторки
 
+// Какой раздел был раскрыт до перехода: панель перемонтируется на каждой странице,
+// и плавно раскрываем подразделы только когда раздел сменился, а не при каждом клике внутри него
+const lastOpen: Record<string, string | undefined> = {};
+export function usePrevOpen(key: string, tabs: NavTab[]) {
+  const cur = tabs.find((t) => t.active && t.subs)?.label;
+  const [prev] = useState(() => lastOpen[key]);
+  useEffect(() => { lastOpen[key] = cur; }, [key, cur]);
+  return prev;
+}
+
 /** Иконки разделов — тонкие линии, как в мобильном ChatGPT */
 const ICON: Record<string, React.ReactNode> = {
   profile: <><circle cx="12" cy="8.5" r="3.5" /><path d="M5 19.5c1.2-3.3 3.8-5 7-5s5.8 1.7 7 5" /></>,
@@ -33,6 +43,7 @@ export const Ico = ({ name }: { name: string }) => (
 /** Боковая шторка для телефона: кнопка ≡ или свайп от левого края; закрывается свайпом влево, тапом мимо или переходом */
 export function MobileDrawer({ me, tabs, chats }: { me: Profile; tabs: NavTab[]; chats: ChatListItem[] }) {
   const [open, setOpen] = useState(false);
+  const openedBefore = usePrevOpen("drawer", tabs);
   const [drag, setDrag] = useState<number | null>(null); // текущее смещение шторки в px (0 — закрыта, W — открыта)
   const touch = useRef<{ x: number; y: number; t: number; base: number; lock: "x" | "y" | null } | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -126,14 +137,20 @@ export function MobileDrawer({ me, tabs, chats }: { me: Profile; tabs: NavTab[];
                 <Link href={t.href} className="md-item" aria-current={t.active && !t.subs ? "page" : undefined} style={{ "--i": i } as React.CSSProperties}>
                   <Ico name={t.icon} />
                   <span>{t.label}</span>
-                  {!!t.count && !t.subs && <em className="count-badge">{t.count > 99 ? "99+" : t.count}</em>}
+                  {!!t.count && !(t.subs && t.active) && <em className="count-badge">{t.count > 99 ? "99+" : t.count}</em>}
                 </Link>
-                {t.subs?.map((x) => (
-                  <Link key={x.href} href={x.href} className="md-sub" aria-current={x.active ? "page" : undefined}>
-                    <span>{x.label}</span>
-                    {!!x.count && <em className="count-badge">{x.count > 99 ? "99+" : x.count}</em>}
-                  </Link>
-                ))}
+                {t.subs && (
+                  <div className="md-subs" data-open={t.active} data-anim={t.active && openedBefore !== t.label ? "" : undefined}>
+                    <div>
+                      {t.subs.map((x) => (
+                        <Link key={x.href} href={x.href} className="md-sub" aria-current={x.active ? "page" : undefined} tabIndex={t.active ? undefined : -1}>
+                          <span>{x.label}</span>
+                          {!!x.count && <em className="count-badge">{x.count > 99 ? "99+" : x.count}</em>}
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </nav>

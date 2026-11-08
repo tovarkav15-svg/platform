@@ -7,7 +7,7 @@ import type { ChatListItem, Profile } from "@/lib/supabase";
 import { chatHref, profileHref } from "@/lib/links";
 import { Avatar } from "./Avatar";
 import { ChatAvatar, chatTitle } from "./messages/ChatAvatar";
-import { Ico, type NavTab } from "./MobileDrawer";
+import { Ico, usePrevOpen, type NavTab } from "./MobileDrawer";
 
 type Mode = "full" | "rail";
 const KEY = "nav:side";
@@ -15,6 +15,7 @@ const KEY = "nav:side";
 /** Боковая панель на компьютере: полная или свёрнутая до иконок. Место под неё заранее резервирует скрипт в <head> */
 export function SideNav({ me, tabs, chats }: { me: Profile; tabs: NavTab[]; chats: ChatListItem[] }) {
   const [mode, setMode] = useState<Mode | null>(null);
+  const openedBefore = usePrevOpen("side", tabs);
   useEffect(() => {
     const el = document.documentElement;
     let m = el.dataset.side as Mode | undefined;
@@ -48,14 +49,20 @@ export function SideNav({ me, tabs, chats }: { me: Profile; tabs: NavTab[]; chat
               <Link href={t.href} className="sd-item" aria-current={t.active && (rail || !t.subs) ? "page" : undefined} title={rail ? t.label : undefined}>
                 <span className="sd-ico"><Ico name={t.icon} />{rail && !!t.count && <i className="sd-dot" aria-hidden="true" />}</span>
                 {!rail && <span className="sd-label">{t.label}</span>}
-                {!rail && !!t.count && !t.subs && <em className="count-badge">{t.count > 99 ? "99+" : t.count}</em>}
+                {!rail && !!t.count && !(t.subs && t.active) && <em className="count-badge">{t.count > 99 ? "99+" : t.count}</em>}
               </Link>
-              {!rail && t.subs?.map((x) => (
-                <Link key={x.href} href={x.href} className="sd-sub" aria-current={x.active ? "page" : undefined}>
-                  <span>{x.label}</span>
-                  {!!x.count && <em className="count-badge">{x.count > 99 ? "99+" : x.count}</em>}
-                </Link>
-              ))}
+              {!rail && t.subs && (
+                <div className="sd-subs" data-open={t.active} data-anim={t.active && openedBefore !== t.label ? "" : undefined}>
+                  <div>
+                    {t.subs.map((x) => (
+                      <Link key={x.href} href={x.href} className="sd-sub" aria-current={x.active ? "page" : undefined} tabIndex={t.active ? undefined : -1}>
+                        <span>{x.label}</span>
+                        {!!x.count && <em className="count-badge">{x.count > 99 ? "99+" : x.count}</em>}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </nav>

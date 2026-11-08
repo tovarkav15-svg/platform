@@ -6516,3 +6516,17 @@ h1, h2, h3, .caps, .h-xl, .h-md { font-variation-settings: normal; }
   box-shadow: 0 0 0 1px rgba(20,20,20,.08), 0 20px 50px -20px rgba(20,20,20,.35); animation: fadeUp .25s var(--ease) both; }
 .login-alert > span { flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: 2px; }
 .login-alert small { font-size: 13px; color: var(--graphite); }
+
+/* Подразделы видны только у открытого раздела и раскрываются плавно */
+.sd-subs, .md-subs { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows .32s var(--ease), opacity .24s var(--ease); }
+.sd-subs > div, .md-subs > div { min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 2px; }
+.sd-subs[data-open="true"], .md-subs[data-open="true"] { grid-template-rows: 1fr; opacity: 1; }
+.sd-subs[data-open="true"] > div, .md-subs[data-open="true"] > div { padding-block: 2px 4px; }
+.sd-subs[data-anim], .md-subs[data-anim] { animation: subOpen .34s var(--ease) both; }
+@keyframes subOpen { from { grid-template-rows: 0fr; opacity: 0; } to { grid-template-rows: 1fr; opacity: 1; } }
+
+/* Загрузка: спокойная серая плашка без бегущей белой полосы; при быстрой загрузке её не видно вовсе */
+.skeleton { background: var(--paper-2); background-image: none; animation: skIn .2s ease .3s both, skBreath 2.4s ease-in-out .5s infinite; }
+@keyframes skIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes skBreath { 50% { opacity: .6; } }
+@media (prefers-reduced-motion: reduce) { .sd-subs, .md-subs { transition: none; animation: none; } .skeleton { animation: skIn .2s ease .3s both; } }
