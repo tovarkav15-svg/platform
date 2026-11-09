@@ -6867,3 +6867,74 @@ html[data-theme="dark"] .bx-counter > span { background: #fff; }
 html[data-theme="dark"] :is(.bx-head h1 .it, .bx-counter b, .bx-head .label, .db-date) { filter: invert(1) hue-rotate(180deg) contrast(1.19); }
 html[data-theme="dark"] .bx-head .label { background: #3a2c00; color: #ffcf4a; }
 @media (max-width: 760px) { .bx-head { padding: 22px 18px; } .bx-counter > span { min-width: 0; flex: 1; } }
+
+/* ── Телефон, 2026-11-09: поиск и «Новое» в шапке, плотный Обзор, профиль, Биржа ── */
+@media (max-width: 760px) {
+  .cb { display: flex; gap: 6px; margin: 0; position: static; }
+  html:not([data-side]) .cb { margin-left: 0; }
+  .cb-find, .cb-new { width: 36px; height: 36px; padding: 0; justify-content: center; border-radius: 50%; }
+  .cb-find { background: #fff; box-shadow: 0 0 0 1px rgba(16,24,40,.08); }
+  .cb-find span, .cb-find kbd { display: none; }
+  .cb-new { font-size: 0; gap: 0; }
+  .cb-new span { font-size: 22px; font-weight: 500; }
+  .cb-pop { position: fixed; top: calc(100% + 4px); left: 10px !important; right: 10px; width: auto !important; max-height: calc(100dvh - 90px); overflow-y: auto; }
+  .cb-search ul { max-height: none; }
+  .cb-create a, .cb-search button { padding: 12px; font-size: 15px; }
+  .topbar-me { gap: 6px; }
+}
+@media (max-width: 380px) { .topbar .sk-chip { display: none; } }
+
+@media (max-width: 560px) {
+  .db { gap: 12px; }
+  .db-hello { padding: 2px 2px 4px; }
+  .db-hello h1 { font-size: 30px; }
+  .db-hello p { font-size: 16px; }
+  .db-row, .db-row.two { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .db-row:first-of-type { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .db-row:first-of-type > .db-card:first-child:nth-last-child(3) { grid-column: auto; }
+  .db-card { padding: 16px; border-radius: 20px; }
+  .db-card > b { font-size: 30px; }
+  .db-ico { width: 32px; height: 32px; margin-bottom: 14px; }
+  .db-violet .db-foot > span:last-child, .db-green .db-foot > span:last-child { display: none; }
+  .db-foot { margin-top: 8px; font-size: 12px; }
+  .db-green small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* Сообщения — одной строкой на всю ширину */
+  .db-row:first-of-type > .db-tint { grid-column: 1 / -1; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 2px 12px; padding: 14px 16px; }
+  .db-tint .db-ico { grid-row: span 2; margin: 0; }
+  .db-tint small { grid-column: 2; }
+  .db-tint > b { grid-column: 3; grid-row: 1 / span 2; font-size: 28px; }
+  .db-tint .db-foot { grid-column: 2; grid-row: 2; margin: 0; }
+  .db-tint .db-foot > span:last-child { display: none; }
+  .db-list li { padding: 11px 0; font-size: 14.5px; gap: 10px; }
+  .db-list li > em { flex-shrink: 0; white-space: nowrap; }
+  /* Мини-карточки — лентой, листаются пальцем */
+  .db-row:has(.db-mini) { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; margin-inline: -16px; padding: 2px 16px 8px; scroll-padding-inline: 16px; }
+  .db-row:has(.db-mini)::-webkit-scrollbar { display: none; }
+  .db-mini { flex: 0 0 74%; scroll-snap-align: start; }
+  .db-map h2 { font-size: 18px; }
+  .db-map-i { padding: 14px; }
+  .db-map-i small { font-size: 12.5px; }
+
+  /* Профиль: четыре цифры одной строкой */
+  .pfv2 .pv-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  .pfv2 .pv-stat { min-height: 0; padding: 12px 8px 10px; border-radius: 16px; align-items: center; text-align: center; }
+  .pfv2 .pv-stat b { font-size: 24px; }
+  .pfv2 .pv-stat span { font-size: 11px; line-height: 1.2; }
+
+  /* Биржа: шапка плотнее, разделы — лентой */
+  .bx-head { padding: 20px 18px; gap: 14px; border-radius: 22px; }
+  .bx-head .lead { font-size: 14px; }
+  .bx-counter { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; }
+  .bx-counter > span { padding: 10px 12px; border-radius: 14px; min-width: 0; }
+  .bx-counter b { font-size: 26px; }
+  .bx-counter > span:nth-child(2) { grid-column: 2 / 4; }
+  .bx-counter > .btn { width: 100%; justify-content: center; padding-inline: 10px; }
+  .bx-counter > .bx-theme { width: 44px; }
+  .bx-counter > .hint { grid-column: 1 / -1; }
+  .bx-sides { display: flex; overflow-x: auto; scrollbar-width: none; margin-inline: -16px; padding: 2px 16px 4px; gap: 6px; }
+  .bx-sides::-webkit-scrollbar { display: none; }
+  .bx-side { flex: 0 0 auto; padding: 9px 14px; border-radius: 99px; }
+  .bx-side small { display: none; }
+  .bx-side b { font-size: 14px; white-space: nowrap; }
+}
+.db-list ul { grid-template-columns: minmax(0, 1fr); }
