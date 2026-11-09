@@ -63,11 +63,20 @@ export function Dashboard({ me }: { me: Profile }) {
   const unread = chats.reduce((s, c) => s + c.unread, 0);
   const monthName = new Date().toLocaleDateString("ru-RU", { month: "long" });
   const tier = aura === null ? null : tierOf(aura);
+  const dateLine = new Date().toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long" }).replace(/^./, (c) => c.toUpperCase());
+  const [copied, setCopied] = useState(false);
+  async function copyLink() {
+    const base = `${window.location.origin}${window.location.pathname.startsWith("/platform") ? "/platform" : ""}`;
+    const url = base + profileHref(me.username);
+    try { await navigator.clipboard.writeText(url); } catch { window.prompt("Скопируй ссылку", url); }
+    setCopied(true); setTimeout(() => setCopied(false), 2000);
+  }
 
   return (
     <main className="page wide db">
       <header className="db-hello">
-        <h1>{hello}, <span className="db-grad">{first}</span><i className="db-ring" aria-hidden="true" /></h1>
+        <span className="db-date">{dateLine}</span>
+        <h1>{hello}, <span className="db-grad">{first}</span></h1>
         <p>{tasks === null ? "Собираем твой день…" : left.length ? `В плане ${left.length} ${plural(left.length, "дело", "дела", "дел")}${unread ? `, и ${unread} ${plural(unread, "новое сообщение", "новых сообщения", "новых сообщений")}` : ""}.` : "План на сегодня пуст — загляни на Биржу за новым заказом."}</p>
       </header>
 
@@ -135,9 +144,10 @@ export function Dashboard({ me }: { me: Profile }) {
         <Link href="/aura/" className="db-card db-mini" style={{ "--c": "#FF4F8B" } as React.CSSProperties}>
           <small>AURA — рейтинг за дела</small><b>{aura ?? "—"}</b><span>{tier ? `Уровень «${tier.fullName}»` : ""}</span>
         </Link>
-        <Link href={profileHref(me.username)} className="db-card db-mini" style={{ "--c": SECTION_COLOR.profile } as React.CSSProperties}>
-          <small>Мой профиль</small><b className="db-name">@{me.username}</b><span>Ссылка для клиентов</span>
-        </Link>
+        <div className="db-card db-mini" style={{ "--c": SECTION_COLOR.profile } as React.CSSProperties}>
+          <small>Мой профиль</small><Link href={profileHref(me.username)} className="db-name">@{me.username}</Link>
+          <button type="button" className="db-copy" onClick={copyLink}>{copied ? "Ссылка скопирована ✓" : "Скопировать ссылку для клиентов"}</button>
+        </div>
       </div>
 
       <section className="db-map">

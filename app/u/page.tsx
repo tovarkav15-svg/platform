@@ -7,7 +7,6 @@ import { supabase, publicMedia, type Earnings, type FriendState, type Profile, t
 import { friendState } from "@/lib/api";
 import { useSession } from "@/lib/session";
 import { parseNiches } from "@/lib/niches";
-import { accentColor } from "@/lib/style";
 import { profileHref } from "@/lib/links";
 import { normalizeUsername } from "@/lib/username";
 import { SECTION_TITLES } from "@/lib/sections";
@@ -29,10 +28,6 @@ import { Reviews } from "../Reviews";
 import { ReportDialog } from "../messages/ChatTools";
 import { useLive } from "@/lib/live";
 
-// Новый вид профиля — пока видит только основатель (@fedonko), когда смотрит любые профили
-const V2_USERS = ["12c5c6fd-d1e9-49e7-a01d-3f9ed63b07fc"];
-const V2_KEY = "pf:v2";
-
 const fmt = (n: number) => Math.round(n).toLocaleString("ru-RU").replace(/ /g, " ");
 const plural = (n: number, one: string, few: string, many: string) => {
   const m10 = n % 10, m100 = n % 100;
@@ -50,10 +45,6 @@ export default function ProfilePage() {
   const username = normalizeUsername(sp.get("n") ?? "");
   const { ready, me } = useSession();
   const [data, setData] = useState<Data | null | "missing">(null);
-  const allowed = !!me && V2_USERS.includes(me.id);
-  const [v2, setV2] = useState(false);
-  useEffect(() => { let off = false; try { off = localStorage.getItem(V2_KEY) === "off"; } catch {} setV2(allowed && !off); }, [allowed]);
-  const switchV2 = (on: boolean) => { try { localStorage.setItem(V2_KEY, on ? "on" : "off"); } catch {} setV2(on); };
 
   const load = useCallback(async () => {
     const { data: user } = await supabase.from("profiles").select("*").eq("username", username).maybeSingle();
@@ -92,10 +83,7 @@ export default function ProfilePage() {
     <>
       <TopBar />
       {data && data !== "missing" && data.deco?.page_bg && <PageFx id={data.deco.page_bg} />}
-      {!v2 && data && data !== "missing" && !data.deco?.page_bg && data.user.page_bg !== "plain" && (
-        <div className={`pf-aurora bg-${data.user.page_bg}`} aria-hidden="true" style={{ "--c": accentColor(data.user.accent) } as React.CSSProperties}><i /><i /></div>
-      )}
-      <main className={`page wide pf ${v2 ? "pfv2" : ""}`}>
+      <main className="page wide pf pfv2">
         {data === null && <><div className="skeleton pf-skeleton" /><div className="skeleton list-skeleton" /></>}
         {data === "missing" && (
           <div className="empty">
@@ -106,9 +94,6 @@ export default function ProfilePage() {
         )}
         {data && data !== "missing" && (
           <ProfileView {...data} tab={sp.get("tab")} isMe={me?.id === data.user.id} loggedIn={!!me} meId={me?.id ?? null} reload={load} />
-        )}
-        {allowed && data && data !== "missing" && (
-          <button type="button" className="pfv2-switch" onClick={() => switchV2(!v2)}>{v2 ? "Старый вид профиля" : "Новый вид профиля"}</button>
         )}
       </main>
     </>
