@@ -9,3 +9,4 @@ out/
 .supabase-db-password
 supabase/.temp/
 .telegram-bot-token
+.telegram-webhook-secret
