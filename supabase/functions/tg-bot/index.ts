@@ -4,24 +4,32 @@ const BOT = Deno.env.get("TG_BOT_TOKEN")!;
 const SECRET = Deno.env.get("TG_WEBHOOK_SECRET")!;
 const SITE = "https://tovarkav15-svg.github.io/platform/";
 
-const send = (chat_id: number, text: string, path = "", button = "Открыть Relic") =>
-  fetch(`https://api.telegram.org/bot${BOT}/sendMessage`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ chat_id, text, parse_mode: "HTML", reply_markup: { inline_keyboard: [[{ text: button, web_app: { url: `${SITE}${path}?tg=1` } }]] } }),
-  });
+const api = (method: string, body: unknown) =>
+  fetch(`https://api.telegram.org/bot${BOT}/${method}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+const openBtn = (text = "Платформа") => ({ text, web_app: { url: `${SITE}?tg=1` } });
+const send = (chat_id: number, text: string) => api("sendMessage", { chat_id, text, parse_mode: "HTML", reply_markup: { inline_keyboard: [[openBtn("Открыть Relic")]] } });
+
+// Приветствие на «Старт»: баннер Relic и три кнопки. «Моя подписка» и «Наш канал» — пока без ссылок
+const BANNER = `${SITE}brand/relic-bot-banner.png?v=1`;
+const MENU = { inline_keyboard: [[openBtn()], [{ text: "Моя подписка", callback_data: "sub" }], [{ text: "Наш канал", callback_data: "channel" }]] };
 
 Deno.serve(async (req) => {
   if (req.method !== "POST" || req.headers.get("X-Telegram-Bot-Api-Secret-Token") !== SECRET) return new Response("no", { status: 401 });
   const u = await req.json().catch(() => null);
+  // Нажали «Моя подписка» или «Наш канал» — пока только подсказка «скоро»
+  if (u?.callback_query?.id) {
+    const what = u.callback_query.data === "sub" ? "Подписка" : "Наш канал";
+    await api("answerCallbackQuery", { callback_query_id: u.callback_query.id, text: `${what} — скоро появится`, show_alert: false });
+    return new Response("ok");
+  }
   const msg = u?.message;
   if (!msg?.chat?.id || msg.chat.type !== "private") return new Response("ok");
   const text: string = msg.text ?? "";
-  const name = String(msg.from?.first_name ?? "").replace(/[<>&]/g, "");
 
   if (text.startsWith("/start")) {
-    await send(msg.chat.id,
-      `Привет${name ? `, ${name}` : ""}! 👋\n\n<b>Relic</b> — платформа для фрилансеров прямо в Telegram:\n\n• профиль, который продаёт: работы, отзывы, рейтинг\n• биржа: найди заказ или исполнителя\n• чаты с клиентами и командой\n• Workspace: задачи, клиенты, деньги\n\nВход в одно касание — без пароля. Сюда же будут приходить уведомления о новых сообщениях и откликах.`);
+    const r = await api("sendPhoto", { chat_id: msg.chat.id, photo: BANNER, caption: "Привет, ты попал в Relic", reply_markup: MENU });
+    // Картинка не загрузилась — шлём то же без неё
+    if (!r.ok) await api("sendMessage", { chat_id: msg.chat.id, text: "Привет, ты попал в Relic", reply_markup: MENU });
   } else if (text.startsWith("/help")) {
     await send(msg.chat.id, "Нажми «Открыть Relic» — откроется платформа. Вопрос или идея — напиши в поддержку внутри Relic (меню аккаунта → Поддержка).");
   } else {
