@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { initPwa, useInstall } from "@/lib/pwa";
-import { inTelegram } from "./TelegramLayer";
+import { inTelegram } from "@/lib/telegram";
 
 const BASE = process.env.NODE_ENV === "production" ? "/platform" : "";
 

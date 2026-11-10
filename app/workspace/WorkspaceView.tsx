@@ -16,16 +16,18 @@ import { Finance } from "./Finance";
 import { Notes } from "./Notes";
 import { DayPlanner } from "./DayPlanner";
 import { Projects } from "./Projects";
+import { Habits } from "./Habits";
 import { iso, addDays } from "@/lib/plans";
 
-type Tab = "overview" | "day" | "clients" | "projects" | "plans" | "finance" | "notes";
+type Tab = "overview" | "day" | "clients" | "projects" | "plans" | "habits" | "finance" | "notes";
 const TABS: { id: Tab; label: string; sub: string; icon: string }[] = [
   { id: "overview", label: "Обзор", sub: "Главное на сегодня", icon: "◎" },
   { id: "day", label: "Планирование дня", sub: "Расписание по часам", icon: "◑" },
   { id: "clients", label: "Clients", sub: "Клиенты и сделки", icon: "◧" },
   { id: "projects", label: "My Projects", sub: "Проекты и дедлайны", icon: "◆" },
   { id: "plans", label: "Plans / Цели", sub: "Задачи, планы, вершины", icon: "◷" },
-  { id: "finance", label: "Finance", sub: "Деньги и оплаты", icon: "◈" },
+  { id: "habits", label: "Привычки", sub: "Каждый день понемногу", icon: "✦" },
+  { id: "finance", label: "Финансы", sub: "Доходы, расходы, оплаты", icon: "◈" },
   { id: "notes", label: "Заметки", sub: "Проекты, идеи, списки", icon: "✎" },
 ];
 
@@ -89,6 +91,7 @@ export function WorkspaceView({ me }: { me: Profile | null }) {
       {tab === "clients" && <Clients userId={me.id} />}
       {tab === "projects" && <Projects userId={me.id} />}
       {tab === "plans" && <Plans userId={me.id} />}
+      {tab === "habits" && <Habits userId={me.id} />}
       {tab === "finance" && <Finance userId={me.id} />}
       {tab === "notes" && <Notes userId={me.id} />}
       {tab === "day" && <DayPlanner userId={me.id} />}

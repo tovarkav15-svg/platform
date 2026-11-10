@@ -13,6 +13,8 @@ import { useInstall } from "@/lib/pwa";
 import { TopBar } from "../TopBar";
 import { ProfileForm } from "./ProfileForm";
 import { PasswordForm } from "./PasswordForm";
+import { tgNoPassword } from "./save";
+import { TelegramCard } from "./TelegramCard";
 import { SecurityPanel } from "./SecurityPanel";
 import { downloadMyData } from "@/lib/export";
 
@@ -87,7 +89,7 @@ export default function SettingsPage() {
                 }}
               />
             ) : <div className="skeleton profile-skeleton" />)}
-            {s === "security" && (session ? <><PasswordForm authEmail={session.user.email ?? ""} /><SecurityPanel /></> : <div className="skeleton list-skeleton" />)}
+            {s === "security" && (session ? <><PasswordForm authEmail={session.user.email ?? ""} firstTime={tgNoPassword(session.user.email ?? "", session.user.user_metadata)} /><TelegramCard needPassword={tgNoPassword(session.user.email ?? "", session.user.user_metadata)} /><SecurityPanel /></> : <div className="skeleton list-skeleton" />)}
             {s === "account" && me && <AccountBlock username={me.username} userId={me.id} />}
           </section>
         </div>

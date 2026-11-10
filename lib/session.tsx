@@ -79,5 +79,7 @@ export function useRequireMe() {
 }
 
 export async function signOut() {
+  // В Telegram после выхода сами обратно не входим — только по кнопке «Войти через Telegram»
+  try { sessionStorage.setItem("tg:tried", "1"); } catch {}
   await supabase.auth.signOut();
 }

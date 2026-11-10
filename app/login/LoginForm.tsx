@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { inTelegram } from "@/lib/telegram";
 import { signIn } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
 
@@ -13,6 +14,8 @@ export function LoginForm() {
   const [forgot, setForgot] = useState(false);
   const [login, setLogin] = useState("");
   const [sent, setSent] = useState("");
+  const [inTg, setInTg] = useState(false);
+  useEffect(() => setInTg(inTelegram()), []);
 
   async function onSubmit(ev: React.FormEvent<HTMLFormElement>) {
     ev.preventDefault();
@@ -77,6 +80,13 @@ export function LoginForm() {
     <form onSubmit={onSubmit} className="auth-form">
       <div className="label">Вход</div>
       <h1 className="caps">Войти <span className="it">в</span> аккаунт</h1>
+
+      {inTg && (
+        <div className="tg-login">
+          <button type="button" className="btn tg-btn" onClick={() => window.dispatchEvent(new Event("tg:login"))}>Войти через Telegram</button>
+          <small>или по юзернейму и паролю — Telegram тогда привяжется к аккаунту сам</small>
+        </div>
+      )}
 
       {error && <div className="form-error">{error}</div>}
 

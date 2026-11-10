@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { changePassword, type SettingsState } from "./save";
 
-export function PasswordForm({ authEmail }: { authEmail: string }) {
+export function PasswordForm({ authEmail, firstTime = false }: { authEmail: string; firstTime?: boolean }) {
   const [state, setState] = useState<SettingsState>({});
   const [pending, setPending] = useState(false);
   const e = state.errors ?? {};
@@ -13,7 +13,7 @@ export function PasswordForm({ authEmail }: { authEmail: string }) {
     const formEl = ev.currentTarget;
     const form = new FormData(formEl);
     setPending(true);
-    const result = await changePassword(String(form.get("current") ?? ""), String(form.get("next") ?? ""), authEmail);
+    const result = await changePassword(String(form.get("current") ?? ""), String(form.get("next") ?? ""), authEmail, firstTime);
     if (result.ok) formEl.reset();
     setState(result);
     setPending(false);
@@ -21,13 +21,14 @@ export function PasswordForm({ authEmail }: { authEmail: string }) {
 
   return (
     <form onSubmit={onSubmit} className="card">
-      <h2 className="h-md caps">Смена <span className="it">пароля</span></h2>
+      <h2 className="h-md caps">{firstTime ? <>Задать <span className="it">пароль</span></> : <>Смена <span className="it">пароля</span></>}</h2>
+      {firstTime && <p className="hint">Ты вошёл через Telegram. Задай пароль — тогда сможешь входить и на сайте: по юзернейму и этому паролю.</p>}
       <div className="row2">
-        <label className="field">
+        {!firstTime && <label className="field">
           <span>Текущий пароль</span>
           <div className={`input ${e.current ? "err" : ""}`}><input id="current" name="current" type="password" autoComplete="current-password" /></div>
           <span className="hint bad">{e.current}</span>
-        </label>
+        </label>}
         <label className="field">
           <span>Новый пароль</span>
           <div className={`input ${e.next ? "err" : ""}`}><input id="next" name="next" type="password" autoComplete="new-password" placeholder="Минимум 8 символов, буквы и цифра" /></div>
@@ -35,7 +36,7 @@ export function PasswordForm({ authEmail }: { authEmail: string }) {
         </label>
       </div>
       <div className="save-row">
-        <button className="btn" type="submit" disabled={pending}>{pending ? "Меняю…" : "Сменить пароль"}</button>
+        <button className="btn" type="submit" disabled={pending}>{pending ? "Сохраняю…" : firstTime ? "Задать пароль" : "Сменить пароль"}</button>
         {state.message && <span className={`hint ${state.ok ? "good" : "bad"}`}>{state.message}</span>}
       </div>
     </form>

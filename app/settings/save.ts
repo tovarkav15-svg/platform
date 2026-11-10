@@ -78,12 +78,17 @@ export async function saveProfile(userId: string, currentUsername: string, form:
   return { ok: true, message: "Сохранено" };
 }
 
-export async function changePassword(current: string, next: string, authEmail: string): Promise<SettingsState> {
-  const check = await supabase.auth.signInWithPassword({ email: authEmail, password: current });
-  if (check.error) return { errors: { current: "Неверный текущий пароль" } };
+/** Аккаунт создан через Telegram и пароль ещё не задавали — первый пароль ставится без старого */
+export const tgNoPassword = (email: string, meta: Record<string, unknown> | undefined) => email.endsWith("@telegram.relic") && !meta?.pw_set;
+
+export async function changePassword(current: string, next: string, authEmail: string, firstTime = false): Promise<SettingsState> {
+  if (!firstTime) {
+    const check = await supabase.auth.signInWithPassword({ email: authEmail, password: current });
+    if (check.error) return { errors: { current: "Неверный текущий пароль" } };
+  }
   if (next.length < 8) return { errors: { next: "Минимум 8 символов" } };
   if (!/\d/.test(next) || !/[a-zA-Zа-яА-Я]/.test(next)) return { errors: { next: "Нужны буквы и хотя бы одна цифра" } };
-  const { error } = await supabase.auth.updateUser({ password: next });
+  const { error } = await supabase.auth.updateUser({ password: next, data: { pw_set: true } });
   if (error) return { message: "Не получилось сменить пароль" };
   return { ok: true, message: "Пароль изменён" };
 }

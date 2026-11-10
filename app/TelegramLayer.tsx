@@ -3,26 +3,8 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { applyPrefs, readPrefs } from "@/lib/prefs";
-
-type TgWebApp = {
-  initData: string;
-  colorScheme: "light" | "dark";
-  ready(): void;
-  expand(): void;
-  disableVerticalSwipes?(): void;
-  setHeaderColor?(c: string): void;
-  setBackgroundColor?(c: string): void;
-  setBottomBarColor?(c: string): void;
-  isVersionAtLeast?(v: string): boolean;
-  onEvent(e: string, cb: () => void): void;
-  offEvent(e: string, cb: () => void): void;
-  openLink(url: string): void;
-  openTelegramLink(url: string): void;
-  BackButton: { show(): void; hide(): void; onClick(cb: () => void): void; offClick(cb: () => void): void };
-  HapticFeedback?: { impactOccurred(s: "light" | "medium"): void; selectionChanged(): void };
-};
-const tg = (): TgWebApp | null => (typeof window !== "undefined" ? ((window as unknown as { Telegram?: { WebApp?: TgWebApp } }).Telegram?.WebApp ?? null) : null);
-export const inTelegram = () => typeof document !== "undefined" && document.documentElement.dataset.tg === "1";
+import { inTelegram, tg, type TgWebApp } from "@/lib/telegram";
+import { TgAuth } from "./TgAuth";
 
 // Цвета шапки Telegram под наш фон: светлый и тёмный (тёмная тема у нас — инверсия страницы)
 const BAR = { light: "#fbfbfa", dark: "#181818" };
@@ -97,5 +79,5 @@ export function TelegramLayer() {
     return () => document.removeEventListener("click", click, true);
   }, []);
 
-  return null;
+  return <TgAuth ready={ready} />;
 }

@@ -420,3 +420,11 @@ verify_jwt = false
 # Уведомления зовёт сама база (триггер), без входа
 [functions.push]
 verify_jwt = false
+
+# Вход через Telegram: подпись Telegram проверяет сама функция
+[functions.tg-auth]
+verify_jwt = false
+
+# Бот @relicprodbot: Telegram зовёт без входа, с секретным заголовком
+[functions.tg-bot]
+verify_jwt = false
