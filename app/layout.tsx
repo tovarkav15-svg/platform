@@ -12,6 +12,7 @@ import { JumpLayer } from "./JumpLayer";
 import { RefCatcher } from "./RefCatcher";
 import { PwaLayer } from "./InstallApp";
 import { LoginAlert } from "./LoginAlert";
+import { TelegramLayer } from "./TelegramLayer";
 
 const BASE = process.env.NODE_ENV === "production" ? "/platform" : "";
 const DESCRIPTION = "Relic — платформа для фрилансеров: профиль, который продаёт, Workspace, обучение по нишам, биржа заказов и чаты.";
@@ -53,7 +54,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body>
-        <PrefsSync /><PwaLayer /><SessionProvider><BanGate /><CallLayer><FocusGuard>{children}</FocusGuard><Suspense fallback={null}><NotifyLayer /><LoginAlert /><JumpLayer /><RefCatcher /></Suspense></CallLayer></SessionProvider>
+        <PrefsSync /><PwaLayer /><SessionProvider><BanGate /><CallLayer><FocusGuard>{children}</FocusGuard><Suspense fallback={null}><NotifyLayer /><LoginAlert /><JumpLayer /><RefCatcher /><TelegramLayer /></Suspense></CallLayer></SessionProvider>
       </body>
     </html>
   );

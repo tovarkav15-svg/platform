@@ -43,7 +43,12 @@ export function setJobsTheme(dark: boolean) {
 export function applyPrefs(p: Prefs) {
   const el = document.documentElement;
   const onJobs = /\/jobs(\/|$)/.test(window.location.pathname);
-  const dark = (onJobs && jobsDark()) || p.theme === "dark" || (p.theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+  // Внутри Telegram «как в системе» = как в Telegram; если тему ещё не выбирали — тоже как в Telegram
+  const tg = el.dataset.tgscheme;
+  let saved = true; try { saved = localStorage.getItem(KEY) !== null; } catch {}
+  const sysDark = tg ? tg === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+  const followSys = p.theme === "system" || (!!tg && !saved);
+  const dark = (onJobs && jobsDark()) || p.theme === "dark" || (followSys && sysDark);
   el.dataset.theme = dark ? "dark" : p.theme === "warm" ? "warm" : "light";
   el.dataset.text = p.text;
   el.dataset.motion = p.motion;

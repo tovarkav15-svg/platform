@@ -6938,3 +6938,8 @@ html[data-theme="dark"] .bx-head .label { background: #3a2c00; color: #ffcf4a; }
   .bx-side b { font-size: 14px; white-space: nowrap; }
 }
 .db-list ul { grid-template-columns: minmax(0, 1fr); }
+
+/* Relic внутри Telegram: без «резинки» и серых вспышек при нажатии, как в приложении */
+html[data-tg] { overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
+html[data-tg] body { overscroll-behavior: none; }
+html[data-tg] :is(button, a, .btn) { -webkit-user-select: none; user-select: none; }

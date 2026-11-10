@@ -8,3 +8,4 @@ out/
 *.tsbuildinfo
 .supabase-db-password
 supabase/.temp/
+.telegram-bot-token

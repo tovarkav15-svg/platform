@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { initPwa, useInstall } from "@/lib/pwa";
+import { inTelegram } from "./TelegramLayer";
 
 const BASE = process.env.NODE_ENV === "production" ? "/platform" : "";
 
@@ -29,7 +30,8 @@ export function PwaLayer() {
 export function InstallButton({ className = "", children, onDone }: { className?: string; children?: React.ReactNode; onDone?: () => void }) {
   const { mode, install } = useInstall();
   const [ios, setIos] = useState(false);
-  if (!mode) return null;
+  // Внутри Telegram ставить нечего — Relic уже открыт как приложение
+  if (!mode || inTelegram()) return null;
   return (
     <>
       <button type="button" className={className} onClick={async () => {
