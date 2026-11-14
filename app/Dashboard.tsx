@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { supabase, type ChatListItem, type Profile } from "@/lib/supabase";
+import { createPortal } from "react-dom";
+import { publicMedia, supabase, type ChatListItem, type Profile } from "@/lib/supabase";
 import { chatHref, profileHref } from "@/lib/links";
 import { rub } from "@/lib/workspace";
-import { PRIORITY, addDays, dueLabel, iso, nextDue, today, type PlanTask } from "@/lib/plans";
+import { PRIORITY, addDays, iso, nextDue, today, type PlanTask } from "@/lib/plans";
 import { tierOf } from "@/lib/aura";
 import { ChatAvatar, chatTitle } from "./messages/ChatAvatar";
+import { Avatar } from "./Avatar";
 import { Ico, SECTION_COLOR } from "./MobileDrawer";
 
 const plural = (n: number, one: string, few: string, many: string) => {
@@ -57,13 +59,14 @@ export function Dashboard({ me }: { me: Profile }) {
   }
 
   const hour = new Date().getHours();
-  const hello = hour < 5 ? "Не спится" : hour < 12 ? "Утро" : hour < 18 ? "День" : "Вечер";
+  const hello = hour < 5 ? "Не спится" : hour < 12 ? "Доброе утро" : hour < 18 ? "Добрый день" : "Добрый вечер";
   const first = me.display_name.split(" ")[0] || me.display_name;
   const left = (tasks ?? []).filter((t) => !gone.has(t.id));
   const unread = chats.reduce((s, c) => s + c.unread, 0);
-  const monthName = new Date().toLocaleDateString("ru-RU", { month: "long" });
   const tier = aura === null ? null : tierOf(aura);
   const dateLine = new Date().toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long" }).replace(/^./, (c) => c.toUpperCase());
+  const total = left.length + gone.size;
+  const donePct = total ? Math.round((gone.size / total) * 100) : 0;
   const [copied, setCopied] = useState(false);
   async function copyLink() {
     const base = `${window.location.origin}${window.location.pathname.startsWith("/platform") ? "/platform" : ""}`;
@@ -71,63 +74,77 @@ export function Dashboard({ me }: { me: Profile }) {
     try { await navigator.clipboard.writeText(url); } catch { window.prompt("Скопируй ссылку", url); }
     setCopied(true); setTimeout(() => setCopied(false), 2000);
   }
+  const banner = publicMedia(me.banner_path ?? null);
+  const summary = tasks === null ? "Собираем твой день…"
+    : left.length ? `${left.length} ${plural(left.length, "дело", "дела", "дел")} на сегодня${unread ? ` · ${unread} ${plural(unread, "сообщение", "сообщения", "сообщений")}` : ""}`
+    : unread ? `Дел нет · ${unread} ${plural(unread, "сообщение", "сообщения", "сообщений")}` : "Свободный день";
 
   return (
-    <main className="page wide db">
-      <header className="db-hello">
-        <span className="db-date">{dateLine}</span>
-        <h1>{hello}, <span className="db-grad">{first}</span></h1>
-        <p>{tasks === null ? "Собираем твой день…" : left.length ? `В плане ${left.length} ${plural(left.length, "дело", "дела", "дел")}${unread ? `, и ${unread} ${plural(unread, "новое сообщение", "новых сообщения", "новых сообщений")}` : ""}.` : "План на сегодня пуст — загляни на Биржу за новым заказом."}</p>
+    <main className="page wide db2">
+      <DbBackdrop src={banner || me.avatar || null} />
+
+      <header className="db2-hero">
+        <div className="db2-id">
+          <Link href={profileHref(me.username)} className="db2-ava" aria-label="Мой профиль"><Avatar name={me.display_name} avatar={me.avatar} accent={me.accent} size={64} /></Link>
+          <div className="db2-hi">
+            <span className="db2-date">{dateLine}</span>
+            <h1>{hello}, {first}</h1>
+            <p>{summary}</p>
+          </div>
+          <button type="button" className="db2-share" onClick={copyLink}>{copied ? "Скопировано ✓" : "Ссылка на профиль"}</button>
+        </div>
+
+        <div className="db2-stats">
+          <Link href="/workspace/?tab=plans" className="db2-stat" style={{ "--c": SECTION_COLOR.workspace } as React.CSSProperties}>
+            <small>Дела</small><b><Count n={tasks === null ? null : left.length} /></b>
+            <i className="db2-bar"><i style={{ width: `${donePct}%` }} /></i>
+          </Link>
+          <Link href="/workspace/?tab=finance" className="db2-stat" style={{ "--c": "#1FA67A" } as React.CSSProperties}>
+            <small>Заработано</small><b>{rub(money.income)}</b>
+            <em>{money.expense ? `−${rub(money.expense)}` : "за месяц"}</em>
+          </Link>
+          <Link href="/messages/" className={`db2-stat${unread ? " hot" : ""}`} style={{ "--c": SECTION_COLOR.chats } as React.CSSProperties}>
+            <small>Сообщения</small><b><Count n={unread} /></b>
+            <em>{unread ? "новые" : "всё прочитано"}</em>
+          </Link>
+          <Link href="/aura/" className="db2-stat" style={{ "--c": tier?.color ?? "#FF4F8B" } as React.CSSProperties}>
+            <small>AURA</small><b><Count n={aura} /></b>
+            {tier ? <i className="db2-bar"><i style={{ width: `${Math.round(tier.stepProgress * 100)}%` }} /></i> : <em>—</em>}
+          </Link>
+        </div>
       </header>
 
-      <div className="db-row">
-        <Link href="/workspace/?tab=plans" className="db-card db-violet">
-          <span className="db-ico"><Ico name="workspace" /></span>
-          <small>Дела на сегодня</small>
-          <b>{tasks === null ? "—" : left.length}</b>
-          <span className="db-foot"><span>{gone.size ? `Готово: ${gone.size}` : "Задачи и планы"}</span><span>Открыть →</span></span>
-        </Link>
-        <Link href="/workspace/?tab=finance" className="db-card db-green">
-          <span className="db-ico"><Ico name="jobs" /></span>
-          <small>Заработано в {monthName === "май" ? "мае" : monthName.replace(/ь$/, "е").replace(/т$/, "те")}</small>
-          <b>{rub(money.income)}</b>
-          <span className="db-foot"><span>Потрачено {rub(money.expense)}</span><span>Финансы →</span></span>
-        </Link>
-        <Link href="/messages/" className="db-card db-tint" style={{ "--c": SECTION_COLOR.chats } as React.CSSProperties}>
-          <span className="db-ico"><Ico name="chats" /></span>
-          <small>Новые сообщения</small>
-          <b>{unread}</b>
-          <span className="db-foot"><span>{unread ? "Тебе написали" : "Всё прочитано"}</span><span>Чаты →</span></span>
-        </Link>
-      </div>
-
-      <div className="db-row two">
-        <section className="db-card db-list" style={{ "--c": SECTION_COLOR.workspace } as React.CSSProperties}>
-          <header><b><i className="db-dot" />Сегодня</b><Link href="/workspace/?tab=plans&focus=new-task" className="db-plus" aria-label="Добавить задачу">+</Link></header>
+      <div className="db2-grid">
+        <section className="db2-card" style={{ "--c": SECTION_COLOR.workspace } as React.CSSProperties}>
+          <header>
+            <h2>Сегодня</h2>
+            {gone.size > 0 && <span className="db2-done">Готово {gone.size}</span>}
+            <Link href="/workspace/?tab=plans&focus=new-task" className="db2-plus" aria-label="Добавить задачу">+</Link>
+          </header>
           {tasks === null ? <div className="skeleton list-skeleton" /> : left.length === 0 ? (
-            <p className="db-empty">Дел нет. <Link href="/workspace/?tab=plans&focus=new-task">Добавить задачу</Link></p>
+            <div className="db2-empty"><span>✓</span><p>Всё сделано</p><Link href="/workspace/?tab=plans&focus=new-task">Добавить задачу</Link></div>
           ) : (
-            <ul>
-              {left.slice(0, 6).map((t) => (
-                <li key={t.id} style={{ "--p": PRIORITY[t.priority].c } as React.CSSProperties}>
+            <ul className="db2-tasks">
+              {left.slice(0, 6).map((t, i) => (
+                <li key={t.id} style={{ "--p": PRIORITY[t.priority].c, "--i": i } as React.CSSProperties}>
                   <button type="button" className={`pchk p${t.priority}`} onClick={() => complete(t)} aria-label="Выполнить" />
                   <span>{t.title}</span>
-                  <em className={t.due_date! < td ? "late" : ""}>{dueLabel(t.due_date, t.due_time)}</em>
+                  <em className={t.due_date! < td ? "late" : ""}>{t.due_date! < td ? "просрочено" : t.due_time ? t.due_time.slice(0, 5) : ""}</em>
                 </li>
               ))}
             </ul>
           )}
         </section>
 
-        <section className="db-card db-list" style={{ "--c": SECTION_COLOR.chats } as React.CSSProperties}>
-          <header><b><i className="db-dot" />Чаты</b><Link href="/messages/" className="link-btn">Все</Link></header>
-          {chats.length === 0 ? <p className="db-empty">Пока пусто. <Link href="/community/">Найти людей</Link></p> : (
-            <ul>
-              {chats.slice(0, 5).map((c) => (
-                <li key={c.chat_id}>
-                  <Link href={chatHref(c.chat_id)} className="db-chat">
-                    <ChatAvatar c={c} size={30} />
-                    <span className="db-chat-t"><b>{chatTitle(c)}</b><small>{c.last_text || "Сообщение"}</small></span>
+        <section className="db2-card" style={{ "--c": SECTION_COLOR.chats } as React.CSSProperties}>
+          <header><h2>Чаты</h2><Link href="/messages/" className="db2-all">Все</Link></header>
+          {chats.length === 0 ? <div className="db2-empty"><span>✉</span><p>Пока тихо</p><Link href="/community/">Найти людей</Link></div> : (
+            <ul className="db2-chats">
+              {chats.slice(0, 5).map((c, i) => (
+                <li key={c.chat_id} style={{ "--i": i } as React.CSSProperties}>
+                  <Link href={chatHref(c.chat_id)} className={c.unread ? "new" : ""}>
+                    <ChatAvatar c={c} size={36} />
+                    <span className="db2-chat-t"><b>{chatTitle(c)}</b><small>{c.last_text || "Сообщение"}</small></span>
                     {c.unread > 0 && <em className="count-badge">{c.unread > 99 ? "99+" : c.unread}</em>}
                   </Link>
                 </li>
@@ -137,35 +154,53 @@ export function Dashboard({ me }: { me: Profile }) {
         </section>
       </div>
 
-      <div className="db-row">
-        <Link href="/jobs/?tab=my-orders" className="db-card db-mini" style={{ "--c": SECTION_COLOR.jobs } as React.CSSProperties}>
-          <small>Отклики на мои заказы</small><b>{responses}</b><span>{responses ? "Ждут ответа" : "Разместить заказ на Бирже"}</span>
-        </Link>
-        <Link href="/aura/" className="db-card db-mini" style={{ "--c": "#FF4F8B" } as React.CSSProperties}>
-          <small>AURA — рейтинг за дела</small><b>{aura ?? "—"}</b><span>{tier ? `Уровень «${tier.fullName}»` : ""}</span>
-        </Link>
-        <div className="db-card db-mini" style={{ "--c": SECTION_COLOR.profile } as React.CSSProperties}>
-          <small>Мой профиль</small><Link href={profileHref(me.username)} className="db-name">@{me.username}</Link>
-          <button type="button" className="db-copy" onClick={copyLink}>{copied ? "Ссылка скопирована ✓" : "Скопировать ссылку для клиентов"}</button>
-        </div>
-      </div>
-
-      <section className="db-map">
-        <h2>Что где в Relic</h2>
-        <div>
-          {[
-            { href: "/messages/", icon: "chats", t: "Чаты", s: "Переписка, группы, звонки. Люди и лента — тут же." },
-            { href: "/jobs/", icon: "jobs", t: "Биржа", s: "Найти заказ или исполнителя. Сделки с этапами." },
-            { href: "/workspace/", icon: "workspace", t: "Workspace", s: "Твои дела: задачи, клиенты, проекты, деньги, заметки." },
-            { href: profileHref(me.username), icon: "profile", t: "Профиль", s: "Твоя витрина: работы, отзывы, AURA, настройки." },
-          ].map((x) => (
-            <Link key={x.t} href={x.href} className="db-map-i" style={{ "--c": SECTION_COLOR[x.icon] } as React.CSSProperties}>
-              <span className="db-ico"><Ico name={x.icon} /></span>
-              <b>{x.t}</b><small>{x.s}</small>
-            </Link>
-          ))}
-        </div>
-      </section>
+      <nav className="db2-dock" aria-label="Быстрые переходы">
+        {[
+          { href: "/workspace/?tab=plans&focus=new-task", icon: "workspace", t: "Задача", c: SECTION_COLOR.workspace, n: 0 },
+          { href: "/jobs/?tab=my-orders", icon: "jobs", t: "Биржа", c: SECTION_COLOR.jobs, n: responses },
+          { href: "/messages/", icon: "chats", t: "Чаты", c: SECTION_COLOR.chats, n: 0 },
+          { href: "/aura/?tab=shop", icon: "home", t: "Shop", c: "#FF4F8B", n: 0 },
+          { href: profileHref(me.username), icon: "profile", t: "Профиль", c: SECTION_COLOR.profile, n: 0 },
+        ].map((x) => (
+          <Link key={x.t} href={x.href} style={{ "--c": x.c } as React.CSSProperties}>
+            <span><Ico name={x.icon} />{x.n > 0 && <em>{x.n}</em>}</span>{x.t}
+          </Link>
+        ))}
+      </nav>
     </main>
+  );
+}
+
+/** Число плавно набегает от нуля */
+function Count({ n }: { n: number | null }) {
+  const [v, setV] = useState(0);
+  useEffect(() => {
+    if (n === null) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches || n === 0) { setV(n); return; }
+    let raf = 0; const t0 = performance.now();
+    const step = (t: number) => { const k = Math.min(1, (t - t0) / 900); setV(Math.round(n * (1 - Math.pow(1 - k, 3)))); if (k < 1) raf = requestAnimationFrame(step); };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [n]);
+  return <>{n === null ? "—" : v}</>;
+}
+
+/** Размытый баннер (или аватар) человека на весь фон — как в профиле */
+function DbBackdrop({ src }: { src: string | null }) {
+  const [host, setHost] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    setHost(document.body);
+    document.documentElement.classList.add("has-xbg");
+    return () => document.documentElement.classList.remove("has-xbg");
+  }, []);
+  if (!host) return null;
+  const video = !!src && /\.(mp4|webm)(\?|$)/i.test(src);
+  return createPortal(
+    <div className="xbg" aria-hidden="true">
+      {src ? video ? <video className="xbg-media" src={src} autoPlay muted loop playsInline /> : <img className="xbg-media" src={src} alt="" />
+        : <span className="xbg-media xbg-grad" />}
+      <span className="xbg-veil" />
+    </div>,
+    host,
   );
 }
