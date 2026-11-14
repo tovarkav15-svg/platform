@@ -106,7 +106,6 @@ export default function ProfilePage() {
 
 function ProfileView({ user, earnings, friends, state, works, projects, aura, channels, jobs, deco, tab, isMe, loggedIn, meId, reload }: Data & { tab: string | null; isMe: boolean; loggedIn: boolean; meId: string | null; reload: () => void }) {
   const niches = parseNiches(user.niches);
-  const skills = user.skills.split(",").map((s) => s.trim()).filter(Boolean);
   const since = new Date(user.created_at);
   const days = Math.max(1, Math.round((Date.now() - since.getTime()) / 86400000));
   const pct = earnings?.goal ? Math.min(100, Math.round((earnings.amount / earnings.goal) * 100)) : 0;
@@ -115,7 +114,6 @@ function ProfileView({ user, earnings, friends, state, works, projects, aura, ch
   const pinned = projects.find((p) => p.id === user.pinned_project);
   const lookingProjects = projects.filter((p) => p.looking_for).slice(0, 3);
   const site = user.website ? user.website.replace(/^https?:\/\//, "").replace(/\/$/, "").slice(0, 32) : "";
-  const sinceText = `${since.toLocaleDateString("ru-RU", { day: "numeric", month: "long" }).split(" ")[1]} ${since.getFullYear()}`;
 
   const [workEdit, setWorkEdit] = useState<Work | null | "new">(null);
   const [projectEdit, setProjectEdit] = useState<Project | null | "new">(null);
@@ -154,11 +152,9 @@ function ProfileView({ user, earnings, friends, state, works, projects, aura, ch
             {user.emoji && <span className="xc-emoji" aria-hidden="true">{user.emoji}</span>}
           </div>
           <p className="xc-sub">@{user.username}{user.headline && <> · <b>{user.headline}</b></>}</p>
-          {(user.open_to_work || isOwner(user.role) || user.is_support || deco?.title) && (
+          {(user.open_to_work || deco?.title) && (
             <div className="xc-badges">
               {user.open_to_work && <span className="xh-otw"><i />Открыт к работе</span>}
-              {isOwner(user.role) && <span className="xh-badge">Owner</span>}
-              {user.is_support && <span className="xh-badge">Команда Relic</span>}
               <TitleChip id={deco?.title} />
             </div>
           )}
@@ -178,7 +174,6 @@ function ProfileView({ user, earnings, friends, state, works, projects, aura, ch
             </div>
           </div>
           {user.status && <p className="xc-now"><i />{user.status}</p>}
-          {user.bio && <p className="xc-bio">{user.bio}</p>}
           <div className="xc-actions">
             {isMe
               ? <Link className="btn" href="/settings/">Редактировать профиль</Link>
@@ -194,14 +189,14 @@ function ProfileView({ user, earnings, friends, state, works, projects, aura, ch
                 : <div key={i}>{inner}</div>;
             })}
           </div>
-          <AuraRow aura={aura} isMe={isMe} />
-          <ul className="xc-meta">
-            <li><PresenceLabel userId={user.id} /></li>
-            {user.city && <li><span aria-hidden="true">⌖</span>{user.city}</li>}
-            {user.telegram && <li><span aria-hidden="true">✈</span><a href={`https://t.me/${user.telegram}`} target="_blank" rel="noopener noreferrer">@{user.telegram}</a></li>}
-            {user.website && <li><span aria-hidden="true">↗</span><a href={user.website} target="_blank" rel="noopener noreferrer nofollow">{site}</a></li>}
-            <li><span aria-hidden="true">◷</span>В Relic с {sinceText}</li>
-          </ul>
+          <AuraRow aura={aura} />
+          {(user.city || user.telegram || user.website) && (
+            <div className="xc-links">
+              {user.city && <span title="Город">⌖ {user.city}</span>}
+              {user.telegram && <a href={`https://t.me/${user.telegram}`} target="_blank" rel="noopener noreferrer">Telegram ↗</a>}
+              {user.website && <a href={user.website} target="_blank" rel="noopener noreferrer nofollow" title={site}>Сайт ↗</a>}
+            </div>
+          )}
           {channels.length > 0 && (
             <div className="xc-extra">
               <span className="xc-extra-h">{channels.length > 1 ? "Каналы" : "Канал"}</span>
@@ -216,7 +211,6 @@ function ProfileView({ user, earnings, friends, state, works, projects, aura, ch
           )}
           {user.is_support && !isMe && (
             <div className="xc-extra">
-              <span className="xc-extra-h">Из команды Relic</span>
               <SupportButton />
             </div>
           )}
@@ -231,10 +225,9 @@ function ProfileView({ user, earnings, friends, state, works, projects, aura, ch
           {user.about
             ? <div className="xt-text">{user.about.split(/\n{2,}/).map((p, i) => <p key={i}>{p}</p>)}</div>
             : <p className="xt-muted">{isMe ? "Расскажи, чем занимаешься, с кем работал и что ищешь. Это первое, что читают в профиле." : "Пока ничего не рассказал о себе."}</p>}
-          {(niches.length > 0 || skills.length > 0) && (
+          {niches.length > 0 && (
             <div className="xt-chips">
               {niches.map((n) => <span key={n.id} className="xchip" style={{ "--n": n.color } as React.CSSProperties}><i />{n.title}</span>)}
-              {skills.map((s) => <span key={s} className="xchip ghost">{s}</span>)}
             </div>
           )}
         </section>
@@ -248,7 +241,7 @@ function ProfileView({ user, earnings, friends, state, works, projects, aura, ch
             </div>
             {lookingProjects.length > 0 && (
               <div className="t-looking-list">
-                {lookingProjects.map((p) => <Link key={p.id} href={`/project/?id=${p.id}`}><b>{p.name}</b><span>{p.looking_for}</span><em aria-hidden="true">→</em></Link>)}
+                {lookingProjects.map((p) => <Link key={p.id} href={`/project/?id=${p.id}`}><b>{p.name}</b><em aria-hidden="true">→</em></Link>)}
               </div>
             )}
           </section>
@@ -280,8 +273,6 @@ function ProfileView({ user, earnings, friends, state, works, projects, aura, ch
             <span className="t-pin-body">
               <small>Сейчас строю · {STAGES[pinned.stage]}</small>
               <b>{pinned.name}</b>
-              {pinned.tagline && <span>{pinned.tagline}</span>}
-              {pinned.looking_for && <em>Ищу: {pinned.looking_for}</em>}
             </span>
             <i aria-hidden="true">→</i>
           </Link>
@@ -447,14 +438,13 @@ function Empty({ isMe, text, meText, cta, onCta }: { isMe: boolean; text: string
 }
 
 /** AURA: строка с уровнем и полоской до следующей ступени */
-function AuraRow({ aura, isMe }: { aura: number; isMe: boolean }) {
+function AuraRow({ aura }: { aura: number }) {
   const t = tierOf(aura);
   const p = t.next ? t.stepProgress : 1;
   return (
-    <Link href="/aura/" className="xc-aura" style={{ "--p": `${Math.round(p * 100)}%` } as React.CSSProperties}>
+    <Link href="/aura/" className="xc-aura" title={t.next && t.stepNext ? `до следующей ступени ${t.stepNext - aura}` : "Высший уровень"} style={{ "--p": `${Math.round(p * 100)}%` } as React.CSSProperties}>
       <span className="xc-aura-top"><small>AURA</small><b><CountUp value={aura} ms={1300} /></b><em>{t.icon} {t.fullName}</em></span>
       <span className="xc-aura-bar"><i /></span>
-      <span className="xc-aura-hint">{t.next && t.stepNext ? (isMe ? `ещё ${t.stepNext - aura} до следующей ступени` : `до следующей ступени ${t.stepNext - aura}`) : "Высший уровень"}</span>
     </Link>
   );
 }

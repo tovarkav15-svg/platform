@@ -7541,3 +7541,12 @@ html[data-theme="dark"] .xhero { filter: invert(1) hue-rotate(180deg); }
   .xhero-id { left: 12px; right: 12px; max-width: none; bottom: 64px; padding: 14px 16px; }
   .xhero-share { left: 12px; bottom: 14px; }
 }
+/* профиль: меньше текста */
+.xc-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: 14px; }
+.xc-links > * { padding: 6px 11px; border-radius: 10px; background: rgba(255,255,255,.55); font-size: 12.5px; font-weight: 500; color: var(--ink); text-decoration: none; transition: background .2s, transform .2s var(--ez); }
+.xc-links a:hover { background: rgba(255,255,255,.85); transform: translateY(-1px); }
+.xc-links span { color: var(--mu); }
+.xp .xs-grid .pcard-text, .xp .xs-grid .pcard-foot:not(:has(button)) { display: none; }
+.xp .xc-stats span { font-size: 10px; }
+.xp .xc-aura { padding: 10px 12px; }
+.t-looking-list a b { font-weight: 600; }
