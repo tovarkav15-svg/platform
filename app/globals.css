@@ -7550,3 +7550,31 @@ html[data-theme="dark"] .xhero { filter: invert(1) hue-rotate(180deg); }
 .xp .xc-stats span { font-size: 10px; }
 .xp .xc-aura { padding: 10px 12px; }
 .t-looking-list a b { font-weight: 600; }
+/* профиль: на обложку заходит только аватарка; имя на плавном затемнении, без коробки */
+.xhero { height: clamp(220px, 24vw, 280px); }
+.xhero::after { background: linear-gradient(180deg, rgba(10,8,20,0) 35%, rgba(10,8,20,.25) 60%, rgba(10,8,20,.62)); }
+.xhero::before { content: ""; position: absolute; inset: auto 0 0; height: 55%; z-index: 2; pointer-events: none;
+  backdrop-filter: blur(14px) saturate(1.2); -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  mask-image: linear-gradient(transparent, #000 75%); -webkit-mask-image: linear-gradient(transparent, #000 75%); }
+.xhero-id { background: none; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; padding: 0; border-radius: 0; bottom: 24px; max-width: calc(100% - 290px - 16px - 24px - 150px); }
+.xhero .xc-name { text-shadow: 0 2px 20px rgba(0,0,0,.3); }
+.xc { margin-top: 0; top: 166px; }
+.xc-card { overflow: visible; padding-top: 18px; }
+.xc-top { margin-top: -108px; }
+.xh-ava .avatar { box-shadow: 0 0 0 5px rgba(255,255,255,.92), 0 14px 30px -12px rgba(20,10,40,.5); }
+.xc-cover-none { display: none; }
+@media (max-width: 860px) {
+  .xc { margin-top: 0; }
+  .xc-top { margin-top: -86px; }
+  .xhero { height: 250px; }
+  .xhero-id { left: 18px; right: 18px; max-width: none; bottom: 76px; }
+  .xhero-share { left: auto; right: 14px; bottom: auto; top: 14px; }
+}
+@media (max-width: 640px) {
+  .xc-top { margin-top: -76px; }
+  .xhero-id { bottom: 62px; }
+}
+@media (max-width: 860px) {
+  .xhero::after { background: linear-gradient(180deg, rgba(10,8,20,0) 15%, rgba(10,8,20,.45) 45%, rgba(10,8,20,.72)); }
+  .xhero::before { height: 75%; backdrop-filter: blur(18px) saturate(1.2); -webkit-backdrop-filter: blur(18px) saturate(1.2); }
+}
