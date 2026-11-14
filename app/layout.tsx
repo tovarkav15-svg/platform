@@ -32,9 +32,9 @@ export const metadata: Metadata = {
     locale: "ru_RU",
     type: "website",
     url: `${BASE}/`,
-    images: [{ url: `${BASE}/relic-avatar.png`, width: 1024, height: 1024, alt: "Relic" }],
+    images: [{ url: `${BASE}/relic-share-2.png`, width: 1024, height: 1024, alt: "Relic" }],
   },
-  twitter: { card: "summary", title: "Relic", description: DESCRIPTION, images: [`${BASE}/relic-avatar.png`] },
+  twitter: { card: "summary", title: "Relic", description: DESCRIPTION, images: [`${BASE}/relic-share-2.png`] },
 };
 
 export const viewport: Viewport = { themeColor: "#fbfbfa" };
