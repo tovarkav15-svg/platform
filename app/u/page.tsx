@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { supabase, publicMedia, isOwner, type Earnings, type FriendState, type Profile, type Project, type Work } from "@/lib/supabase";
+import { supabase, publicMedia, isOwner, STAGES, type Earnings, type FriendState, type Profile, type Project, type Work } from "@/lib/supabase";
 import { friendState } from "@/lib/api";
 import { useSession } from "@/lib/session";
 import { parseNiches } from "@/lib/niches";
@@ -23,7 +23,7 @@ import { GoalsBoard } from "../goals/GoalsBoard";
 import { CountUp } from "../CountUp";
 import { ChatAvatar } from "../messages/ChatAvatar";
 import { tierOf } from "@/lib/aura";
-import { chatHref } from "@/lib/links";
+import { chatHref, projectHref } from "@/lib/links";
 import { useRouter } from "next/navigation";
 import type { Deco } from "@/lib/shop";
 import { PageFx } from "../Deco";
@@ -193,6 +193,24 @@ function ProfileView({ user, earnings, friends, state, works, projects, aura, ch
             {user.website && <li><span aria-hidden="true">↗</span><a href={user.website} target="_blank" rel="noopener noreferrer nofollow">{site}</a></li>}
             <li><span aria-hidden="true">◷</span>В Relic с {sinceText}</li>
           </ul>
+          {channels.length > 0 && (
+            <div className="xc-extra">
+              <span className="xc-extra-h">{channels.length > 1 ? "Каналы" : "Канал"}</span>
+              {channels.map((c) => (
+                <Link key={c.chat_id} href={c.username ? `/c/?u=${c.username}` : "/messages/"} className="xc-chan">
+                  <ChatAvatar size={30} c={{ kind: "channel", avatar: c.avatar, accent: c.accent, emoji: c.emoji, title: c.title, other_id: null, other_name: null, other_avatar: null, other_accent: null }} />
+                  <span><b>{c.title}</b><small>{c.member_count} {plural(c.member_count, "подписчик", "подписчика", "подписчиков")}</small></span>
+                  <em aria-hidden="true">→</em>
+                </Link>
+              ))}
+            </div>
+          )}
+          {user.is_support && !isMe && (
+            <div className="xc-extra">
+              <span className="xc-extra-h">Из команды Relic</span>
+              <SupportButton />
+            </div>
+          )}
         </div>
         {!isMe && loggedIn && <ProfileSafety userId={user.id} name={user.display_name} username={user.username} />}
       </aside>
@@ -231,8 +249,10 @@ function ProfileView({ user, earnings, friends, state, works, projects, aura, ch
           <div className="xm-pair">
             {jobs.length > 0 && (
               <section className="xt t-services" data-r style={{ "--i": k++ } as React.CSSProperties}>
-                <header className="xt-h"><span>Услуги и цены</span><Link href="/jobs/">Биржа →</Link></header>
-                <ul>{jobs.map((j) => <li key={j.id}><span>{j.service}</span><i aria-hidden="true" /><b>{j.avg_check ? `${fmt(j.avg_check)} ₽` : "договорная"}</b></li>)}</ul>
+                <header className="xt-h"><span>Услуги</span><Link href="/jobs/">Все на Бирже →</Link></header>
+                <div className="t-svc">
+                  {jobs.map((j) => <div key={j.id} className="t-svc-item"><span>{j.service}</span><b>{j.avg_check ? <>{fmt(j.avg_check)} <small>₽</small></> : "договорная"}</b></div>)}
+                </div>
               </section>
             )}
             {earnings && (
@@ -246,13 +266,19 @@ function ProfileView({ user, earnings, friends, state, works, projects, aura, ch
         )}
 
         {pinned && (
-          <section className="xt t-pinned" data-r style={{ "--i": k++ } as React.CSSProperties}>
-            <header className="xt-h"><span>Сейчас строю</span></header>
-            <ProjectCard project={pinned} pinned />
-          </section>
+          <Link href={projectHref(pinned.id)} className="xt t-pinned" data-r style={{ "--i": k++ } as React.CSSProperties}>
+            <span className="t-pin-img">{publicMedia(pinned.image_path) ? <img src={publicMedia(pinned.image_path)!} alt="" /> : <b>{pinned.name.slice(0, 1)}</b>}</span>
+            <span className="t-pin-body">
+              <small>Сейчас строю · {STAGES[pinned.stage]}</small>
+              <b>{pinned.name}</b>
+              {pinned.tagline && <span>{pinned.tagline}</span>}
+              {pinned.looking_for && <em>Ищу: {pinned.looking_for}</em>}
+            </span>
+            <i aria-hidden="true">→</i>
+          </Link>
         )}
 
-      {/* ===== Работы / проекты / цели ===== */}
+        {/* ===== Работы / проекты / цели ===== */}
       <section className="xs" data-r style={{ "--i": 0 } as React.CSSProperties}>
         <header className="xs-h">
           {sections.length > 1 ? (
@@ -286,29 +312,6 @@ function ProfileView({ user, earnings, friends, state, works, projects, aura, ch
         <Reviews userId={user.id} meId={meId} name={user.display_name} />
       </div>
 
-        {(channels.length > 0 || user.is_support) && (
-          <div className="xm-pair">
-            {channels.length > 0 && (
-              <section className="xt t-channels" data-r style={{ "--i": 0 } as React.CSSProperties}>
-                <header className="xt-h"><span>Каналы</span></header>
-                {channels.map((c) => (
-                  <Link key={c.chat_id} href={c.username ? `/c/?u=${c.username}` : "/messages/"} className="t-channel">
-                    <ChatAvatar size={36} c={{ kind: "channel", avatar: c.avatar, accent: c.accent, emoji: c.emoji, title: c.title, other_id: null, other_name: null, other_avatar: null, other_accent: null }} />
-                    <span><b>{c.title}</b><small>{c.username ? `@${c.username} · ` : ""}{c.member_count} {plural(c.member_count, "подписчик", "подписчика", "подписчиков")}</small></span>
-                    <em aria-hidden="true">→</em>
-                  </Link>
-                ))}
-              </section>
-            )}
-            {user.is_support && (
-              <section className="xt t-support" data-r style={{ "--i": 1 } as React.CSSProperties}>
-                <header className="xt-h"><span>Команда Relic</span></header>
-                <p className="xt-muted">{isMe ? "Обращения приходят во вкладку «Обращения» в чатах." : "Что-то не работает или есть идея — напиши, ответим."}</p>
-                {!isMe && <SupportButton />}
-              </section>
-            )}
-          </div>
-        )}
       </div>
 
       {isMe && (
