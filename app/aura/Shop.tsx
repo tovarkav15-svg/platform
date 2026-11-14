@@ -12,7 +12,6 @@ import { OverlayFx, SceneFx } from "../Scenes";
 import { CountUp } from "../CountUp";
 
 type Slot = keyof Omit<Deco, "user_id">;
-const SHORT: Record<ShopKind, string> = { banner: "баннеры", ring: "ауры", name: "имена", title: "титулы", bg: "фоны", overlay: "анимации", scene: "сцены" };
 const EMPTY: Omit<Deco, "user_id"> = { banner: null, ring: null, name_fx: null, title: null, page_bg: null, overlay: null, scene: null };
 
 export function Shop() {
@@ -79,6 +78,7 @@ export function Shop() {
     loadMine();
   }
 
+  const tier = wallet?.tier ?? 0;
   const shown = items
     .filter((i) => i.kind === kind && (!i.hidden || owned.has(i.id)))
     .filter((i) => rar === "all" || rarity(i.price).id === rar)
@@ -92,101 +92,68 @@ export function Shop() {
     return l;
   }, [deco, previewItem]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const tier = wallet?.tier ?? 0;
   const name = me?.display_name ?? "Твоё имя";
+  const nextTier = TIERS[tier + 1];
+  const colPct = items.length ? Math.round((owned.size / items.length) * 100) : 0;
 
   return (
-    <section className="sh">
-      <div className="sh-top">
-        <div className="sh-wallet">
-          <span className="label">Баланс</span>
-          <div className="sh-coins"><span className="sh-coin" aria-hidden="true">C</span><b className="mono">{wallet ? <CountUp value={wallet.balance} /> : me ? "…" : "0"}</b><em>Coins</em></div>
-          {wallet
-            ? <small>Заработано {wallet.earned} · потрачено {wallet.spent}. Пик AURA {wallet.peak}: монеты не сгорают, даже если аура просядет.</small>
-            : <small>{me ? "Считаем…" : "Войди, чтобы получать Coins и покупать декор."}</small>}
+    <section className="sx">
+      {/* ===== Витрина: баланс и сундук ===== */}
+      <div className="sx-hero">
+        <span className="sx-glow g1" aria-hidden="true" /><span className="sx-glow g2" aria-hidden="true" />
+        <div className="sx-bal">
+          <span className="sx-label">Баланс</span>
+          <div className="sx-coins"><span className="sx-coin" aria-hidden="true">C</span><b>{wallet ? <CountUp value={wallet.balance} ms={1200} /> : 0}</b></div>
+          <span className="sx-sub">{wallet ? <>Coins · собрано {owned.size} из {items.length}</> : me ? "Считаем…" : "Войди, чтобы получать Coins"}</span>
+          <span className="sx-col" title={`Коллекция ${colPct}%`}><i style={{ width: `${colPct}%` }} /></span>
         </div>
-        <ol className="sh-ladder" aria-label="Coins за уровни">
-          {TIERS.map((t, i) => {
-            const got = wallet ? tier >= i : false;
-            return (
-              <li key={t.name} className={got ? "got" : ""} style={{ "--t": t.color, "--i": i } as React.CSSProperties}>
-                <i />
-                <b>{t.icon} {t.name}</b>
-                <span className="mono">{t.min}+ AURA</span>
-                <em className="mono">+{TIER_COINS[i]}</em>
-              </li>
-            );
-          })}
-          <li className="sh-ladder-note">и ещё +1 Coin за каждые 5 AURA · до 100 Coins за каждого приглашённого друга — во вкладке «Задания»</li>
-        </ol>
-      </div>
-
-      <div className="sh-extras">
-        <div className={`sh-chest ${rolling ? "rolling" : ""}`}>
-          <span className="sh-chest-box" aria-hidden="true"><i /><b>?</b></span>
-          <div>
+        <div className={`sx-chest ${rolling ? "rolling" : ""}`}>
+          <span className="sx-chest-box" aria-hidden="true"><i /><b>?</b><em /><em /><em /></span>
+          <div className="sx-chest-text">
             <b>Сундук удачи</b>
-            <small>Любой предмет, которого у тебя ещё нет, — даже выше твоего уровня, который не купить. Шанс: обычные 47% · редкие 43% · эпические 9% · легендарные 1–2%.</small>
+            <span>Случайный предмет, даже выше твоего уровня</span>
           </div>
           {me
-            ? <button type="button" className="sh-btn" disabled={rolling || !wallet || wallet.balance < CHEST_PRICE} onClick={chest}>{rolling ? "Открываю…" : <>Открыть · <i className="sh-coin sm" aria-hidden="true">C</i>{CHEST_PRICE}</>}</button>
-            : <Link className="sh-btn" href="/login">Войти</Link>}
-        </div>
-        <div className="sh-collection">
-          <span className="label">Коллекция</span>
-          <b className="mono">{owned.size}<em>/{items.length}</em></b>
-          <span className="sh-col-bar"><i style={{ width: `${items.length ? (owned.size / items.length) * 100 : 0}%` }} /></span>
-          <small>{KINDS.map((k) => `${SHORT[k.id]} ${items.filter((i) => i.kind === k.id && owned.has(i.id)).length}/${items.filter((i) => i.kind === k.id).length}`).join(" · ")}</small>
+            ? <button type="button" className="sx-btn hot" disabled={rolling || !wallet || wallet.balance < CHEST_PRICE} onClick={chest}>{rolling ? "Открываю…" : <>Открыть <i className="sx-coin sm" aria-hidden="true">C</i>{CHEST_PRICE}</>}</button>
+            : <Link className="sx-btn hot" href="/login">Войти</Link>}
         </div>
       </div>
 
-      <div className="sh-body">
-        <aside className="sh-preview">
-          <span className="label">Примерка</span>
-          <div className="sh-preview-card sh-stage">
-            <PageFx id={look.page_bg} />
-            <ProfileHeader
-              compact displayName={name} username={me?.username ?? "username"} headline={me?.headline}
-              accent={me?.accent ?? "edit"} avatar={me?.avatar ?? null} role={me?.role} support={me?.is_support}
-              banner={publicMedia(me?.banner_path ?? null)} bannerPreset={me?.banner_preset} ring={me?.avatar_ring} nameStyle={me?.name_style}
-              bio={me?.bio || "Так тебя увидят в профиле"} deco={look}
-            />
-          </div>
-          {previewItem
-            ? <p className="sh-preview-note">Примеряешь «{previewItem.name}». {owned.has(previewItem.id) ? "Уже в коллекции." : `Стоит ${previewItem.price} Coins.`}</p>
-            : <p className="sh-preview-note">Нажми на предмет, чтобы примерить его на свою шапку.</p>}
-          {me && <Link href={`/u/?n=${me.username}`} className="link-btn">Открыть мой профиль →</Link>}
-        </aside>
+      {/* ===== Coins за уровни — тонкая лента ===== */}
+      <ol className="sx-ladder" aria-label="Coins за уровни">
+        {TIERS.map((t, i) => (
+          <li key={t.name} className={wallet && tier >= i ? "got" : ""} style={{ "--t": t.color } as React.CSSProperties} title={`${t.name}: от ${t.min} AURA`}>
+            <span>{t.icon}</span><b>{t.name}</b><em>+{TIER_COINS[i]}</em>
+          </li>
+        ))}
+      </ol>
+      {nextTier && wallet && <p className="sx-hint">Следующий уровень «{nextTier.name}» — ещё +{TIER_COINS[tier + 1]} Coins. Плюс 1 Coin за каждые 5 AURA.</p>}
 
-        <div className="sh-shelf">
-          <nav className="sh-kinds">
+      <div className="sx-body">
+        {/* ===== Категории и фильтры ===== */}
+        <div className="sx-shelf">
+          <nav className="sx-kinds" aria-label="Категории">
             {KINDS.map((k) => (
-              <button key={k.id} type="button" className="sh-kind" aria-pressed={kind === k.id} onClick={() => { setKind(k.id); setPreview(null); }}>
-                <b>{k.label}</b><small>{k.sub}</small>
+              <button key={k.id} type="button" className="sx-kind" aria-pressed={kind === k.id} title={k.sub} onClick={() => { setKind(k.id); setPreview(null); }}>
+                <span aria-hidden="true">{ICON[k.id]}</span>{SHORTLABEL[k.id]}
               </button>
             ))}
           </nav>
-          <div className="sh-filters">
-            <div className="sh-rars">
-              {[["all", "Все"], ["common", "Обычные"], ["rare", "Редкие"], ["epic", "Эпические"], ["legend", "Легендарные"]].map(([id, l]) => (
-                <button key={id} type="button" className={`sh-rar-chip r-${id}`} aria-pressed={rar === id} onClick={() => setRar(id)}>{l}</button>
-              ))}
-            </div>
-            <div className="sh-sorts">
-              <select className="mini-select" value={onlyMine} onChange={(e) => setOnlyMine(e.target.value as typeof onlyMine)} aria-label="Показывать">
-                <option value="all">Все предметы</option>
-                <option value="avail">Могу купить</option>
-                <option value="owned">Мои</option>
-              </select>
-              <select className="mini-select" value={sort} onChange={(e) => setSort(e.target.value as typeof sort)} aria-label="Сортировка">
-                <option value="default">По порядку</option>
-                <option value="cheap">Сначала дешёвые</option>
-                <option value="pricey">Сначала дорогие</option>
-              </select>
-            </div>
+          <div className="sx-filters">
+            {[["all", "Все"], ["common", "Обычные"], ["rare", "Редкие"], ["epic", "Эпические"], ["legend", "Легендарные"]].map(([id, l]) => (
+              <button key={id} type="button" className={`sx-rar r-${id}`} aria-pressed={rar === id} onClick={() => setRar(id)}><i />{l}</button>
+            ))}
+            <select className="sx-select" value={`${onlyMine}:${sort}`} onChange={(e) => { const [a, b] = e.target.value.split(":"); setOnlyMine(a as typeof onlyMine); setSort(b as typeof sort); }} aria-label="Показывать">
+              <option value="all:default">Все предметы</option>
+              <option value="avail:default">Могу купить</option>
+              <option value="owned:default">Мои</option>
+              <option value="all:cheap">Сначала дешёвые</option>
+              <option value="all:pricey">Сначала дорогие</option>
+            </select>
           </div>
-          {shown.length === 0 && <p className="sh-empty">Тут пусто. Попробуй другой фильтр.</p>}
-          <div className="sh-grid" key={`${kind}-${rar}-${onlyMine}-${sort}`}>
+
+          {shown.length === 0 && <p className="sx-empty">Тут пусто. Попробуй другой фильтр.</p>}
+          <div className="sx-grid" key={`${kind}-${rar}-${onlyMine}-${sort}`}>
             {shown.map((it, i) => {
               const r = rarity(it.price);
               const have = owned.has(it.id);
@@ -194,30 +161,49 @@ export function Shop() {
               const locked = tier < it.min_tier;
               const poor = !!wallet && wallet.balance < it.price;
               return (
-                <article key={it.id} className={`sh-item rar-${it.hidden ? "excl" : r.id} ${preview === it.id ? "on" : ""} ${worn ? "worn" : ""}`} style={{ "--i": i } as React.CSSProperties}
-                  onClick={() => setPreview(preview === it.id ? null : it.id)}>
-                  <div className="sh-item-art"><ItemArt it={it} name={name} avatar={me?.avatar ?? null} banner={publicMedia(me?.banner_path ?? null)} /></div>
-                  <div className="sh-item-info">
-                    <span className="sh-rar">{it.hidden ? (it.price > 0 ? "Снят с продажи" : "✦ Эксклюзив") : r.label}</span>
-                    <b>{it.name}</b>
-                    <small>{ABOUT[it.id]}</small>
+                <article key={it.id} className={`sx-item rar-${it.hidden ? "excl" : r.id} ${preview === it.id ? "on" : ""} ${worn ? "worn" : ""} ${locked && !have ? "locked" : ""}`}
+                  style={{ "--i": i } as React.CSSProperties} title={ABOUT[it.id]} onClick={() => setPreview(preview === it.id ? null : it.id)}>
+                  <div className="sx-art">
+                    <ItemArt it={it} name={name} avatar={me?.avatar ?? null} banner={publicMedia(me?.banner_path ?? null)} />
+                    <span className="sx-tag">{it.hidden ? "Эксклюзив" : r.label}</span>
+                    {worn && <span className="sx-worn">Надето</span>}
                   </div>
-                  <div className="sh-item-foot" onClick={(e) => e.stopPropagation()}>
-                    {have
-                      ? <button type="button" className={`sh-btn ${worn ? "ghost" : ""}`} disabled={busy === it.id} onClick={() => equip(it, !worn)}>{worn ? "Снять" : "Надеть"}</button>
-                      : locked
-                        ? <span className="sh-lock">🔒 с уровня «{TIERS[it.min_tier].name}»</span>
-                        : !me
-                          ? <Link className="sh-btn" href="/login">Войти</Link>
-                          : <button type="button" className="sh-btn" disabled={busy === it.id || poor} onClick={() => buy(it)}>{poor ? "Не хватает" : "Купить"}</button>}
-                    <span className="sh-price mono">{have ? (worn ? "надето" : "в коллекции") : <><i className="sh-coin sm" aria-hidden="true">C</i>{it.price}</>}</span>
+                  <div className="sx-info">
+                    <b>{it.name}</b>
+                    <div className="sx-foot" onClick={(e) => e.stopPropagation()}>
+                      {have
+                        ? <button type="button" className={`sx-btn sm ${worn ? "ghost" : ""}`} disabled={busy === it.id} onClick={() => equip(it, !worn)}>{worn ? "Снять" : "Надеть"}</button>
+                        : locked
+                          ? <span className="sx-lock" title={`Откроется с уровня «${TIERS[it.min_tier].name}»`}>🔒 {TIERS[it.min_tier].name}</span>
+                          : !me
+                            ? <Link className="sx-btn sm" href="/login">Войти</Link>
+                            : <button type="button" className="sx-btn sm" disabled={busy === it.id || poor} onClick={() => buy(it)}>{poor ? "Мало Coins" : "Купить"}</button>}
+                      {!have && <span className="sx-price"><i className="sx-coin sm" aria-hidden="true">C</i>{it.price}</span>}
+                    </div>
                   </div>
                 </article>
               );
             })}
           </div>
         </div>
+
+        {/* ===== Примерка ===== */}
+        <aside className="sx-try">
+          <span className="sx-label">Примерка</span>
+          <div className="sx-try-card">
+            <PageFx id={look.page_bg} />
+            <ProfileHeader
+              compact displayName={name} username={me?.username ?? "username"} headline={me?.headline}
+              accent={me?.accent ?? "edit"} avatar={me?.avatar ?? null} role={me?.role} support={me?.is_support}
+              banner={publicMedia(me?.banner_path ?? null)} bannerPreset={me?.banner_preset} ring={me?.avatar_ring} nameStyle={me?.name_style}
+              deco={look}
+            />
+          </div>
+          <p className="sx-try-note">{previewItem ? <>Примеряешь <b>«{previewItem.name}»</b>{owned.has(previewItem.id) ? " — уже твоё" : ` · ${previewItem.price} Coins`}</> : "Нажми на предмет — он появится здесь"}</p>
+          {me && <Link href={`/u/?n=${me.username}`} className="sx-try-link">Мой профиль →</Link>}
+        </aside>
       </div>
+
       {roll && <CaseRoll items={items} winner={roll} name={name} avatar={me?.avatar ?? null} onDone={() => { setWon(roll); setRoll(null); setRolling(false); }} />}
       {won && (
         <div className="sh-won" role="dialog" aria-label="Выпал предмет" onClick={() => setWon(null)}>
@@ -239,6 +225,9 @@ export function Shop() {
     </section>
   );
 }
+
+const ICON: Record<ShopKind, string> = { scene: "🏞", overlay: "🍂", banner: "✨", ring: "◎", name: "Aa", title: "🏷", bg: "🌌" };
+const SHORTLABEL: Record<ShopKind, string> = { scene: "Сцены", overlay: "Анимации", banner: "Баннеры", ring: "Ауры", name: "Имя", title: "Титулы", bg: "Фоны" };
 
 function ItemArt({ it, name, avatar, banner }: { it: ShopItem; name: string; avatar: string | null; banner?: string | null }) {
   if (it.kind === "scene") return <div className="sh-art-scene"><SceneFx id={it.id} /></div>;
