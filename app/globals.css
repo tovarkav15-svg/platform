@@ -7818,3 +7818,13 @@ html[data-theme="dark"] .db2-ava, html[data-theme="dark"] .db2-dock a > span { f
 html[data-theme="dark"] .db2-bg i { filter: blur(70px) invert(1) hue-rotate(180deg); }
 @media (max-width: 640px) { .db2-bg i { filter: blur(50px); } .db2-bg i:nth-child(1) { width: 80vw; height: 80vw; } .db2-bg i:nth-child(2) { width: 60vw; height: 60vw; } .db2-bg i:nth-child(3) { width: 60vw; height: 60vw; } }
 @media (prefers-reduced-motion: reduce) { .db2-bg i { animation: none; } }
+
+/* Обзор: пузыри едва заметны — фон почти белый */
+.db2-bg { background: #FAFAFC; }
+.db2-bg i { filter: blur(90px); }
+.db2-bg i:nth-child(1) { opacity: .16; width: 36vw; height: 36vw; }
+.db2-bg i:nth-child(2) { opacity: .1; width: 26vw; height: 26vw; }
+.db2-bg i:nth-child(4) { opacity: .09; }
+.db2-bg i:nth-child(3), .db2-bg i:nth-child(5) { display: none; }
+html[data-theme="dark"] .db2-bg i { filter: blur(90px) invert(1) hue-rotate(180deg); }
+@media (max-width: 640px) { .db2-bg i { filter: blur(60px); } }
