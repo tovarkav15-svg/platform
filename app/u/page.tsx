@@ -135,152 +135,122 @@ function ProfileView({ user, earnings, friends, state, works, projects, aura, ch
     { n: days, label: `${plural(days, "день", "дня", "дней")} в Relic` },
   ];
   const showLooking = !!user.looking_for || lookingProjects.length > 0 || isMe;
-  // Ширина плиток подстраивается под то, сколько их в ряду, чтобы не оставалось дыр
-  const pair = [showLooking, jobs.length > 0].filter(Boolean).length;
-  const small = [!!earnings, channels.length > 0, !!user.is_support].filter(Boolean).length;
-  const pairSpan = { "--sp": pair === 1 ? 6 : 3, "--sp4": 4 } as React.CSSProperties;
-  const smallSpan = { "--sp": small ? 6 / small : 2, "--sp4": small === 1 ? 4 : 2 } as React.CSSProperties;
-  let k = 0; // порядок появления плиток
+  let k = 0; // порядок появления блоков
 
   return (
     <div className="xp" ref={root} style={{ "--c": accentColor(user.accent) } as React.CSSProperties}>
-      {/* ===== Шапка ===== */}
-      <section className="xh">
-        <div className="xh-cover" ref={cover}>
-          <Banner image={publicMedia(user.banner_path)} preset={user.banner_preset} scene={deco?.scene} overlay={deco?.overlay} />
-          <BannerFx id={deco?.banner} />
-        </div>
-        <div className={`xh-ava ring-${user.avatar_ring || "spin"}`}>
-          <span className="xh-ring" />
-          <RingFx id={deco?.ring} />
-          <div className="avatar">{user.avatar ? <img src={user.avatar} alt="" /> : (user.display_name || user.username).slice(0, 1).toUpperCase()}</div>
-          <span className="xh-pres"><PresenceDot userId={user.id} size={128} /></span>
-        </div>
-        <div className="xh-id">
-          <h1 className={`xh-name name-${user.name_style || "plain"} ${deco?.name_fx ? `fx-name ${deco.name_fx}` : ""}`} data-text={user.display_name}>
-            {user.display_name}
-          </h1>
-          {user.emoji && <span className="xh-emoji" aria-hidden="true">{user.emoji}</span>}
-        </div>
-        <p className="xh-sub"><span>@{user.username}</span>{user.headline && <b>{user.headline}</b>}</p>
-        {(user.open_to_work || isOwner(user.role) || user.is_support || deco?.title) && (
-          <div className="xh-badges">
-            {user.open_to_work && <span className="xh-otw"><i />Открыт к работе</span>}
-            {isOwner(user.role) && <span className="xh-badge">Owner</span>}
-            {user.is_support && <span className="xh-badge">Команда Relic</span>}
-            <TitleChip id={deco?.title} />
+      {/* ===== Карточка человека: слева, остаётся на месте при прокрутке ===== */}
+      <aside className="xc">
+        <div className="xc-card">
+          <div className="xc-cover" ref={cover}>
+            <Banner image={publicMedia(user.banner_path)} preset={user.banner_preset} scene={deco?.scene} overlay={deco?.overlay} />
+            <BannerFx id={deco?.banner} />
           </div>
-        )}
-        {user.status && <p className="xh-now"><i />{user.status}</p>}
-        {user.bio && <p className="xh-bio">{user.bio}</p>}
-        <div className="xh-actions">
-          {isMe
-            ? <Link className="btn" href="/settings/">Редактировать</Link>
-            : loggedIn && state
-              ? <FriendActions userId={user.id} state={state} onChange={reload} />
-              : <Link className="btn" href="/login">Написать</Link>}
-          <ShareButton username={user.username} />
+          <div className="xc-top">
+            <div className={`xh-ava ring-${user.avatar_ring || "spin"}`}>
+              <span className="xh-ring" />
+              <RingFx id={deco?.ring} />
+              <div className="avatar">{user.avatar ? <img src={user.avatar} alt="" /> : (user.display_name || user.username).slice(0, 1).toUpperCase()}</div>
+              <span className="xh-pres"><PresenceDot userId={user.id} size={128} /></span>
+            </div>
+            <ShareButton username={user.username} />
+          </div>
+          <div className="xc-id">
+            <h1 className={`xc-name name-${user.name_style || "plain"} ${deco?.name_fx ? `fx-name ${deco.name_fx}` : ""}`} data-text={user.display_name}>{user.display_name}</h1>
+            {user.emoji && <span className="xc-emoji" aria-hidden="true">{user.emoji}</span>}
+          </div>
+          <p className="xc-sub">@{user.username}{user.headline && <> · <b>{user.headline}</b></>}</p>
+          {(user.open_to_work || isOwner(user.role) || user.is_support || deco?.title) && (
+            <div className="xc-badges">
+              {user.open_to_work && <span className="xh-otw"><i />Открыт к работе</span>}
+              {isOwner(user.role) && <span className="xh-badge">Owner</span>}
+              {user.is_support && <span className="xh-badge">Команда Relic</span>}
+              <TitleChip id={deco?.title} />
+            </div>
+          )}
+          {user.status && <p className="xc-now"><i />{user.status}</p>}
+          {user.bio && <p className="xc-bio">{user.bio}</p>}
+          <div className="xc-actions">
+            {isMe
+              ? <Link className="btn" href="/settings/">Редактировать профиль</Link>
+              : loggedIn && state
+                ? <FriendActions userId={user.id} state={state} onChange={reload} />
+                : <Link className="btn" href="/login">Написать</Link>}
+          </div>
+          <div className="xc-stats">
+            {stats.map((s, i) => {
+              const inner = <><b><CountUp value={s.n} ms={1000} /></b><span>{s.label}</span></>;
+              return s.href
+                ? <Link key={i} href={s.href} replace={s.href.startsWith("/u/")} scroll={false}>{inner}</Link>
+                : <div key={i}>{inner}</div>;
+            })}
+          </div>
+          <AuraRow aura={aura} isMe={isMe} />
+          <ul className="xc-meta">
+            <li><PresenceLabel userId={user.id} /></li>
+            {user.city && <li><span aria-hidden="true">⌖</span>{user.city}</li>}
+            {user.telegram && <li><span aria-hidden="true">✈</span><a href={`https://t.me/${user.telegram}`} target="_blank" rel="noopener noreferrer">@{user.telegram}</a></li>}
+            {user.website && <li><span aria-hidden="true">↗</span><a href={user.website} target="_blank" rel="noopener noreferrer nofollow">{site}</a></li>}
+            <li><span aria-hidden="true">◷</span>В Relic с {sinceText}</li>
+          </ul>
         </div>
-        <div className="xh-meta">
-          <PresenceLabel userId={user.id} />
-          {user.city && <span>{user.city}</span>}
-          {user.telegram && <a href={`https://t.me/${user.telegram}`} target="_blank" rel="noopener noreferrer">Telegram ↗</a>}
-          {user.website && <a href={user.website} target="_blank" rel="noopener noreferrer nofollow">{site} ↗</a>}
-          <span>В Relic с {sinceText}</span>
-        </div>
-      </section>
+        {!isMe && loggedIn && <ProfileSafety userId={user.id} name={user.display_name} username={user.username} />}
+      </aside>
 
-      {/* ===== Плитки ===== */}
-      <section className="xb" onPointerMove={spotlight}>
-        <article className="xt t-about" data-r style={{ "--i": k++ } as React.CSSProperties}>
+      {/* ===== Справа: содержимое ===== */}
+      <div className="xm" onPointerMove={spotlight}>
+        <section className="xt" data-r style={{ "--i": k++ } as React.CSSProperties}>
           <header className="xt-h"><span>О себе</span>{isMe && <Link href="/settings/#about">Изменить</Link>}</header>
           {user.about
-            ? <div className="t-about-text">{user.about.split(/\n{2,}/).map((p, i) => <p key={i}>{p}</p>)}</div>
+            ? <div className="xt-text">{user.about.split(/\n{2,}/).map((p, i) => <p key={i}>{p}</p>)}</div>
             : <p className="xt-muted">{isMe ? "Расскажи, чем занимаешься, с кем работал и что ищешь. Это первое, что читают в профиле." : "Пока ничего не рассказал о себе."}</p>}
           {(niches.length > 0 || skills.length > 0) && (
-            <div className="t-about-foot">
+            <div className="xt-chips">
               {niches.map((n) => <span key={n.id} className="xchip" style={{ "--n": n.color } as React.CSSProperties}><i />{n.title}</span>)}
               {skills.map((s) => <span key={s} className="xchip ghost">{s}</span>)}
             </div>
           )}
-        </article>
-
-        <AuraTile aura={aura} isMe={isMe} i={k++} />
-
-        <article className="xt t-stats" data-r style={{ "--i": k++ } as React.CSSProperties}>
-          {stats.map((s, i) => {
-            const inner = <><b><CountUp value={s.n} ms={1100} /></b><span>{s.label}</span></>;
-            return s.href
-              ? <Link key={i} href={s.href} replace={s.href.startsWith("/u/")} scroll={false} className="t-stat">{inner}</Link>
-              : <div key={i} className="t-stat">{inner}</div>;
-          })}
-        </article>
+        </section>
 
         {showLooking && (
-          <article className="xt t-looking" data-r style={{ ...pairSpan, "--i": k++ } as React.CSSProperties}>
+          <section className="xt t-looking" data-r style={{ "--i": k++ } as React.CSSProperties}>
             <span className="t-looking-blob" aria-hidden="true" />
-            <header className="xt-h"><span>Ищу</span>{isMe && <Link href="/settings/#looking">Изменить</Link>}</header>
-            <p className="t-looking-text">{user.looking_for || (isMe ? "Напиши, кого ищешь: команду, клиентов, наставника" : "Открыт к предложениям")}</p>
+            <div className="t-looking-main">
+              <span className="t-looking-label">Ищу{isMe && <Link href="/settings/#looking">Изменить</Link>}</span>
+              <p className="t-looking-text">{user.looking_for || (isMe ? "Напиши, кого ищешь: команду, клиентов, наставника" : "Открыт к предложениям")}</p>
+            </div>
             {lookingProjects.length > 0 && (
               <div className="t-looking-list">
-                {lookingProjects.map((p) => (
-                  <Link key={p.id} href={`/project/?id=${p.id}`}><b>{p.name}</b><span>{p.looking_for}</span><em aria-hidden="true">→</em></Link>
-                ))}
+                {lookingProjects.map((p) => <Link key={p.id} href={`/project/?id=${p.id}`}><b>{p.name}</b><span>{p.looking_for}</span><em aria-hidden="true">→</em></Link>)}
               </div>
             )}
-          </article>
+          </section>
         )}
 
-        {jobs.length > 0 && (
-          <article className="xt t-services" data-r style={{ ...pairSpan, "--i": k++ } as React.CSSProperties}>
-            <header className="xt-h"><span>Услуги и цены</span><Link href="/jobs/">Биржа →</Link></header>
-            <ul>
-              {jobs.map((j) => <li key={j.id}><span>{j.service}</span><i aria-hidden="true" /><b>{j.avg_check ? `${fmt(j.avg_check)} ₽` : "договорная"}</b></li>)}
-            </ul>
-          </article>
-        )}
-
-        {earnings && (
-          <article className="xt t-money" data-r style={{ ...smallSpan, "--i": k++, "--p": `${pct}%` } as React.CSSProperties}>
-            <header className="xt-h"><span>{isMe ? "Заработано за месяц" : "Заработал за месяц"}</span>{isMe && <em>{earnings.is_public ? "видят все" : "видишь только ты"}</em>}</header>
-            <div className="t-money-sum"><CountUp value={earnings.amount} format={fmt} ms={1200} /><small>₽</small></div>
-            {earnings.goal > 0 && (
-              <>
-                <div className="t-money-bar"><b /></div>
-                <div className="t-money-row"><span>Цель {fmt(earnings.goal)} ₽</span><span>{pct}%</span></div>
-              </>
+        {(jobs.length > 0 || earnings) && (
+          <div className="xm-pair">
+            {jobs.length > 0 && (
+              <section className="xt t-services" data-r style={{ "--i": k++ } as React.CSSProperties}>
+                <header className="xt-h"><span>Услуги и цены</span><Link href="/jobs/">Биржа →</Link></header>
+                <ul>{jobs.map((j) => <li key={j.id}><span>{j.service}</span><i aria-hidden="true" /><b>{j.avg_check ? `${fmt(j.avg_check)} ₽` : "договорная"}</b></li>)}</ul>
+              </section>
             )}
-          </article>
-        )}
-
-        {channels.length > 0 && (
-          <article className="xt t-channels" data-r style={{ ...smallSpan, "--i": k++ } as React.CSSProperties}>
-            <header className="xt-h"><span>Каналы</span></header>
-            {channels.map((c) => (
-              <Link key={c.chat_id} href={c.username ? `/c/?u=${c.username}` : "/messages/"} className="t-channel">
-                <ChatAvatar size={42} c={{ kind: "channel", avatar: c.avatar, accent: c.accent, emoji: c.emoji, title: c.title, other_id: null, other_name: null, other_avatar: null, other_accent: null }} />
-                <span><b>{c.title}</b><small>{c.username ? `@${c.username} · ` : ""}{c.member_count} {plural(c.member_count, "подписчик", "подписчика", "подписчиков")}</small></span>
-                <em aria-hidden="true">→</em>
-              </Link>
-            ))}
-          </article>
-        )}
-
-        {user.is_support && (
-          <article className="xt t-support" data-r style={{ ...smallSpan, "--i": k++ } as React.CSSProperties}>
-            <header className="xt-h"><span>Команда Relic</span></header>
-            <p className="xt-muted">{isMe ? "Обращения приходят тебе во вкладку «Обращения» в чатах." : "Что-то не работает или есть идея — напиши, ответим."}</p>
-            {!isMe && <SupportButton />}
-          </article>
+            {earnings && (
+              <section className="xt t-money" data-r style={{ "--i": k++, "--p": `${pct}%` } as React.CSSProperties}>
+                <header className="xt-h"><span>{isMe ? "Заработано за месяц" : "Заработал за месяц"}</span>{isMe && <em>{earnings.is_public ? "видят все" : "только ты"}</em>}</header>
+                <div className="t-money-sum"><CountUp value={earnings.amount} format={fmt} ms={1200} /><small>₽</small></div>
+                {earnings.goal > 0 && <><div className="t-money-bar"><b /></div><div className="t-money-row"><span>Цель {fmt(earnings.goal)} ₽</span><span>{pct}%</span></div></>}
+              </section>
+            )}
+          </div>
         )}
 
         {pinned && (
-          <article className="xt t-pinned" data-r style={{ "--i": k++ } as React.CSSProperties}>
+          <section className="xt t-pinned" data-r style={{ "--i": k++ } as React.CSSProperties}>
             <header className="xt-h"><span>Сейчас строю</span></header>
             <ProjectCard project={pinned} pinned />
-          </article>
+          </section>
         )}
-      </section>
 
       {/* ===== Работы / проекты / цели ===== */}
       <section className="xs" data-r style={{ "--i": 0 } as React.CSSProperties}>
@@ -316,7 +286,30 @@ function ProfileView({ user, earnings, friends, state, works, projects, aura, ch
         <Reviews userId={user.id} meId={meId} name={user.display_name} />
       </div>
 
-      {!isMe && loggedIn && <ProfileSafety userId={user.id} name={user.display_name} username={user.username} />}
+        {(channels.length > 0 || user.is_support) && (
+          <div className="xm-pair">
+            {channels.length > 0 && (
+              <section className="xt t-channels" data-r style={{ "--i": 0 } as React.CSSProperties}>
+                <header className="xt-h"><span>Каналы</span></header>
+                {channels.map((c) => (
+                  <Link key={c.chat_id} href={c.username ? `/c/?u=${c.username}` : "/messages/"} className="t-channel">
+                    <ChatAvatar size={36} c={{ kind: "channel", avatar: c.avatar, accent: c.accent, emoji: c.emoji, title: c.title, other_id: null, other_name: null, other_avatar: null, other_accent: null }} />
+                    <span><b>{c.title}</b><small>{c.username ? `@${c.username} · ` : ""}{c.member_count} {plural(c.member_count, "подписчик", "подписчика", "подписчиков")}</small></span>
+                    <em aria-hidden="true">→</em>
+                  </Link>
+                ))}
+              </section>
+            )}
+            {user.is_support && (
+              <section className="xt t-support" data-r style={{ "--i": 1 } as React.CSSProperties}>
+                <header className="xt-h"><span>Команда Relic</span></header>
+                <p className="xt-muted">{isMe ? "Обращения приходят во вкладку «Обращения» в чатах." : "Что-то не работает или есть идея — напиши, ответим."}</p>
+                {!isMe && <SupportButton />}
+              </section>
+            )}
+          </div>
+        )}
+      </div>
 
       {isMe && (
         <>
@@ -417,25 +410,15 @@ function Empty({ isMe, text, meText, cta, onCta }: { isMe: boolean; text: string
   );
 }
 
-/** AURA: круг заполняется до текущей ступени */
-function AuraTile({ aura, isMe, i }: { aura: number; isMe: boolean; i: number }) {
+/** AURA: строка с уровнем и полоской до следующей ступени */
+function AuraRow({ aura, isMe }: { aura: number; isMe: boolean }) {
   const t = tierOf(aura);
   const p = t.next ? t.stepProgress : 1;
-  const C = 2 * Math.PI * 46;
   return (
-    <Link href="/aura/" className="xt t-aura" data-r style={{ "--i": i, "--C": C, "--off": C * (1 - p) } as React.CSSProperties}>
-      <svg viewBox="0 0 108 108" aria-hidden="true">
-        <circle className="g-bg" cx="54" cy="54" r="46" />
-        <circle className="g-fg" cx="54" cy="54" r="46" />
-      </svg>
-      <span className="t-aura-in">
-        <small>AURA</small>
-        <b><CountUp value={aura} ms={1400} /></b>
-      </span>
-      <span className="t-aura-tier">
-        <b>{t.icon} {t.fullName}</b>
-        <small>{t.next && t.stepNext ? (isMe ? `ещё ${t.stepNext - aura} до следующей ступени` : `до следующей ступени ${t.stepNext - aura}`) : "Высший уровень"}</small>
-      </span>
+    <Link href="/aura/" className="xc-aura" style={{ "--p": `${Math.round(p * 100)}%` } as React.CSSProperties}>
+      <span className="xc-aura-top"><small>AURA</small><b><CountUp value={aura} ms={1300} /></b><em>{t.icon} {t.fullName}</em></span>
+      <span className="xc-aura-bar"><i /></span>
+      <span className="xc-aura-hint">{t.next && t.stepNext ? (isMe ? `ещё ${t.stepNext - aura} до следующей ступени` : `до следующей ступени ${t.stepNext - aura}`) : "Высший уровень"}</span>
     </Link>
   );
 }
