@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { publicMedia, supabase, type ChatListItem, type Profile } from "@/lib/supabase";
+import { supabase, type ChatListItem, type Profile } from "@/lib/supabase";
 import { chatHref, profileHref } from "@/lib/links";
 import { rub } from "@/lib/workspace";
 import { PRIORITY, addDays, iso, nextDue, today, type PlanTask } from "@/lib/plans";
@@ -74,14 +74,13 @@ export function Dashboard({ me }: { me: Profile }) {
     try { await navigator.clipboard.writeText(url); } catch { window.prompt("Скопируй ссылку", url); }
     setCopied(true); setTimeout(() => setCopied(false), 2000);
   }
-  const banner = publicMedia(me.banner_path ?? null);
   const summary = tasks === null ? "Собираем твой день…"
     : left.length ? `${left.length} ${plural(left.length, "дело", "дела", "дел")} на сегодня${unread ? ` · ${unread} ${plural(unread, "сообщение", "сообщения", "сообщений")}` : ""}`
     : unread ? `Дел нет · ${unread} ${plural(unread, "сообщение", "сообщения", "сообщений")}` : "Свободный день";
 
   return (
     <main className="page wide db2">
-      <DbBackdrop src={banner || me.avatar || null} />
+      <DbBackdrop />
 
       <header className="db2-hero">
         <div className="db2-id">
@@ -185,8 +184,8 @@ function Count({ n }: { n: number | null }) {
   return <>{n === null ? "—" : v}</>;
 }
 
-/** Размытый баннер (или аватар) человека на весь фон — как в профиле */
-function DbBackdrop({ src }: { src: string | null }) {
+/** Фон: мягкие размытые пузыри акцентных цветов медленно плывут */
+function DbBackdrop() {
   const [host, setHost] = useState<HTMLElement | null>(null);
   useEffect(() => {
     setHost(document.body);
@@ -194,13 +193,5 @@ function DbBackdrop({ src }: { src: string | null }) {
     return () => document.documentElement.classList.remove("has-xbg");
   }, []);
   if (!host) return null;
-  const video = !!src && /\.(mp4|webm)(\?|$)/i.test(src);
-  return createPortal(
-    <div className="xbg" aria-hidden="true">
-      {src ? video ? <video className="xbg-media" src={src} autoPlay muted loop playsInline /> : <img className="xbg-media" src={src} alt="" />
-        : <span className="xbg-media xbg-grad" />}
-      <span className="xbg-veil" />
-    </div>,
-    host,
-  );
+  return createPortal(<div className="db2-bg" aria-hidden="true"><i /><i /><i /><i /><i /></div>, host);
 }
