@@ -6,7 +6,7 @@ import { createPortal } from "react-dom";
 import { supabase, type ChatListItem, type Profile } from "@/lib/supabase";
 import { chatHref, profileHref } from "@/lib/links";
 import { rub } from "@/lib/workspace";
-import { PRIORITY, addDays, iso, nextDue, today, type PlanTask } from "@/lib/plans";
+import { PRIORITY, addDays, dueLabel, iso, nextDue, today, type PlanTask } from "@/lib/plans";
 import { tierOf } from "@/lib/aura";
 import { ChatAvatar, chatTitle } from "./messages/ChatAvatar";
 import { Avatar } from "./Avatar";
@@ -50,9 +50,24 @@ export function Dashboard({ me }: { me: Profile }) {
   }, [me.id, td]);
 
   useEffect(() => { document.title = "Обзор · Relic"; load(); }, [load]);
+  // Вернулся на вкладку — свежие дела, деньги и чаты без перезагрузки
+  useEffect(() => {
+    const on = () => { if (document.visibilityState === "visible") load(); };
+    document.addEventListener("visibilitychange", on);
+    return () => document.removeEventListener("visibilitychange", on);
+  }, [load]);
 
+  const [undo, setUndo] = useState<PlanTask | null>(null);
+  useEffect(() => { if (!undo) return; const id = setTimeout(() => setUndo(null), 5000); return () => clearTimeout(id); }, [undo]);
+  async function revert(t: PlanTask) {
+    setUndo(null);
+    setGone((s) => { const n = new Set(s); n.delete(t.id); return n; });
+    await supabase.from("plan_tasks").update(t.repeat ? { due_date: t.due_date } : { done: false, done_at: null }).eq("id", t.id);
+    window.dispatchEvent(new Event("plans:done"));
+  }
   async function complete(t: PlanTask) {
     setGone((s) => new Set(s).add(t.id));
+    setUndo(t);
     if (t.repeat && t.due_date) await supabase.from("plan_tasks").update({ due_date: nextDue(t.due_date, t.repeat) }).eq("id", t.id);
     else await supabase.from("plan_tasks").update({ done: true, done_at: new Date().toISOString() }).eq("id", t.id);
     window.dispatchEvent(new Event("plans:done"));
@@ -66,6 +81,16 @@ export function Dashboard({ me }: { me: Profile }) {
   const tier = aura === null ? null : tierOf(aura);
   const dateLine = new Date().toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long" }).replace(/^./, (c) => c.toUpperCase());
   const total = left.length + gone.size;
+  const overdue = left.filter((t) => t.due_date! < td).length;
+  const MONTHS_IN = ["январе", "феврале", "марте", "апреле", "мае", "июне", "июле", "августе", "сентябре", "октябре", "ноябре", "декабре"];
+  const monthIn = MONTHS_IN[new Date().getMonth()];
+  const setup = [
+    { ok: !!me.avatar, t: "Аватарка" },
+    { ok: !!(me.about || me.bio || me.headline), t: "Пара слов о себе" },
+    { ok: !!(me.banner_path || me.cover), t: "Обложка" },
+    { ok: !!me.niches, t: "Твоя ниша" },
+  ];
+  const setupDone = setup.filter((x) => x.ok).length;
   const donePct = total ? Math.round((gone.size / total) * 100) : 0;
   const [copied, setCopied] = useState(false);
   async function copyLink() {
@@ -96,11 +121,11 @@ export function Dashboard({ me }: { me: Profile }) {
         <div className="db2-stats">
           <Link href="/workspace/?tab=plans" className="db2-stat" style={{ "--c": SECTION_COLOR.workspace } as React.CSSProperties}>
             <small>Дела</small><b><Count n={tasks === null ? null : left.length} /></b>
-            <i className="db2-bar"><i style={{ width: `${donePct}%` }} /></i>
+            {gone.size > 0 ? <i className="db2-bar"><i style={{ width: `${donePct}%` }} /></i> : <em className={overdue ? "late" : ""}>{overdue ? `${overdue} просрочено` : "на сегодня"}</em>}
           </Link>
           <Link href="/workspace/?tab=finance" className="db2-stat" style={{ "--c": "#1FA67A" } as React.CSSProperties}>
             <small>Заработано</small><b>{rub(money.income)}</b>
-            <em>{money.expense ? `−${rub(money.expense)}` : "за месяц"}</em>
+            <em>{money.expense ? `потрачено ${rub(money.expense)}` : `в ${monthIn}`}</em>
           </Link>
           <Link href="/messages/" className={`db2-stat${unread ? " hot" : ""}`} style={{ "--c": SECTION_COLOR.chats } as React.CSSProperties}>
             <small>Сообщения</small><b><Count n={unread} /></b>
@@ -108,10 +133,24 @@ export function Dashboard({ me }: { me: Profile }) {
           </Link>
           <Link href="/aura/" className="db2-stat" style={{ "--c": tier?.color ?? "#FF4F8B" } as React.CSSProperties}>
             <small>AURA</small><b><Count n={aura} /></b>
-            {tier ? <i className="db2-bar"><i style={{ width: `${Math.round(tier.stepProgress * 100)}%` }} /></i> : <em>—</em>}
+            {tier ? <>
+              <i className="db2-bar"><i style={{ width: `${Math.round(tier.stepProgress * 100)}%` }} /></i>
+              <em>{tier.stepNext ? `${tier.fullName} · ещё ${tier.stepNext - (aura ?? 0)}` : tier.fullName}</em>
+            </> : <em>—</em>}
           </Link>
         </div>
       </header>
+
+      {setupDone < setup.length && (
+        <Link href="/settings/" className="db2-setup">
+          <span className="db2-ring" style={{ "--p": setupDone / setup.length } as React.CSSProperties}><b>{setupDone}/{setup.length}</b></span>
+          <span className="db2-setup-t">
+            <b>Доделай профиль — клиенты смотрят именно его</b>
+            <span>{setup.map((x) => <i key={x.t} className={x.ok ? "ok" : ""}>{x.ok ? "✓ " : ""}{x.t}</i>)}</span>
+          </span>
+          <em>Заполнить →</em>
+        </Link>
+      )}
 
       <div className="db2-grid">
         <section className="db2-card" style={{ "--c": SECTION_COLOR.workspace } as React.CSSProperties}>
@@ -128,11 +167,13 @@ export function Dashboard({ me }: { me: Profile }) {
                 <li key={t.id} style={{ "--p": PRIORITY[t.priority].c, "--i": i } as React.CSSProperties}>
                   <button type="button" className={`pchk p${t.priority}`} onClick={() => complete(t)} aria-label="Выполнить" />
                   <span>{t.title}</span>
-                  <em className={t.due_date! < td ? "late" : ""}>{t.due_date! < td ? "просрочено" : t.due_time ? t.due_time.slice(0, 5) : ""}</em>
+                  <em className={t.due_date! < td ? "late" : ""}>{t.due_date! < td ? dueLabel(t.due_date, null) : t.due_time ? t.due_time.slice(0, 5) : ""}</em>
                 </li>
               ))}
+              {left.length > 6 && <li className="db2-more"><Link href="/workspace/?tab=plans">Ещё {left.length - 6} →</Link></li>}
             </ul>
           )}
+          {undo && <div className="db2-undo" role="status"><span>Готово: {undo.title}</span><button type="button" onClick={() => revert(undo)}>Вернуть</button></div>}
         </section>
 
         <section className="db2-card" style={{ "--c": SECTION_COLOR.chats } as React.CSSProperties}>
@@ -143,7 +184,7 @@ export function Dashboard({ me }: { me: Profile }) {
                 <li key={c.chat_id} style={{ "--i": i } as React.CSSProperties}>
                   <Link href={chatHref(c.chat_id)} className={c.unread ? "new" : ""}>
                     <ChatAvatar c={c} size={36} />
-                    <span className="db2-chat-t"><b>{chatTitle(c)}</b><small>{c.last_text || "Сообщение"}</small></span>
+                    <span className="db2-chat-t"><b>{chatTitle(c)}<time>{when(c.last_at)}</time></b><small>{c.last_mine ? "Ты: " : ""}{c.last_text || "Сообщение"}</small></span>
                     {c.unread > 0 && <em className="count-badge">{c.unread > 99 ? "99+" : c.unread}</em>}
                   </Link>
                 </li>
@@ -168,6 +209,15 @@ export function Dashboard({ me }: { me: Profile }) {
       </nav>
     </main>
   );
+}
+
+/** Когда было последнее сообщение: 14:20, «вчера» или дата */
+function when(at: string | null) {
+  if (!at) return "";
+  const d = new Date(at), now = new Date();
+  if (d.toDateString() === now.toDateString()) return d.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+  if (d.toDateString() === new Date(now.getTime() - 86400000).toDateString()) return "вчера";
+  return d.toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
 }
 
 /** Число плавно набегает от нуля */

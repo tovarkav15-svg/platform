@@ -7828,3 +7828,26 @@ html[data-theme="dark"] .db2-bg i { filter: blur(70px) invert(1) hue-rotate(180d
 .db2-bg i:nth-child(3), .db2-bg i:nth-child(5) { display: none; }
 html[data-theme="dark"] .db2-bg i { filter: blur(90px) invert(1) hue-rotate(180deg); }
 @media (max-width: 640px) { .db2-bg i { filter: blur(60px); } }
+
+/* Обзор: подсказка «доделай профиль», «вернуть», время в чатах */
+.db2-setup { display: flex; align-items: center; gap: 16px; padding: 14px 20px; border-radius: 22px; background: rgba(255,255,255,.6); border: 1px solid rgba(123,97,255,.25); backdrop-filter: blur(20px); text-decoration: none; color: inherit; animation: db2In .7s var(--ez) .1s both; transition: transform .25s var(--ez), box-shadow .25s; }
+.db2-setup:hover { transform: translateY(-2px); box-shadow: 0 14px 30px -18px rgba(123,97,255,.6); }
+.db2-ring { flex: none; display: grid; place-items: center; width: 46px; height: 46px; border-radius: 50%; background: conic-gradient(#7B61FF calc(var(--p) * 360deg), rgba(123,97,255,.14) 0); }
+.db2-ring b { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: #fff; font-size: 12px; font-weight: 750; }
+.db2-setup-t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.db2-setup-t > b { font-size: 14.5px; font-weight: 700; }
+.db2-setup-t > span { display: flex; flex-wrap: wrap; gap: 5px; }
+.db2-setup-t i { font-style: normal; font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 99px; background: rgba(20,20,30,.06); color: rgba(20,20,30,.6); }
+.db2-setup-t i.ok { background: rgba(31,166,122,.12); color: #1FA67A; text-decoration: line-through; text-decoration-thickness: 1px; }
+.db2-setup > em { font-style: normal; font-size: 13.5px; font-weight: 650; color: #7B61FF; white-space: nowrap; }
+.db2-more a { display: block; padding: 8px 4px 0; font-size: 13px; font-weight: 600; color: var(--c); text-decoration: none; }
+.db2-tasks li.db2-more { padding: 0; }
+.db2-tasks li.db2-more:hover { background: none; }
+.db2-undo { display: flex; align-items: center; gap: 10px; margin-top: 10px; padding: 10px 12px 10px 14px; border-radius: 14px; background: #16161E; color: #fff; font-size: 13.5px; animation: db2In .35s var(--ez) both; }
+.db2-undo span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.db2-undo button { border: 0; background: none; color: #B9A8FF; font: 650 13.5px inherit; cursor: pointer; padding: 4px 6px; }
+.db2-chat-t b { display: flex; align-items: baseline; gap: 8px; }
+.db2-chat-t time { margin-left: auto; font-size: 11.5px; font-weight: 500; color: rgba(20,20,30,.4); white-space: nowrap; }
+html[data-theme="dark"] .db2-ring, html[data-theme="dark"] .db2-undo button { filter: invert(1) hue-rotate(180deg); }
+@media (max-width: 560px) { .db2-setup { flex-wrap: wrap; padding: 14px; gap: 12px; } .db2-setup > em { width: 100%; } }
+.db2-stat em.late { color: #E5484D; font-weight: 600; }
