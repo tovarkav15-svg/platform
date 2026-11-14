@@ -7430,3 +7430,45 @@ a.t-pinned:hover > i { transform: translateX(4px); color: var(--acc); }
 .xp .xs-grid .pcard-text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .xp .xs-grid .pcard-media { aspect-ratio: 16 / 10; height: auto; }
 html[data-theme="dark"] .t-pin-body em { filter: invert(1) hue-rotate(180deg) contrast(1.19); }
+
+/* ================= Профиль: стиль «стекло на фоне» (2026-11-14) ================= */
+.xbg { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; background: #EDEBF3; }
+.xbg-media { position: absolute; inset: -12%; width: 124%; height: 124%; object-fit: cover; filter: blur(60px) saturate(1.9) brightness(1.02); transform: scale(1.05); animation: xbgDrift 30s ease-in-out infinite alternate, xbgIn 1.2s var(--ez, ease) both; }
+.xbg-grad { display: block; background: radial-gradient(40% 50% at 20% 25%, #B7A6FF, transparent 70%), radial-gradient(45% 50% at 80% 30%, #FFC2DD, transparent 70%), radial-gradient(50% 50% at 55% 85%, #A8E6D2, transparent 70%), #EEEAFB; filter: blur(30px); }
+.xbg-veil { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(255,255,255,.12), rgba(255,255,255,.32) 55%, rgba(255,255,255,.5)); }
+@keyframes xbgDrift { to { transform: scale(1.15) translate(-2%, 1.5%); } }
+@keyframes xbgIn { from { opacity: 0; } to { opacity: 1; } }
+html.has-xbg body { background: transparent; }
+html.has-xbg .fx-page { opacity: .55; }
+html.has-xbg .topbar { background: rgba(255,255,255,.45); backdrop-filter: blur(20px) saturate(1.6); -webkit-backdrop-filter: blur(20px) saturate(1.6); }
+
+/* стеклянные блоки */
+.xp { --soft: rgba(255,255,255,.5); --ln: rgba(255,255,255,.7); }
+.xp .xc-card, .xp .xt, .xp .pcard, .xp .xs-tabs, .xp .rv-list li, .xp .rv-form {
+  background: rgba(255,255,255,.5);
+  border: 1px solid rgba(255,255,255,.75);
+  box-shadow: 0 1px 0 rgba(255,255,255,.8) inset, 0 12px 40px -18px rgba(30,20,60,.25);
+  backdrop-filter: blur(26px) saturate(1.7); -webkit-backdrop-filter: blur(26px) saturate(1.7);
+}
+.xp .xt:hover, .xp .xs-grid .pcard[data-in]:hover { border-color: rgba(255,255,255,.95); box-shadow: 0 1px 0 rgba(255,255,255,.9) inset, 0 22px 50px -20px rgba(30,20,60,.32); }
+.xp .xt::before { background: radial-gradient(320px circle at var(--mx, 50%) var(--my, 50%), rgba(255,255,255,.55), transparent 60%); }
+.xp .xc-stats, .xp .xc-extra { border-color: rgba(22,22,30,.07); }
+.xp .xc-stats > * + * { border-left-color: rgba(22,22,30,.07); }
+.xp .xc-stats a:hover, .xp .xc-aura:hover, .xp .t-svc-item:hover { background: rgba(255,255,255,.75); }
+.xp .xc-aura, .xp .t-svc-item, .xp .xchip, .xp .xh-badge, .xp .xc-badges .fx-title, .xp .t-pin-img, .xp .pcard .looking { background: rgba(255,255,255,.55); }
+.xp .xchip.ghost { background: transparent; box-shadow: inset 0 0 0 1px rgba(22,22,30,.1); }
+.xp .xh-share { background: rgba(255,255,255,.7) !important; }
+.xp .xc-cover { mask-image: linear-gradient(#000 60%, transparent); -webkit-mask-image: linear-gradient(#000 60%, transparent); }
+.xp .xh-ava .avatar { box-shadow: 0 0 0 4px rgba(255,255,255,.85), 0 10px 26px -10px rgba(30,20,60,.45); }
+.xp .xh-pres .pres { box-shadow: 0 0 0 3px rgba(255,255,255,.9); }
+.xp .t-services li, .xp .t-services li i { border-color: rgba(22,22,30,.1); }
+.xp .t-looking { background: rgba(123,97,255,.82); border-color: rgba(255,255,255,.35); box-shadow: 0 1px 0 rgba(255,255,255,.35) inset, 0 16px 40px -18px rgba(91,67,224,.6); }
+.xp .xs-pill { background: rgba(22,22,30,.88); }
+.xp .xs-empty { background: rgba(255,255,255,.35); border-color: rgba(22,22,30,.15); backdrop-filter: blur(20px); }
+.xp .pcard-niche, .xp .pcard .stage { background: rgba(255,255,255,.75); }
+
+/* тёмная тема: картинку не переворачиваем, дымка темнеет сама */
+html[data-theme="dark"] .xbg-media { filter: blur(70px) saturate(1.4) invert(1) hue-rotate(180deg); }
+html[data-theme="dark"] .xbg-veil { background: linear-gradient(180deg, rgba(255,255,255,.55), rgba(255,255,255,.75)); }
+@media (prefers-reduced-motion: reduce) { .xbg-media { animation: none; } }
+@media (max-width: 640px) { .xbg-media { filter: blur(50px) saturate(1.5); } }

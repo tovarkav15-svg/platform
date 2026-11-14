@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { supabase, publicMedia, isOwner, STAGES, type Earnings, type FriendState, type Profile, type Project, type Work } from "@/lib/supabase";
 import { friendState } from "@/lib/api";
 import { useSession } from "@/lib/session";
@@ -139,6 +140,7 @@ function ProfileView({ user, earnings, friends, state, works, projects, aura, ch
 
   return (
     <div className="xp" ref={root} style={{ "--c": accentColor(user.accent) } as React.CSSProperties}>
+      <Backdrop banner={publicMedia(user.banner_path)} avatar={user.avatar} />
       {/* ===== Карточка человека: слева, остаётся на месте при прокрутке ===== */}
       <aside className="xc">
         <div className="xc-card">
@@ -321,6 +323,30 @@ function ProfileView({ user, earnings, friends, state, works, projects, aura, ch
         </>
       )}
     </div>
+  );
+}
+
+/** Фон всей страницы — размытая обложка человека (или аватар), поверх светлая дымка */
+function Backdrop({ banner, avatar }: { banner: string | null; avatar: string | null | undefined }) {
+  const [host, setHost] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    setHost(document.body);
+    document.documentElement.classList.add("has-xbg");
+    return () => document.documentElement.classList.remove("has-xbg");
+  }, []);
+  if (!host) return null;
+  const src = banner || avatar || null;
+  const video = !!banner && /\.(mp4|webm)(\?|$)/i.test(banner);
+  return createPortal(
+    <div className="xbg" aria-hidden="true">
+      {src
+        ? video
+          ? <video className="xbg-media" src={src} autoPlay muted loop playsInline />
+          : <img className="xbg-media" src={src} alt="" />
+        : <span className="xbg-media xbg-grad" />}
+      <span className="xbg-veil" />
+    </div>,
+    host,
   );
 }
 
