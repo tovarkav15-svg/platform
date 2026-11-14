@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase, publicMedia, type Earnings, type FriendState, type Profile, type Project, type Work } from "@/lib/supabase";
 import { friendState } from "@/lib/api";
 import { useSession } from "@/lib/session";
@@ -83,7 +83,7 @@ export default function ProfilePage() {
     <>
       <TopBar />
       {data && data !== "missing" && data.deco?.page_bg && <PageFx id={data.deco.page_bg} />}
-      <main className="page wide pf pfv2">
+      <main className="page wide px">
         {data === null && <><div className="skeleton pf-skeleton" /><div className="skeleton list-skeleton" /></>}
         {data === "missing" && (
           <div className="empty">
@@ -121,25 +121,13 @@ function ProfileView({ user, earnings, friends, state, works, projects, aura, ch
     if (wantNew === "project") setProjectEdit("new");
   }, [wantNew, isMe]);
 
-  // Подсветка активной вкладки едет за ней
-  const tabsRef = useRef<HTMLElement>(null);
-  const [pill, setPill] = useState<{ left: number; width: number } | null>(null);
-  useLayoutEffect(() => {
-    const place = () => {
-      const el = tabsRef.current?.querySelector<HTMLElement>(`[data-s="${active}"]`);
-      if (el) setPill({ left: el.offsetLeft, width: el.offsetWidth });
-    };
-    place();
-    window.addEventListener("resize", place);
-    return () => window.removeEventListener("resize", place);
-  }, [active, works.length, projects.length]);
-
   const stats = [
     { n: works.length, label: plural(works.length, "работа", "работы", "работ"), href: profileHref(user.username, "work") },
     { n: projects.length, label: plural(projects.length, "проект", "проекта", "проектов"), href: profileHref(user.username, "projects") },
     { n: friends, label: plural(friends, "друг", "друга", "друзей"), href: isMe ? "/community/" : undefined },
-    { n: days, label: `${plural(days, "день", "дня", "дней")} на платформе` },
+    { n: days, label: `${plural(days, "день", "дня", "дней")} в Relic` },
   ];
+  const site = user.website ? user.website.replace(/^https?:\/\//, "").replace(/\/$/, "").slice(0, 32) : "";
 
   return (
     <>
@@ -147,111 +135,153 @@ function ProfileView({ user, earnings, friends, state, works, projects, aura, ch
         displayName={user.display_name} username={user.username} headline={user.headline} bio={user.bio}
         status={user.status} openToWork={user.open_to_work} accent={user.accent} avatar={user.avatar} role={user.role}
         banner={publicMedia(user.banner_path)} bannerPreset={user.banner_preset} userId={user.id} ring={user.avatar_ring} nameStyle={user.name_style} emoji={user.emoji} support={user.is_support} deco={deco}
-        actions={isMe
-          ? <Link className="btn" href="/settings/">Редактировать</Link>
-          : loggedIn && state
-            ? <FriendActions userId={user.id} state={state} onChange={reload} />
-            : <Link className="btn" href="/login">Войти, чтобы написать</Link>}
+        actions={<>
+          {isMe
+            ? <Link className="btn" href="/settings/">Редактировать</Link>
+            : loggedIn && state
+              ? <FriendActions userId={user.id} state={state} onChange={reload} />
+              : <Link className="btn" href="/login">Написать</Link>}
+          <ShareButton username={user.username} />
+        </>}
         meta={
           <div className="ph2-links">
-            {user.city && <span className="chip-soft">⌖ {user.city}</span>}
-            {user.telegram && <a className="chip-soft" href={`https://t.me/${user.telegram}`} target="_blank" rel="noopener noreferrer">Telegram ↗</a>}
-            {user.website && <a className="chip-soft" href={user.website} target="_blank" rel="noopener noreferrer nofollow">{user.website.replace(/^https?:\/\//, "").replace(/\/$/, "").slice(0, 32)} ↗</a>}
-            <span className="chip-soft muted">С {since.toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" })}</span>
+            {user.city && <span className="px-fact">{user.city}</span>}
+            {user.telegram && <a className="px-fact px-link" href={`https://t.me/${user.telegram}`} target="_blank" rel="noopener noreferrer">Telegram ↗</a>}
+            {user.website && <a className="px-fact px-link" href={user.website} target="_blank" rel="noopener noreferrer nofollow">{site} ↗</a>}
+            <span className="px-fact">В Relic с {since.toLocaleDateString("ru-RU", { day: "numeric", month: "long" }).split(" ")[1]} {since.getFullYear()}</span>
           </div>
         }
       />
 
-      <section className="pv-band">
+      <section className="px-stats" aria-label="Цифры профиля">
         <AuraCard aura={aura} isMe={isMe} />
-        <div className="pv-stats">
-          {stats.map((s, i) => {
-            const inner = <><b className="mono"><CountUp value={s.n} /></b><span>{s.label}</span></>;
-            return s.href
-              ? <Link key={i} href={s.href} replace={s.href.startsWith("/u/")} scroll={false} className="pv-stat" style={{ "--i": i } as React.CSSProperties}>{inner}<em aria-hidden="true">→</em></Link>
-              : <div key={i} className="pv-stat" style={{ "--i": i } as React.CSSProperties}>{inner}</div>;
-          })}
-        </div>
+        {stats.map((s, i) => {
+          const inner = <><b><CountUp value={s.n} /></b><span>{s.label}</span></>;
+          return s.href
+            ? <Link key={i} href={s.href} replace={s.href.startsWith("/u/")} scroll={false} className="px-stat">{inner}</Link>
+            : <div key={i} className="px-stat">{inner}</div>;
+        })}
       </section>
 
-      {/* Слева — кто он и чем занят, справа — короткие факты: деньги, биржа, каналы */}
-      <div className="pv-bricks">
-        <div className="pv-col pv-col-main">
-          <section className="pf-card pf-about">
-            <header><span className="pf-dot" /><b>О себе</b>{isMe && <Link href="/settings/#about" className="link-btn">Изменить</Link>}</header>
+      <div className="px-grid">
+        <div className="px-main">
+          <section className="px-card">
+            <header className="px-h"><h2>О себе</h2>{isMe && <Link href="/settings/#about" className="px-edit">Изменить</Link>}</header>
             {user.about ? (
-              <div className="pf-about-text">{user.about.split(/\n{2,}/).map((p, i) => <p key={i}>{p}</p>)}</div>
+              <div className="px-about">{user.about.split(/\n{2,}/).map((p, i) => <p key={i}>{p}</p>)}</div>
             ) : (
-              <p className="pf-muted">{isMe ? "Расскажи подробнее, чем занимаешься, с кем работал и что ищешь. Это видят все, кто открыл профиль." : "Пока ничего не рассказал о себе."}</p>
+              <p className="px-muted">{isMe ? "Расскажи подробнее, чем занимаешься, с кем работал и что ищешь. Это видят все, кто открыл профиль." : "Пока ничего не рассказал о себе."}</p>
             )}
-            {(niches.length > 0 || skills.length > 0) && (
-              <div className="pf-about-sub">
-                {niches.length > 0 && (
-                  <div className="pf-tags">
-                    {niches.map((n) => <span key={n.id} className="tag" style={{ "--c": n.color } as React.CSSProperties}>{n.title}</span>)}
-                  </div>
-                )}
-                {skills.length > 0 && (
-                  <div className="pf-skills">
-                    <span className="label">Навыки</span>
-                    <div className="tags">{skills.map((s, i) => <span key={s} className="skill" style={{ "--i": i } as React.CSSProperties}>{s}</span>)}</div>
-                  </div>
-                )}
+            {niches.length > 0 && (
+              <div className="px-row">
+                <span className="px-label">Направления</span>
+                <div className="px-tags">{niches.map((n) => <span key={n.id} className="px-tag" style={{ "--c": n.color } as React.CSSProperties}><i />{n.title}</span>)}</div>
+              </div>
+            )}
+            {skills.length > 0 && (
+              <div className="px-row">
+                <span className="px-label">Навыки</span>
+                <div className="px-tags">{skills.map((s) => <span key={s} className="px-tag">{s}</span>)}</div>
               </div>
             )}
             {(user.looking_for || isMe) && (
-              <div className="pf-about-sub pf-looking">
-                <span className="label">Ищу{isMe && <Link href="/settings/#looking" className="link-btn">Изменить</Link>}</span>
-                {user.looking_for ? <p className="pf-looking-text">{user.looking_for}</p> : <p className="pf-muted">Напиши, кого или что ищешь: команду, клиентов, наставника. Это видят все.</p>}
+              <div className="px-looking">
+                <span className="px-label">Ищу{isMe && <Link href="/settings/#looking" className="px-edit">Изменить</Link>}</span>
+                {user.looking_for ? <p>{user.looking_for}</p> : <p className="px-muted">Напиши, кого или что ищешь: команду, клиентов, наставника. Это видят все.</p>}
                 {projects.some((p) => p.looking_for) && (
-                  <div className="pf-looking-list">
+                  <div className="px-looking-list">
                     {projects.filter((p) => p.looking_for).slice(0, 3).map((p) => (
-                      <Link key={p.id} href={`/project/?id=${p.id}`} className="pf-looking-proj"><b>{p.name}</b><span>{p.looking_for}</span></Link>
+                      <Link key={p.id} href={`/project/?id=${p.id}`}><b>{p.name}</b><span>{p.looking_for}</span><em aria-hidden="true">→</em></Link>
                     ))}
                   </div>
                 )}
               </div>
             )}
           </section>
+
           {pinned && (
-            <section className="pf-card pf-pinned">
-              <header><span className="pf-dot" /><b>Сейчас строю</b></header>
+            <section className="px-card px-pinned">
+              <header className="px-h"><h2>Сейчас строю</h2></header>
               <ProjectCard project={pinned} pinned />
             </section>
           )}
+
+          <section className="px-card px-port">
+            <header className="px-h">
+              {sections.length > 1 ? (
+                <nav className="px-tabs" aria-label="Разделы профиля">
+                  {sections.map((s) => (
+                    <Link key={s} href={profileHref(user.username, s)} replace scroll={false} className="px-tab" aria-current={active === s ? "page" : undefined}>
+                      {s === "work" ? "Работы" : SECTION_TITLES[s].label}
+                      {s === "work" && works.length > 0 && <em>{works.length}</em>}
+                      {s === "projects" && projects.length > 0 && <em>{projects.length}</em>}
+                    </Link>
+                  ))}
+                </nav>
+              ) : <h2>{active === "work" ? "Работы" : SECTION_TITLES[active]?.label}</h2>}
+              {isMe && active === "work" && <button type="button" className="btn sm" onClick={() => setWorkEdit("new")}>+ Работа</button>}
+              {isMe && active === "projects" && <button type="button" className="btn sm" onClick={() => setProjectEdit("new")}>+ Проект</button>}
+              {isMe && active === "goals" && <Link className="btn sm ghost" href="/workspace/?tab=plans&view=goals">Все мои цели</Link>}
+            </header>
+
+            {active === "work" && (
+              works.length ? (
+                <div className="pgrid px-pgrid" key="work">
+                  {works.map((w, i) => <WorkCard key={w.id} work={w} i={i} onEdit={isMe ? () => setWorkEdit(w) : undefined} />)}
+                </div>
+              ) : <Empty isMe={isMe} text="Работ пока нет." meText="Покажи, что ты уже сделал: ролики, сайты, запуски. С цифрами, если есть." cta="Добавить первую работу" onCta={() => setWorkEdit("new")} />
+            )}
+            {active === "projects" && (
+              projects.length ? (
+                <div className="pgrid px-pgrid" key="projects">
+                  {projects.map((p, i) => <ProjectCard key={p.id} project={p} i={i} pinned={p.id === user.pinned_project} onEdit={isMe ? () => setProjectEdit(p) : undefined} />)}
+                </div>
+              ) : <Empty isMe={isMe} text="Проектов пока нет." meText="Расскажи, что строишь сейчас. Можно на стадии идеи и сразу написать, кого ищешь в команду." cta="Добавить проект" onCta={() => setProjectEdit("new")} />
+            )}
+            {active === "goals" && (
+              <div key="goals">
+                <GoalsBoard userId={user.id} editable={false} />
+                {isMe && <p className="px-muted px-note">Здесь видны только цели, которые ты отметил «Показать в профиле».</p>}
+              </div>
+            )}
+          </section>
+
           <Reviews userId={user.id} meId={meId} name={user.display_name} />
         </div>
-        <div className="pv-col pv-col-side">
-          {earnings && (
-            <section className="card money">
-              <div className="label">{isMe ? "Сколько ты заработал" : "Заработал в этом месяце"}</div>
-              <div className="sum"><CountUp value={earnings.amount} format={fmt} ms={900} /><span className="it">₽</span></div>
-              {isMe && <div className="private"><i></i>{earnings.is_public ? "Видят все" : "Видишь только ты"}</div>}
-              {earnings.goal > 0 && (
-                <>
-                  <div className="bar"><b style={{ width: `${pct}%` }} /></div>
-                  <div className="money-row"><span>Цель: {fmt(earnings.goal)} ₽</span><span>{pct}%</span></div>
-                </>
-              )}
+
+        <aside className="px-side">
+          {jobs.length > 0 && (
+            <section className="px-card px-services">
+              <header className="px-h"><h2>Услуги</h2><Link href="/jobs/" className="px-edit">Биржа →</Link></header>
+              <ul>
+                {jobs.map((j) => (
+                  <li key={j.id}><span>{j.service}</span><b>{j.avg_check ? `${fmt(j.avg_check)} ₽` : "договорная"}</b></li>
+                ))}
+              </ul>
             </section>
           )}
-          {jobs.length > 0 && (
-            <section className="pf-card pf-jobs">
-              <header><span className="pf-dot" /><b>На бирже</b><Link href="/jobs/" className="link-btn">Биржа →</Link></header>
-              {jobs.map((j) => (
-                <div key={j.id} className="pf-job"><b>{j.service}</b><span className="mono">{j.avg_check ? `${Math.round(j.avg_check).toLocaleString("ru-RU").replace(/\u00a0/g, " ")} ₽` : "по договорённости"}</span></div>
-              ))}
+          {earnings && (
+            <section className="px-card px-money">
+              <span className="px-label">{isMe ? "Заработано за месяц" : "Заработал в этом месяце"}</span>
+              <div className="px-sum"><CountUp value={earnings.amount} format={fmt} ms={900} /> ₽</div>
+              {earnings.goal > 0 && (
+                <>
+                  <div className="px-bar"><b style={{ width: `${pct}%` }} /></div>
+                  <div className="px-money-row"><span>Цель {fmt(earnings.goal)} ₽</span><span>{pct}%</span></div>
+                </>
+              )}
+              {isMe && <span className="px-private">{earnings.is_public ? "Видят все" : "Видишь только ты"}</span>}
             </section>
           )}
           {channels.length > 0 && (
-            <section className="pf-card pf-channels">
-              <header><span className="pf-dot" /><b>Каналы</b></header>
+            <section className="px-card px-channels">
+              <header className="px-h"><h2>Каналы</h2></header>
               <ul>
                 {channels.map((c) => (
                   <li key={c.chat_id}>
-                    <Link href={c.username ? `/c/?u=${c.username}` : "/messages/"} className="pf-channel">
-                      <ChatAvatar size={40} c={{ kind: "channel", avatar: c.avatar, accent: c.accent, emoji: c.emoji, title: c.title, other_id: null, other_name: null, other_avatar: null, other_accent: null }} />
-                      <span><b>{c.title}</b><small>{c.username ? `@${c.username} · ` : ""}{c.member_count} подписчиков</small></span>
+                    <Link href={c.username ? `/c/?u=${c.username}` : "/messages/"}>
+                      <ChatAvatar size={38} c={{ kind: "channel", avatar: c.avatar, accent: c.accent, emoji: c.emoji, title: c.title, other_id: null, other_name: null, other_avatar: null, other_accent: null }} />
+                      <span><b>{c.title}</b><small>{c.username ? `@${c.username} · ` : ""}{c.member_count} {plural(c.member_count, "подписчик", "подписчика", "подписчиков")}</small></span>
                     </Link>
                   </li>
                 ))}
@@ -259,75 +289,13 @@ function ProfileView({ user, earnings, friends, state, works, projects, aura, ch
             </section>
           )}
           {user.is_support && (
-            <section className="pf-card pf-support">
-              <header><span className="pf-dot" /><b>Команда поддержки</b></header>
-              <p className="pf-muted">{isMe ? "Ты в команде поддержки: обращения приходят тебе во вкладку «Обращения» в чатах." : `${user.display_name} из команды платформы. Если что-то не работает или есть идея, напиши в поддержку, ответим.`}</p>
+            <section className="px-card px-support">
+              <header className="px-h"><h2>Команда Relic</h2></header>
+              <p className="px-muted">{isMe ? "Ты в команде поддержки: обращения приходят во вкладку «Обращения» в чатах." : `${user.display_name} из команды платформы. Что-то не работает или есть идея — напиши, ответим.`}</p>
               {!isMe && <SupportButton />}
             </section>
           )}
-        </div>
-      </div>
-
-      <div className="pv-main">
-        <section className="pf-main pv-content">
-          {sections.length > 1 && (
-            <nav className="pf-tabs" ref={tabsRef} aria-label="Разделы профиля">
-              {pill && <span className="pf-tabs-pill" style={{ transform: `translateX(${pill.left}px)`, width: pill.width }} />}
-              {sections.map((s) => (
-                <Link key={s} data-s={s} href={profileHref(user.username, s)} replace scroll={false} className="pf-tab" aria-current={active === s ? "page" : undefined}>
-                  {SECTION_TITLES[s].label}
-                  {s === "work" && works.length > 0 && <em>{works.length}</em>}
-                  {s === "projects" && projects.length > 0 && <em>{projects.length}</em>}
-                </Link>
-              ))}
-            </nav>
-          )}
-
-          {active === "work" && (
-            <div className="section-block" key="work">
-              <div className="section-head">
-                <div><h2 className="h-md caps">Proof <span className="it">of</span> Work</h2><span className="pf-sub">Что уже сделано, с цифрами</span></div>
-                {isMe && <button type="button" className="btn sm" onClick={() => setWorkEdit("new")}>+ Работа</button>}
-              </div>
-              {works.length ? (
-                <div className="pgrid">
-                  {works.map((w, i) => <WorkCard key={w.id} work={w} i={i} onEdit={isMe ? () => setWorkEdit(w) : undefined} />)}
-                </div>
-              ) : (
-                <Empty isMe={isMe} text="Работ пока нет." meText="Покажи, что ты уже сделал: ролики, сайты, запуски. С цифрами, если есть." cta="Добавить первую работу" onCta={() => setWorkEdit("new")} />
-              )}
-            </div>
-          )}
-
-          {active === "projects" && (
-            <div className="section-block" key="projects">
-              <div className="section-head">
-                <div><h2 className="h-md caps">Что <span className="it">строю</span></h2><span className="pf-sub">Проекты, цели и команда</span></div>
-                {isMe && <button type="button" className="btn sm" onClick={() => setProjectEdit("new")}>+ Проект</button>}
-              </div>
-              {projects.length ? (
-                <div className="pgrid">
-                  {projects.map((p, i) => (
-                    <ProjectCard key={p.id} project={p} i={i} pinned={p.id === user.pinned_project} onEdit={isMe ? () => setProjectEdit(p) : undefined} />
-                  ))}
-                </div>
-              ) : (
-                <Empty isMe={isMe} text="Проектов пока нет." meText="Расскажи, что строишь сейчас. Можно на стадии идеи и сразу написать, кого ищешь в команду." cta="Добавить проект" onCta={() => setProjectEdit("new")} />
-              )}
-            </div>
-          )}
-
-          {active === "goals" && (
-            <div className="section-block" key="goals">
-              <div className="section-head">
-                <div><h2 className="h-md caps">К чему <span className="it">иду</span></h2><span className="pf-sub">Открытые цели</span></div>
-                {isMe && <Link className="btn sm" href="/workspace/?tab=plans&view=goals">Все мои цели</Link>}
-              </div>
-              <GoalsBoard userId={user.id} editable={false} />
-              {isMe && <p className="hint">Здесь видны только цели, которые ты отметил «Показать в профиле».</p>}
-            </div>
-          )}
-        </section>
+        </aside>
       </div>
 
       {!isMe && loggedIn && <ProfileSafety userId={user.id} name={user.display_name} username={user.username} />}
@@ -339,6 +307,17 @@ function ProfileView({ user, earnings, friends, state, works, projects, aura, ch
         </>
       )}
     </>
+  );
+}
+
+function ShareButton({ username }: { username: string }) {
+  const [done, setDone] = useState(false);
+  return (
+    <button type="button" className="btn ghost px-share" aria-label="Скопировать ссылку на профиль" title="Скопировать ссылку на профиль" onClick={async () => {
+      const url = `${location.origin}${location.pathname.replace(/\/u\/?$/, "/u/")}?n=${username}`;
+      try { await navigator.clipboard.writeText(url); } catch { window.prompt("Ссылка на профиль", url); }
+      setDone(true); setTimeout(() => setDone(false), 1600);
+    }}>{done ? "✓ Скопировано" : "Поделиться"}</button>
   );
 }
 
@@ -355,15 +334,12 @@ function Empty({ isMe, text, meText, cta, onCta }: { isMe: boolean; text: string
 function AuraCard({ aura, isMe }: { aura: number; isMe: boolean }) {
   const t = tierOf(aura);
   return (
-    <Link href="/aura/" className="pf-aura" style={{ "--t": t.color } as React.CSSProperties}>
-      <span className="pf-aura-orb" aria-hidden="true" />
-      <span className="pf-aura-text">
-        <span className="label">AURA · {t.icon} {t.fullName}</span>
-        <b className="mono"><CountUp value={aura} /></b>
-        {t.next
-          ? <span className="pf-aura-next"><i style={{ width: `${Math.round(t.stepProgress * 100)}%` }} /><em>{t.stepNext ? (isMe ? `ещё ${t.stepNext - aura} до следующей ступени` : `до следующей ступени ${t.stepNext - aura}`) : ""}</em></span>
-          : <span className="pf-aura-next"><em>Высший уровень</em></span>}
-      </span>
+    <Link href="/aura/" className="px-stat px-aura" style={{ "--t": t.color } as React.CSSProperties}>
+      <b><CountUp value={aura} /></b>
+      <span>AURA · {t.fullName}</span>
+      {t.next
+        ? <span className="px-aura-bar" title={t.stepNext ? (isMe ? `ещё ${t.stepNext - aura} до следующей ступени` : `до следующей ступени ${t.stepNext - aura}`) : ""}><i style={{ width: `${Math.round(t.stepProgress * 100)}%` }} /></span>
+        : <span className="px-aura-bar full"><i style={{ width: "100%" }} /></span>}
     </Link>
   );
 }

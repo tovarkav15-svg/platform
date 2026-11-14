@@ -7180,3 +7180,178 @@ html[data-theme="dark"] .skeleton:not(.sk)::before { filter: invert(1) hue-rotat
 @media (prefers-reduced-motion: reduce) { .skeleton:not(.sk)::before, .skeleton:not(.sk)::after { animation: none; } }
 .hm-kicker i { width: 10px; height: 10px; border-radius: 50%; background: #7B61FF; box-shadow: none; animation: none; }
 html[data-theme="dark"] .hm-kicker i { filter: invert(1) hue-rotate(180deg) contrast(1.19); }
+
+/* ================= Профиль 2026-11-14: спокойный, «дорогой» =================
+   Белые карточки с тонкой линией, чёрный текст и один фиолетовый акцент.
+   Вернуть прежний профиль: метка do-profilya-2026-11-14 */
+.px { --px-ink: #16161E; --px-mute: #6E6E78; --px-line: rgba(22,22,30,.08); --px-acc: #7B61FF; --px-soft: #F5F4F7; max-width: 1120px; }
+.px .px-card, .px .ph2, .px .px-stats, .px .rv { background: var(--card, #fff); border: 1px solid var(--px-line); border-radius: 24px; box-shadow: none; }
+
+/* Шапка */
+.px .ph2 { overflow: hidden; backdrop-filter: none; animation: none; }
+.px .ph2-banner { margin: 0; border-radius: 0; height: clamp(150px, 19vw, 230px); }
+.px .ph2-banner::after { content: none; }
+.px .ph2-banner:not(.bn-image) { background: linear-gradient(120deg, #EEEAFF, #F7F5FF 55%, #F1F0F4); }
+.px .ph2-banner:not(.bn-image) > i { opacity: .45; filter: blur(60px); }
+.px .ph2-body { padding: 0 32px; gap: 22px; align-items: flex-end; }
+.px .ph2-avatar { margin-top: -64px; --av: 124px; }
+.px .ph2-avatar .avatar { width: 124px; height: 124px; box-shadow: 0 0 0 5px var(--card, #fff); animation: none; }
+.px .ph2-ring { inset: -3px; animation: none; background: var(--c); opacity: .9; }
+.px .ph2-avatar.ring-spin .ph2-ring, .px .ph2-avatar.otw-on .ph2-ring { background: var(--px-line); }
+.px .ph2-avatar.ring-neon .ph2-ring { background: var(--c); filter: drop-shadow(0 0 10px var(--c)); }
+.px .ph2-pres .pres { box-shadow: 0 0 0 4px var(--card, #fff); }
+.px .ph2-id { padding: 18px 0 2px; gap: 6px; animation: none; }
+.px .ph2-name h1, .px .ph2-name h1.caps { font-family: var(--display); font-variation-settings: normal; text-transform: none; font-weight: 750; font-size: clamp(30px, 3.6vw, 42px); letter-spacing: -.035em; line-height: 1.05; color: var(--px-ink); }
+.px .ph2-name .name-emoji { font-size: .7em; }
+.px .ph2-handle { font-size: 15px; color: var(--px-mute); gap: 2px 8px; }
+.px .ph2-handle b { font-family: inherit; font-style: normal; font-weight: 500; font-size: 15px; color: var(--px-mute); }
+.px .ph2-handle span { font-weight: 500; color: var(--px-ink); }
+.px .ph2-handle span::before { opacity: .35; margin-right: 8px; }
+.px .ph2-tags { gap: 6px; margin-top: 6px; }
+.px .ph2-tags .badge, .px .ph2-otw, .px .ph2-tags .fx-title {
+  font-family: inherit; font-size: 12px; font-weight: 600; letter-spacing: 0; text-transform: none;
+  padding: 5px 10px; border-radius: 99px; background: var(--px-soft); color: var(--px-ink); border: 0; box-shadow: none; animation: none;
+}
+.px .ph2-tags .badge::before { content: none; }
+.px .ph2-otw { color: #0F7A55; background: #EAF7F1; }
+.px .ph2-otw::before { box-shadow: none; }
+.px .ph2-actions { padding: 0 0 4px; gap: 8px; animation: none; }
+.px .ph2-actions .btn { border-radius: 12px; height: 42px; padding: 0 18px; font-size: 14px; }
+.px .px-share { background: var(--px-soft); color: var(--px-ink); border: 0; box-shadow: none; }
+.px .px-share:hover { background: #ECEAF1; }
+.px .ph2-foot { margin: 20px 32px 0; padding: 18px 0 24px; border-top: 1px solid var(--px-line); gap: 12px; }
+.px .ph2-now { font-size: 15px; font-weight: 500; color: var(--px-ink); gap: 10px; }
+.px .ph2-now span { background: none; color: var(--px-acc); padding: 0; font-size: 12px; font-weight: 700; letter-spacing: .02em; text-transform: none; border: 0; box-shadow: none; }
+.px .ph2-now span::before { background: var(--px-acc); }
+.px .ph2-bio { font-size: 15px; color: var(--px-mute); }
+.px .ph2-meta { gap: 0; }
+.px .ph2-meta .pres-label { background: none; border: 0; padding: 0; font-size: 13px; }
+.px .px-fact, .px .ph2-meta .pres-label { font-size: 13px; color: var(--px-mute); text-decoration: none; }
+.px .ph2-meta > *:not(:first-child)::before, .px .ph2-links > *::before { content: "·"; margin: 0 10px; color: #C4C4CC; }
+.px .ph2-meta > .ph2-links::before, .px .ph2-meta > .ph2-links:first-child > *:first-child::before { content: none; }
+.px .px-link { color: var(--px-ink); font-weight: 500; }
+.px .px-link:hover { color: var(--px-acc); }
+
+/* Цифры */
+.px .px-stats { display: grid; grid-template-columns: 1.4fr repeat(4, 1fr); margin-top: 14px; overflow: hidden; }
+.px .px-stat { position: relative; display: flex; flex-direction: column; gap: 4px; padding: 20px 24px; text-decoration: none; color: inherit; transition: background .2s; min-width: 0; }
+.px .px-stat + .px-stat { border-left: 1px solid var(--px-line); }
+.px a.px-stat:hover { background: var(--px-soft); }
+.px .px-stat b { font-size: 28px; font-weight: 700; letter-spacing: -.03em; line-height: 1.1; font-variant-numeric: tabular-nums; color: var(--px-ink); }
+.px .px-stat span { font-size: 13px; color: var(--px-mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.px .px-aura b { color: var(--px-acc); }
+.px .px-aura-bar { display: block; height: 4px; border-radius: 4px; background: var(--px-soft); margin-top: 6px; overflow: hidden; }
+.px .px-aura-bar i { display: block; height: 100%; border-radius: inherit; background: var(--px-acc); }
+
+/* Сетка */
+.px .px-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 14px; margin-top: 14px; align-items: start; }
+.px .px-main, .px .px-side { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.px .px-side { position: sticky; top: 84px; }
+.px .px-card, .px .rv { padding: 24px 26px; }
+.px .px-h, .px .rv > header { display: flex; align-items: center; gap: 12px; margin: 0 0 14px; min-height: 28px; }
+.px .px-h h2, .px .rv > header b { margin: 0; font-size: 17px; font-weight: 700; letter-spacing: -.02em; color: var(--px-ink); font-family: inherit; text-transform: none; }
+.px .px-h > :last-child:not(:first-child) { margin-left: auto; }
+.px .rv > header .pf-dot { display: none; }
+.px .px-edit { font-size: 13px; color: var(--px-mute); text-decoration: none; font-weight: 500; }
+.px .px-edit:hover { color: var(--px-acc); }
+.px .px-muted { margin: 0; color: var(--px-mute); font-size: 14px; line-height: 1.55; }
+.px .px-note { margin-top: 12px; }
+.px .px-label { display: flex; align-items: center; gap: 10px; font-size: 12px; font-weight: 600; color: var(--px-mute); margin-bottom: 8px; }
+
+/* О себе */
+.px .px-about p { margin: 0 0 10px; font-size: 16px; line-height: 1.65; color: var(--px-ink); }
+.px .px-about p:last-child { margin: 0; }
+.px .px-row { margin-top: 18px; }
+.px .px-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.px .px-tag { display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px; border-radius: 10px; background: var(--px-soft); font-size: 13px; font-weight: 500; color: var(--px-ink); }
+.px .px-tag i { width: 6px; height: 6px; border-radius: 50%; background: var(--c); }
+.px .px-looking { margin-top: 20px; padding: 16px 18px; border-radius: 16px; background: var(--px-soft); }
+.px .px-looking .px-label { margin-bottom: 4px; }
+.px .px-looking > p { margin: 0; font-size: 16px; font-weight: 600; color: var(--px-ink); letter-spacing: -.01em; }
+.px .px-looking-list { display: flex; flex-direction: column; margin-top: 12px; border-top: 1px solid var(--px-line); }
+.px .px-looking-list a { display: flex; align-items: baseline; gap: 10px; padding: 10px 0 0; text-decoration: none; color: var(--px-ink); font-size: 14px; }
+.px .px-looking-list b { font-weight: 600; }
+.px .px-looking-list span { color: var(--px-mute); }
+.px .px-looking-list em { margin-left: auto; font-style: normal; color: var(--px-mute); transition: transform .2s; }
+.px .px-looking-list a:hover em { transform: translateX(3px); color: var(--px-acc); }
+
+/* Вкладки портфолио */
+.px .px-tabs { display: flex; gap: 22px; }
+.px .px-tab { position: relative; padding: 4px 0; font-size: 17px; font-weight: 700; letter-spacing: -.02em; color: #A9A9B2; text-decoration: none; transition: color .2s; }
+.px .px-tab:hover { color: var(--px-ink); }
+.px .px-tab[aria-current="page"] { color: var(--px-ink); }
+.px .px-tab[aria-current="page"]::after { content: ""; position: absolute; left: 0; right: 0; bottom: -4px; height: 2px; border-radius: 2px; background: var(--px-ink); }
+.px .px-tab em { font-style: normal; font-size: 12px; font-weight: 600; margin-left: 5px; color: #A9A9B2; vertical-align: 2px; }
+.px .px-port .btn.sm { border-radius: 10px; }
+.px .px-pgrid { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
+
+/* Карточки работ и проектов внутри профиля */
+.px .pcard { border: 1px solid var(--px-line); border-radius: 18px; box-shadow: none; background: var(--card, #fff); overflow: hidden; transition: transform .25s var(--ease), box-shadow .25s; }
+.px .pcard:hover { transform: translateY(-2px); box-shadow: 0 14px 30px -18px rgba(22,22,30,.25); }
+.px .pcard.pinned { border-color: var(--px-line); }
+.px .pcard-media { border-radius: 0; }
+.px .pcard-media.empty { background: var(--px-soft); }
+.px .pcard-glyph { color: #C9C6D3; }
+.px .pcard-niche, .px .pcard .stage { font-size: 11px; font-weight: 600; letter-spacing: 0; text-transform: none; padding: 4px 9px; border-radius: 99px; background: rgba(255,255,255,.92); color: var(--px-ink); border: 0; box-shadow: none; backdrop-filter: blur(6px); }
+.px .pcard-body h3, .px .pcard-body b:first-child { letter-spacing: -.02em; }
+.px .pcard-result { color: var(--px-acc); font-weight: 600; }
+.px .pcard .looking { background: var(--px-soft); color: var(--px-ink); border: 0; border-radius: 10px; }
+.px .px-pinned .pcard { display: grid; grid-template-columns: 200px minmax(0, 1fr); }
+.px .px-pinned .pcard-media { aspect-ratio: 1; height: auto; }
+
+/* Отзывы */
+.px .rv .rv-avg { margin-left: auto; }
+.px .rv-list li { background: var(--px-soft); border: 0; border-radius: 16px; }
+
+/* Боковая колонка */
+.px .px-services ul, .px .px-channels ul { list-style: none; margin: 0; padding: 0; }
+.px .px-services li { display: flex; align-items: baseline; gap: 12px; padding: 12px 0; border-top: 1px solid var(--px-line); font-size: 14px; }
+.px .px-services li:first-child { border-top: 0; padding-top: 2px; }
+.px .px-services li span { color: var(--px-ink); font-weight: 500; }
+.px .px-services li b { margin-left: auto; white-space: nowrap; font-weight: 700; font-variant-numeric: tabular-nums; }
+.px .px-money .px-label { margin-bottom: 4px; }
+.px .px-sum { font-size: 32px; font-weight: 750; letter-spacing: -.035em; font-variant-numeric: tabular-nums; color: var(--px-ink); }
+.px .px-bar { height: 6px; border-radius: 6px; background: var(--px-soft); margin-top: 14px; overflow: hidden; }
+.px .px-bar b { display: block; height: 100%; border-radius: inherit; background: var(--px-acc); }
+.px .px-money-row { display: flex; justify-content: space-between; margin-top: 8px; font-size: 13px; color: var(--px-mute); }
+.px .px-private { display: inline-block; margin-top: 12px; font-size: 12px; color: var(--px-mute); }
+.px .px-channels a { display: flex; align-items: center; gap: 12px; padding: 6px 0; text-decoration: none; color: inherit; }
+.px .px-channels a span { display: flex; flex-direction: column; min-width: 0; }
+.px .px-channels b { font-size: 14px; font-weight: 600; }
+.px .px-channels small { font-size: 12px; color: var(--px-mute); }
+.px .px-support .btn { margin-top: 14px; width: 100%; border-radius: 12px; }
+.px .pf-safety { padding-top: 24px; }
+
+/* Тёмная тема: фирменный фиолетовый не переворачиваем */
+html[data-theme="dark"] .px .px-aura b, html[data-theme="dark"] .px .px-aura-bar i, html[data-theme="dark"] .px .px-bar b, html[data-theme="dark"] .px .pcard-result, html[data-theme="dark"] .px .ph2-now span { filter: invert(1) hue-rotate(180deg) contrast(1.19); }
+
+/* Планшет и телефон */
+@media (max-width: 980px) {
+  .px .px-grid { grid-template-columns: minmax(0, 1fr); }
+  .px .px-side { position: static; order: -1; }
+  .px .px-stats { grid-template-columns: repeat(4, 1fr); }
+  .px .px-aura { grid-column: 1 / -1; border-bottom: 1px solid var(--px-line); flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+  .px .px-aura .px-aura-bar { flex-basis: 100%; }
+  .px .px-stat + .px-stat:nth-child(2) { border-left: 0; }
+}
+@media (max-width: 640px) {
+  .px .ph2 { border-radius: 20px; }
+  .px .ph2-banner { height: 130px; }
+  .px .ph2-body { padding: 0 18px; gap: 12px; }
+  .px .ph2-avatar { margin-top: -52px; --av: 96px; }
+  .px .ph2-avatar .avatar { width: 96px; height: 96px; font-size: 34px; }
+  .px .ph2-id { padding-top: 4px; flex-basis: 100%; }
+  .px .ph2-actions { margin-left: 0; width: 100%; }
+  .px .ph2-actions > * { flex: 1; }
+  .px .ph2-foot { margin: 16px 18px 0; padding: 14px 0 18px; }
+  .px .px-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); border-radius: 20px; }
+  .px .px-stat { padding: 14px 10px; align-items: center; text-align: center; }
+  .px .px-aura { padding: 14px 18px; align-items: baseline; text-align: left; }
+  .px .px-stat b { font-size: 22px; }
+  .px .px-stat span { font-size: 11px; white-space: normal; line-height: 1.2; }
+  .px .px-card, .px .rv { padding: 18px; border-radius: 20px; }
+  .px .px-pinned .pcard { grid-template-columns: minmax(0, 1fr); }
+  .px .px-pgrid { grid-template-columns: minmax(0, 1fr); }
+  .px .px-tabs { gap: 16px; }
+  .px .px-tab { font-size: 16px; }
+}
