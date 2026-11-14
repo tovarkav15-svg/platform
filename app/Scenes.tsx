@@ -22,8 +22,17 @@ function Ship({ x, y, s = 1, sail = "#E9E1D2", stripe = "#B7412E" }: { x: number
   );
 }
 
+const BASE = process.env.NODE_ENV === "production" ? "/platform" : "";
+
 export function SceneFx({ id }: { id?: string | null }) {
   if (!id) return null;
+  if (id.startsWith("s-ph-")) {
+    return (
+      <div className={`fx-scene sc-photo ${id}`} aria-hidden="true">
+        <img src={`${BASE}/scenes/${id}.jpg`} alt="" loading="lazy" decoding="async" draggable={false} />
+      </div>
+    );
+  }
   return (
     <div className={`fx-scene ${id}`} aria-hidden="true">
       <svg viewBox="0 0 1200 300" preserveAspectRatio="xMidYMid slice">
