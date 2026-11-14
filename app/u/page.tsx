@@ -142,21 +142,13 @@ function ProfileView({ user, earnings, friends, state, works, projects, aura, ch
     <div className="xp" ref={root} style={{ "--c": accentColor(user.accent) } as React.CSSProperties}>
       <Backdrop banner={publicMedia(user.banner_path)} avatar={user.avatar} />
       {/* ===== Карточка человека: слева, остаётся на месте при прокрутке ===== */}
-      <aside className="xc">
-        <div className="xc-card">
-          <div className="xc-cover" ref={cover}>
-            <Banner image={publicMedia(user.banner_path)} preset={user.banner_preset} scene={deco?.scene} overlay={deco?.overlay} />
-            <BannerFx id={deco?.banner} />
-          </div>
-          <div className="xc-top">
-            <div className={`xh-ava ring-${user.avatar_ring || "spin"}`}>
-              <span className="xh-ring" />
-              <RingFx id={deco?.ring} />
-              <div className="avatar">{user.avatar ? <img src={user.avatar} alt="" /> : (user.display_name || user.username).slice(0, 1).toUpperCase()}</div>
-              <span className="xh-pres"><PresenceDot userId={user.id} size={128} /></span>
-            </div>
-            <ShareButton username={user.username} />
-          </div>
+      {/* ===== Обложка во всю ширину, имя крупно поверх ===== */}
+      <header className="xhero">
+        <div className="xhero-cover" ref={cover}>
+          <Banner image={publicMedia(user.banner_path)} preset={user.banner_preset} scene={deco?.scene} overlay={deco?.overlay} />
+          <BannerFx id={deco?.banner} />
+        </div>
+        <div className="xhero-id">
           <div className="xc-id">
             <h1 className={`xc-name name-${user.name_style || "plain"} ${deco?.name_fx ? `fx-name ${deco.name_fx}` : ""}`} data-text={user.display_name}>{user.display_name}</h1>
             {user.emoji && <span className="xc-emoji" aria-hidden="true">{user.emoji}</span>}
@@ -170,6 +162,21 @@ function ProfileView({ user, earnings, friends, state, works, projects, aura, ch
               <TitleChip id={deco?.title} />
             </div>
           )}
+        </div>
+        <div className="xhero-share"><ShareButton username={user.username} /></div>
+      </header>
+
+      {/* ===== Карточка человека: слева, остаётся на месте при прокрутке ===== */}
+      <aside className="xc">
+        <div className="xc-card">
+          <div className="xc-top">
+            <div className={`xh-ava ring-${user.avatar_ring || "spin"}`}>
+              <span className="xh-ring" />
+              <RingFx id={deco?.ring} />
+              <div className="avatar">{user.avatar ? <img src={user.avatar} alt="" /> : (user.display_name || user.username).slice(0, 1).toUpperCase()}</div>
+              <span className="xh-pres"><PresenceDot userId={user.id} size={128} /></span>
+            </div>
+          </div>
           {user.status && <p className="xc-now"><i />{user.status}</p>}
           {user.bio && <p className="xc-bio">{user.bio}</p>}
           <div className="xc-actions">

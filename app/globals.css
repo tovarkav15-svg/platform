@@ -7472,3 +7472,72 @@ html[data-theme="dark"] .xbg-media { filter: blur(70px) saturate(1.4) invert(1) 
 html[data-theme="dark"] .xbg-veil { background: linear-gradient(180deg, rgba(255,255,255,.55), rgba(255,255,255,.75)); }
 @media (prefers-reduced-motion: reduce) { .xbg-media { animation: none; } }
 @media (max-width: 640px) { .xbg-media { filter: blur(50px) saturate(1.5); } }
+
+/* ================= Профиль: обложка во всю ширину + имя поверх (2026-11-14) =================
+   Прошлый вариант «стекло» без большой обложки: метка do-profilya-steklo-2026-11-14 */
+.xp { grid-template-columns: 290px minmax(0, 1fr); row-gap: 16px; }
+.xhero { grid-column: 1 / -1; position: relative; height: clamp(230px, 27vw, 320px); border-radius: 30px; overflow: hidden; isolation: isolate; color: #fff;
+  box-shadow: 0 30px 60px -30px rgba(20,10,40,.45); animation: xheroIn 1s var(--ez) both; }
+@keyframes xheroIn { from { opacity: 0; transform: scale(.985); filter: blur(10px); } to { opacity: 1; transform: none; filter: none; } }
+.xhero-cover { position: absolute; inset: 0; z-index: 0; }
+.xhero-cover .ph2-banner { position: absolute; inset: -40px 0 0; height: auto; margin: 0; border-radius: 0; transform: translateY(var(--py, 0px)); }
+.xhero-cover .ph2-banner::after { content: none; }
+.xhero-cover .ph2-banner:not(.bn-image) { background: linear-gradient(125deg, #6E56F0, #9C7CFF 45%, #F08FC0); }
+.xhero-cover .fx-banner { z-index: 2; }
+.xhero-cover .ba-term { display: none; }
+.xhero::after { content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background: linear-gradient(180deg, rgba(10,8,20,0) 30%, rgba(10,8,20,.35) 62%, rgba(10,8,20,.72)); }
+.xhero-id { position: absolute; z-index: 3; left: calc(290px + 16px + 8px); right: 150px; bottom: 26px; display: flex; flex-direction: column; gap: 6px; }
+.xhero .xc-id { margin: 0; }
+.xhero .xc-name { color: #fff; font-size: clamp(30px, 4vw, 50px); letter-spacing: -.045em; line-height: 1; text-shadow: 0 2px 24px rgba(0,0,0,.35); animation: xhUp .8s var(--ez) .25s both; }
+.xhero .xc-name.fx-name { text-shadow: none; }
+.xhero .xc-emoji { font-size: clamp(22px, 2.6vw, 32px); }
+.xhero .xc-sub { margin: 0; font-size: 15px; color: rgba(255,255,255,.78); animation: xhUp .8s var(--ez) .33s both; }
+.xhero .xc-sub b { color: #fff; }
+.xhero .xc-badges { margin-top: 6px; animation: xhUp .8s var(--ez) .4s both; }
+.xhero .xh-badge, .xhero .xc-badges .fx-title { background: rgba(255,255,255,.18); color: #fff; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); box-shadow: inset 0 0 0 1px rgba(255,255,255,.25); }
+.xhero .xh-otw { background: rgba(31,166,122,.32); color: #fff; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); box-shadow: inset 0 0 0 1px rgba(150,240,200,.35); }
+.xhero .xh-otw i { background: #6FF0B8; }
+.xhero-share { position: absolute; z-index: 3; right: 22px; bottom: 26px; animation: xhUp .8s var(--ez) .45s both; }
+.xhero-share .xh-share { height: 38px !important; padding: 0 16px !important; border-radius: 12px !important; font-size: 13px !important; background: rgba(255,255,255,.2) !important; color: #fff !important; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); box-shadow: inset 0 0 0 1px rgba(255,255,255,.3) !important; margin: 0; }
+.xhero-share .xh-share:hover { background: rgba(255,255,255,.32) !important; }
+@keyframes xhUp { from { opacity: 0; transform: translateY(12px); filter: blur(4px); } to { opacity: 1; transform: none; filter: none; } }
+
+/* карточка наезжает на обложку */
+.xc { margin-top: -150px; z-index: 4; position: sticky; }
+.xc-card { padding-top: 18px; }
+.xc-top { margin-top: 0; justify-content: center; }
+.xh-ava { --av: 112px; }
+.xh-ava .avatar { font-size: 40px; }
+.xh-pres { right: 6px; bottom: 6px; width: 20px; height: 20px; }
+.xh-pres .pres { width: 20px !important; height: 20px !important; }
+.xc .xc-now { justify-content: center; text-align: center; margin-top: 14px; }
+.xc .xc-bio { text-align: center; }
+.xp .xm { padding-top: 0; }
+
+/* тёмная тема: обложку не переворачиваем */
+html[data-theme="dark"] .xhero { filter: invert(1) hue-rotate(180deg); }
+
+@media (max-width: 860px) {
+  .xhero { height: 240px; border-radius: 24px; }
+  .xhero-id { left: 20px; right: 20px; bottom: 64px; }
+  .xhero-share { left: 20px; right: auto; bottom: 18px; }
+  .xc { margin-top: -10px; }
+  .xc-card { padding-top: 16px; }
+}
+@media (max-width: 640px) {
+  .xhero { height: 260px; }
+  .xhero .xc-sub { font-size: 13.5px; }
+  .xh-ava { --av: 88px; }
+}
+@media (prefers-reduced-motion: reduce) { .xhero, .xhero .xc-name, .xhero .xc-sub, .xhero .xc-badges, .xhero-share { animation: none !important; } }
+/* имя на обложке читается на любой картинке: тёмное стекло под текстом */
+.xhero { --graphite: #fff; }
+.xhero-id { right: auto; max-width: calc(100% - 290px - 16px - 8px - 160px); padding: 16px 20px 16px; border-radius: 22px; background: rgba(12,10,24,.38); backdrop-filter: blur(18px) saturate(1.4); -webkit-backdrop-filter: blur(18px) saturate(1.4); box-shadow: inset 0 0 0 1px rgba(255,255,255,.14); bottom: 22px; }
+.xhero .xc-name { text-shadow: none; }
+@media (max-width: 860px) {
+  .xp { grid-template-columns: minmax(0, 1fr); }
+  .xc { position: static; margin-top: -10px; }
+  .xhero-id { left: 12px; right: 12px; max-width: none; bottom: 64px; padding: 14px 16px; }
+  .xhero-share { left: 12px; bottom: 14px; }
+}
