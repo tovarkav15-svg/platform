@@ -127,7 +127,7 @@ export function MobileDrawer({ me, tabs, chats }: { me: Profile; tabs: NavTab[];
       <aside className={`md-drawer ${shown ? "on" : ""}`} style={{ transform: `translateX(${x - W}px)`, transition: drag === null ? undefined : "none" }}
         aria-label="Меню" aria-hidden={!open} inert={!open}>
         <div className="md-top">
-          <Link href="/" className="logo relic-logo"><i aria-hidden="true" />Relic</Link>
+          <Link href="/" className="logo relic-logo">relic<i aria-hidden="true" /></Link>
           <button type="button" className="md-close" aria-label="Закрыть меню" onClick={() => setOpen(false)}>
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
           </button>

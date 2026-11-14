@@ -100,7 +100,7 @@ function TgWelcome({ first, username, onClose }: { first: string; username: stri
   return (
     <div className="ia-shade tg-shade" onClick={onClose}>
       <form className="ia-sheet tg-sheet" onSubmit={create} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Вход в Relic">
-        <span className="relic-logo tg-logo"><i aria-hidden="true" />Relic</span>
+        <span className="relic-logo tg-logo">relic<i aria-hidden="true" /></span>
         <h2>Привет{first ? `, ${first}` : ""}!</h2>
         <p>Создай аккаунт в одно касание — пароль не нужен, входить будешь через Telegram.</p>
         <label className="field">

@@ -10,7 +10,7 @@ const openBtn = (text = "Платформа") => ({ text, web_app: { url: `${SIT
 const send = (chat_id: number, text: string) => api("sendMessage", { chat_id, text, parse_mode: "HTML", reply_markup: { inline_keyboard: [[openBtn("Открыть Relic")]] } });
 
 // Приветствие на «Старт»: баннер Relic и три кнопки. «Моя подписка» и «Наш канал» — пока без ссылок
-const BANNER = `${SITE}brand/relic-bot-banner.png?v=1`;
+const BANNER = `${SITE}brand/relic-bot-banner.png?v=2`;
 const MENU = { inline_keyboard: [[openBtn()], [{ text: "Моя подписка", callback_data: "sub" }], [{ text: "Наш канал", callback_data: "channel" }]] };
 
 Deno.serve(async (req) => {

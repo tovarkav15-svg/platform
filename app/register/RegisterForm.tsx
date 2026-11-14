@@ -95,7 +95,7 @@ export function RegisterForm() {
   return (
     <>
     <aside className="rg-side">
-      <Link href="/" className="logo relic-logo"><i aria-hidden="true" />Relic</Link>
+      <Link href="/" className="logo relic-logo">relic<i aria-hidden="true" /></Link>
       <div className="rg-stage">
         <span className="rg-orbit" aria-hidden="true">{NICHES.map((n, i) => <i key={n.id} style={{ "--c": n.color, "--i": i, "--a": `${360 / NICHES.length}deg` } as React.CSSProperties} />)}</span>
         <div className="rg-card">

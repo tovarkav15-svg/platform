@@ -21,7 +21,7 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://tovarkav15-svg.github.io"),
   title: "Relic",
   description: DESCRIPTION,
-  icons: { icon: `${BASE}/brand/relic-mark-app.png`, apple: `${BASE}/app/apple-touch-icon.png` },
+  icons: { icon: `${BASE}/brand/relic-mark-app.png?v=2`, apple: `${BASE}/app/apple-touch-icon.png?v=2` },
   // Установка как приложения: паспорт для Android/компьютера и настройки для iPhone
   manifest: `${BASE}/manifest.webmanifest`,
   appleWebApp: { capable: true, title: "Relic", statusBarStyle: "default" },

@@ -34,7 +34,7 @@ export function SideNav({ me, tabs, chats }: { me: Profile; tabs: NavTab[]; chat
   return createPortal(
     <aside className={`sd ${rail ? "rail" : "full"}`} aria-label="Разделы">
       <div className="sd-top">
-        {!rail && <Link href="/" className="logo relic-logo"><i aria-hidden="true" />Relic</Link>}
+        {!rail && <Link href="/" className="logo relic-logo">relic<i aria-hidden="true" /></Link>}
         <button type="button" className="sd-toggle" onClick={toggle} aria-label={rail ? "Развернуть панель" : "Свернуть панель"} title={rail ? "Развернуть панель" : "Свернуть панель"}>
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <rect x="3.5" y="4.5" width="17" height="15" rx="3" /><path d="M9.5 4.5v15" />{rail ? <path d="m13.5 10 2 2-2 2" /> : <path d="m16 10-2 2 2 2" />}
