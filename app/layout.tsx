@@ -11,6 +11,7 @@ import { BanGate } from "./BanGate";
 import { JumpLayer } from "./JumpLayer";
 import { RefCatcher } from "./RefCatcher";
 import { PwaLayer } from "./InstallApp";
+import { UpdateCheck } from "./UpdateCheck";
 import { LoginAlert } from "./LoginAlert";
 import { TelegramLayer } from "./TelegramLayer";
 
@@ -54,7 +55,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body>
-        <PrefsSync /><PwaLayer /><SessionProvider><BanGate /><CallLayer><FocusGuard>{children}</FocusGuard><Suspense fallback={null}><NotifyLayer /><LoginAlert /><JumpLayer /><RefCatcher /><TelegramLayer /></Suspense></CallLayer></SessionProvider>
+        <PrefsSync /><PwaLayer /><UpdateCheck /><SessionProvider><BanGate /><CallLayer><FocusGuard>{children}</FocusGuard><Suspense fallback={null}><NotifyLayer /><LoginAlert /><JumpLayer /><RefCatcher /><TelegramLayer /></Suspense></CallLayer></SessionProvider>
       </body>
     </html>
   );

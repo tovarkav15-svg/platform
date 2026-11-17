@@ -2,7 +2,7 @@
 // Запоминает только «оболочку» сайта: код, стили, шрифты, иконки. Ответы базы (чаты, Workspace, деньги)
 // идут на другой адрес, их помощник не трогает и на устройстве не хранит.
 // Страницы сначала грузятся из сети, сохранённое — только когда сети нет, поэтому новая версия приходит сразу.
-const VERSION = "v10";
+const VERSION = "v11";
 const STATIC = `relic-static-${VERSION}`;
 const PAGES = `relic-pages-${VERSION}`;
 const FONTS = "relic-fonts";
@@ -44,7 +44,8 @@ const isHtml = (res) => (res.headers.get("content-type") || "").includes("text/h
 async function networkFirst(req, fallbackToRoot) {
   const nav = req.mode === "navigate";
   try {
-    const res = await fetch(req);
+    // Мимо кэша браузера: GitHub Pages разрешает держать страницу 10 минут, из-за этого обновления приходили с опозданием
+    const res = nav ? await fetch(req.url, { cache: "no-cache", credentials: "same-origin" }) : await fetch(req, { cache: "no-cache" });
     // Данные для переходов (…/index.txt) не храним: их нельзя показывать как страницу
     if (res.ok && (!nav || isHtml(res)) && !new URL(req.url).pathname.endsWith(".txt")) {
       const c = await caches.open(PAGES);
@@ -87,6 +88,8 @@ self.addEventListener("fetch", (e) => {
     e.respondWith(Response.redirect(url.href, 302));
     return;
   }
+  // Номер версии сайта — всегда свежий, не храним
+  if (url.pathname === `${BASE}version.json`) return;
   // Страницы и данные для переходов — сначала сеть
   e.respondWith(networkFirst(req, req.mode === "navigate"));
 });

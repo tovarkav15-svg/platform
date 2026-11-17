@@ -7894,3 +7894,9 @@ html[data-theme="dark"] .hb-tick, html[data-theme="dark"] .hb-day.on i { filter:
   .hb-more { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { .hb-tick, .hb-tick svg, .hb-tick::after { animation: none !important; } }
+
+/* Плашка «Вышло обновление» */
+.upd-pill { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom)); z-index: 9999; transform: translateX(-50%); display: inline-flex; align-items: center; gap: 10px; height: 44px; padding: 0 8px 0 16px; border: 0; border-radius: 99px; background: #16161E; color: #fff; font: 500 14px/1 var(--display, inherit); box-shadow: 0 16px 40px -12px rgba(0,0,0,.45); cursor: pointer; animation: updIn .45s cubic-bezier(.2,.8,.2,1) both; }
+.upd-pill i { width: 8px; height: 8px; border-radius: 50%; background: #7B61FF; box-shadow: 0 0 0 4px rgba(123,97,255,.3); }
+.upd-pill b { height: 30px; padding: 0 14px; border-radius: 99px; background: #fff; color: #16161E; font-weight: 650; line-height: 30px; }
+@keyframes updIn { from { opacity: 0; transform: translate(-50%, 20px); } }

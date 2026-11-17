@@ -6,8 +6,11 @@ export PATH="$PWD/.node/bin:$PATH"
 
 rm -rf out
 node scripts/patch-next.mjs
+# Номер выкладки: открытые вкладки сверяют его с version.json и сами подтягивают новую версию
+export NEXT_PUBLIC_BUILD="$(date +%s)"
 npx next build
 touch out/.nojekyll
+printf '{"v":"%s"}' "$NEXT_PUBLIC_BUILD" > out/version.json
 
 tmp=$(mktemp -d)
 git worktree add -f --detach "$tmp" >/dev/null
