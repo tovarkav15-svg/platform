@@ -111,6 +111,11 @@ export function Habits({ userId }: { userId: string }) {
 
   const ws = weekStart(td);
   const week = Array.from({ length: 7 }, (_, i) => iso(addDays(d0(ws), i)));
+  // Полоска — последние 7 дней до сегодня, чтобы всегда было видно прошлую неделю, а не пустое будущее
+  const strip = Array.from({ length: 7 }, (_, i) => iso(addDays(d0(td), i - 6)));
+  const weekMet = (h: Habit) => h.per_week < 7 && week.filter((d) => checks.get(h.id)?.has(d)).length >= h.per_week;
+  // Несделанное сверху, сделанное и закрытая норма недели — вниз
+  const sorted = [...active].sort((a, b) => Number(checks.get(a.id)?.has(td) || weekMet(a)) - Number(checks.get(b.id)?.has(td) || weekMet(b)));
   // На сегодня — ежедневные и те, у кого норма недели ещё не набрана
   const dueToday = active.filter((h) => h.per_week === 7 || week.filter((d) => checks.get(h.id)?.has(d)).length < h.per_week || checks.get(h.id)?.has(td));
   const doneToday = dueToday.filter((h) => checks.get(h.id)?.has(td)).length;
@@ -126,7 +131,7 @@ export function Habits({ userId }: { userId: string }) {
         <div className="hb-head-t">
           <small>{d0(td).toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long" }).replace(/^./, (c) => c.toUpperCase())}</small>
           <h2>{!active.length ? "Привычки" : pct === 1 ? "Всё на сегодня сделано 🎉" : doneToday ? `Сделано ${doneToday} из ${dueToday.length}` : "Отметь, что сделал сегодня"}</h2>
-          <p>{active.length ? "Нажми на кружок — привычка отмечена. Пропустил вчера? Отметь день в строке недели." : "Маленькие дела каждый день — большие результаты. Начни с одной-двух привычек."}</p>
+          <p>{!active.length ? "Начни с одной-двух — маленькие дела каждый день дают большой результат." : pct === 1 ? "Серии растут. Завтра продолжим." : "Сделал — жми ✓ справа. Забыл отметить вчера — нажми на день в полоске."}</p>
         </div>
         {active.length > 0 && !adding && <button type="button" className="btn" onClick={() => setAdding(true)}>+ Привычка</button>}
       </section>
@@ -138,32 +143,40 @@ export function Habits({ userId }: { userId: string }) {
       )}
 
       <ul className="hb-list">
-        {active.map((h) => {
+        {sorted.map((h) => {
           const done = checks.get(h.id) ?? new Set<string>();
           const st = streakOf(h, done);
           const wk = week.filter((d) => done.has(d)).length;
           const isOn = done.has(td);
+          const met = weekMet(h);
           return (
-            <li key={h.id} className={`hb-item ${isOn ? "on" : ""} ${open === h.id ? "open" : ""}`} style={{ "--c": h.color } as React.CSSProperties}>
+            <li key={h.id} className={`hb-item ${isOn ? "on" : ""} ${met && !isOn ? "met" : ""} ${open === h.id ? "open" : ""}`} style={{ "--c": h.color } as React.CSSProperties}>
               <div className="hb-row">
-                <button type="button" className="hb-check" onClick={() => toggle(h, td)} aria-pressed={isOn} aria-label={isOn ? `Снять отметку: ${h.title}` : `Отметить: ${h.title}`}>
-                  <span>{isOn ? "✓" : h.emoji}</span>
-                </button>
+                <span className="hb-emo" aria-hidden="true">{h.emoji}</span>
                 <button type="button" className="hb-title" onClick={() => setOpen(open === h.id ? null : h.id)} aria-expanded={open === h.id}>
                   <b>{h.title}</b>
                   <small>
-                    {st.n > 0 ? <span className="hb-fire">🔥 {st.n} {st.unit} подряд</span> : <span>{freqLabel(h.per_week)}</span>}
-                    {h.per_week < 7 && <span> · {wk} из {h.per_week} на неделе</span>}
+                    {st.n > 0 && <span className="hb-fire">🔥 {st.n} {st.unit} подряд</span>}
+                    {h.per_week < 7
+                      ? <span className={met ? "hb-met" : ""}>{met ? "✓ норма недели" : `${wk} из ${h.per_week} на неделе`}</span>
+                      : st.n === 0 && <span>каждый день</span>}
+                    <span className="hb-more">{open === h.id ? "Свернуть" : "Подробнее"}</span>
                   </small>
                 </button>
-                <div className="hb-week" role="group" aria-label="Эта неделя">
-                  {week.map((d, i) => (
-                    <button key={d} type="button" className={`hb-day ${done.has(d) ? "on" : ""} ${d === td ? "today" : ""}`} disabled={d > td}
-                      onClick={() => toggle(h, d)} aria-label={`${WD[i]}${done.has(d) ? ", сделано" : ""}`} title={d0(d).toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}>
-                      <small>{WD[i]}</small><i />
-                    </button>
-                  ))}
+                <div className="hb-week" role="group" aria-label="Последние 7 дней">
+                  {strip.map((d) => {
+                    const dt = d0(d);
+                    return (
+                      <button key={d} type="button" className={`hb-day ${done.has(d) ? "on" : ""} ${d === td ? "today" : ""}`}
+                        onClick={() => toggle(h, d)} aria-pressed={done.has(d)} aria-label={`${dt.toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long" })}${done.has(d) ? ", сделано" : ""}`}>
+                        <small>{d === td ? "Сег" : WD[(dt.getDay() + 6) % 7]}</small><i>{dt.getDate()}</i>
+                      </button>
+                    );
+                  })}
                 </div>
+                <button type="button" className="hb-tick" onClick={() => toggle(h, td)} aria-pressed={isOn} aria-label={isOn ? `Снять отметку: ${h.title}` : `Сделано сегодня: ${h.title}`}>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+                </button>
               </div>
               {open === h.id && <HabitDetails h={h} done={done} onToggle={(d) => toggle(h, d)} onUpdate={(d) => update(h, d)} onRemove={() => remove(h)} />}
             </li>

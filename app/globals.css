@@ -7851,3 +7851,46 @@ html[data-theme="dark"] .db2-bg i { filter: blur(90px) invert(1) hue-rotate(180d
 html[data-theme="dark"] .db2-ring, html[data-theme="dark"] .db2-undo button { filter: invert(1) hue-rotate(180deg); }
 @media (max-width: 560px) { .db2-setup { flex-wrap: wrap; padding: 14px; gap: 12px; } .db2-setup > em { width: 100%; } }
 .db2-stat em.late { color: #E5484D; font-weight: 600; }
+
+/* ================= Привычки 2026-11-17: понятнее. Прошлый вид — метка do-privychek-2026-11-17 ================= */
+.hb-row { gap: 12px; padding: 12px 14px 12px 12px; }
+.hb-emo { display: grid; place-items: center; flex: none; width: 46px; height: 46px; border-radius: 15px; background: color-mix(in srgb, var(--c) 12%, #fff); font-size: 22px; }
+.hb-title { gap: 3px; }
+.hb-title small { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; }
+.hb-met { color: #1FA67A; font-weight: 600; }
+.hb-more { color: #b0b3ba; font-size: 12px; opacity: 0; transition: opacity .2s; }
+.hb-item:hover .hb-more, .hb-item.open .hb-more { opacity: 1; }
+.hb-week { gap: 3px; }
+.hb-day { width: 32px; }
+.hb-day small { font-size: 10px; text-transform: none; }
+.hb-day i { display: grid; place-items: center; width: 28px; height: 28px; font-style: normal; font-size: 11px; font-weight: 600; color: #9a9da5; background: #f3f4f6; transition: background .2s, color .2s, transform .2s var(--spring); }
+.hb-day:hover i { transform: scale(1.1); background: color-mix(in srgb, var(--c) 18%, #fff); }
+.hb-day.on i { color: #fff; background: var(--c); }
+.hb-day.today small { color: var(--c); }
+.hb-tick { position: relative; flex: none; display: grid; place-items: center; width: 48px; height: 48px; margin-left: 6px; border-radius: 50%; border: 2.5px solid color-mix(in srgb, var(--c) 45%, #fff); background: #fff; cursor: pointer; transition: transform .2s var(--spring), background .25s, border-color .25s; }
+.hb-tick svg { width: 24px; height: 24px; fill: none; stroke: color-mix(in srgb, var(--c) 40%, #fff); stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 24; stroke-dashoffset: 0; transition: stroke .25s; }
+.hb-tick:hover { border-color: var(--c); }
+.hb-tick:hover svg { stroke: var(--c); }
+.hb-tick:active { transform: scale(.88); }
+.hb-item.on .hb-tick { background: var(--c); border-color: var(--c); animation: hbPop .4s var(--spring); }
+.hb-item.on .hb-tick svg { stroke: #fff; animation: hbDraw .35s ease-out both; }
+.hb-item.on .hb-tick::after { content: ""; position: absolute; inset: -3px; border-radius: 50%; border: 2px solid var(--c); animation: hbBurst .6s ease-out both; pointer-events: none; }
+@keyframes hbDraw { from { stroke-dashoffset: 24; } }
+@keyframes hbBurst { from { transform: scale(1); opacity: .8; } to { transform: scale(1.7); opacity: 0; } }
+.hb-item.on .hb-check { animation: none; }
+.hb-item.on, .hb-item.met { background: color-mix(in srgb, var(--c) 5%, #fff); }
+.hb-item.on .hb-emo { filter: grayscale(.3); opacity: .7; }
+.hb-item.met .hb-title b { color: #8b8e96; }
+.hb-list { gap: 8px; }
+.hb-item { transition: background .3s; }
+html[data-theme="dark"] .hb-tick, html[data-theme="dark"] .hb-day.on i { filter: invert(1) hue-rotate(180deg); }
+@media (max-width: 700px) {
+  .hb-row { flex-wrap: wrap; row-gap: 10px; }
+  .hb-title { flex: 1 1 0; }
+  .hb-tick { order: 3; margin-left: 0; }
+  .hb-week { order: 4; width: 100%; justify-content: space-between; }
+  .hb-day { flex: 1; width: auto; }
+  .hb-day i { width: 34px; height: 34px; font-size: 12px; }
+  .hb-more { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .hb-tick, .hb-tick svg, .hb-tick::after { animation: none !important; } }
