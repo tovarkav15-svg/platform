@@ -10,12 +10,15 @@ type Draft = { title: string; emoji: string; color: string; per_week: number };
 const COLORS = ["#7B61FF", "#2F7BFF", "#0EA5B7", "#1FA67A", "#E8B100", "#FF6A3D", "#FF4F8B"];
 const EMOJI = ["✨", "💧", "🏃", "📚", "🧘", "💤", "✍️", "🥗", "🚭", "💪", "🎯", "🧠", "📵", "🌅", "🎸", "💰"];
 const IDEAS: Draft[] = [
+  { title: "Зарядка 10 минут", emoji: "💪", color: "#FF6A3D", per_week: 7 },
   { title: "Пить 2 литра воды", emoji: "💧", color: "#0EA5B7", per_week: 7 },
   { title: "Спорт", emoji: "🏃", color: "#FF6A3D", per_week: 3 },
   { title: "Читать 20 минут", emoji: "📚", color: "#7B61FF", per_week: 7 },
   { title: "Пост в канал", emoji: "✍️", color: "#2F7BFF", per_week: 3 },
   { title: "Лечь до полуночи", emoji: "💤", color: "#1FA67A", per_week: 7 },
   { title: "Без телефона утром", emoji: "📵", color: "#FF4F8B", per_week: 5 },
+  { title: "Медитация", emoji: "🧘", color: "#7B61FF", per_week: 7 },
+  { title: "Откладывать деньги", emoji: "💰", color: "#E8B100", per_week: 1 },
 ];
 const WD = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 const DAY = 864e5;
@@ -124,14 +127,14 @@ export function Habits({ userId }: { userId: string }) {
   return (
     <div className="ws-section hb">
       <section className="hb-head">
-        <div className="hb-ring" style={{ "--p": pct } as React.CSSProperties}>
+        {active.length > 0 && <div className="hb-ring" style={{ "--p": pct } as React.CSSProperties}>
           <svg viewBox="0 0 44 44" aria-hidden="true"><circle cx="22" cy="22" r="18" className="hb-ring-bg" /><circle cx="22" cy="22" r="18" className="hb-ring-fg" /></svg>
           <b>{doneToday}/{dueToday.length}</b>
-        </div>
+        </div>}
         <div className="hb-head-t">
           <small>{d0(td).toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long" }).replace(/^./, (c) => c.toUpperCase())}</small>
-          <h2>{!active.length ? "Привычки" : pct === 1 ? "Всё на сегодня сделано 🎉" : doneToday ? `Сделано ${doneToday} из ${dueToday.length}` : "Отметь, что сделал сегодня"}</h2>
-          <p>{!active.length ? "Начни с одной-двух — маленькие дела каждый день дают большой результат." : pct === 1 ? "Серии растут. Завтра продолжим." : "Сделал — жми ✓ справа. Забыл отметить вчера — нажми на день в полоске."}</p>
+          <h2>{!active.length ? "Заведи первую привычку" : pct === 1 ? "Всё на сегодня сделано 🎉" : doneToday ? `Сделано ${doneToday} из ${dueToday.length}` : "Отметь, что сделал сегодня"}</h2>
+          <p>{!active.length ? "Нажми на любую идею — она сразу добавится. Или впиши свою ниже." : pct === 1 ? "Серии растут. Завтра продолжим." : "Сделал — жми ✓ справа. Забыл отметить вчера — нажми на день в полоске."}</p>
         </div>
         {active.length > 0 && !adding && <button type="button" className="btn" onClick={() => setAdding(true)}>+ Привычка</button>}
       </section>
@@ -139,7 +142,7 @@ export function Habits({ userId }: { userId: string }) {
       {err && <p className="hint bad">{err}</p>}
 
       {(adding || !active.length) && (
-        <HabitForm onSave={create} onCancel={active.length ? () => setAdding(false) : undefined} ideas={!active.length || adding} />
+        <QuickAdd onSave={create} onCancel={active.length ? () => setAdding(false) : undefined} taken={active.map((h) => h.title)} />
       )}
 
       <ul className="hb-list">
@@ -197,6 +200,56 @@ export function Habits({ userId }: { userId: string }) {
         </section>
       )}
     </div>
+  );
+}
+
+/** Добавление: идея — одним нажатием, своя — название и как часто. Значок и цвет по желанию */
+function QuickAdd({ onSave, onCancel, taken }: { onSave: (d: Draft) => Promise<boolean>; onCancel?: () => void; taken: string[] }) {
+  const [d, setD] = useState<Draft>({ title: "", emoji: "✨", color: COLORS[0], per_week: 7 });
+  const [busy, setBusy] = useState<string | null>(null);
+  const [more, setMore] = useState(false);
+  const ideas = IDEAS.filter((x) => !taken.includes(x.title));
+  async function add(x: Draft, key: string) {
+    if (busy || !x.title.trim()) return;
+    setBusy(key);
+    const ok = await onSave(x);
+    setBusy(null);
+    if (ok) setD({ title: "", emoji: "✨", color: COLORS[0], per_week: 7 });
+  }
+  return (
+    <section className="hq" style={{ "--c": d.color } as React.CSSProperties}>
+      {ideas.length > 0 && (
+        <div className="hq-ideas">
+          {ideas.map((x) => (
+            <button key={x.title} type="button" className={`hq-idea ${busy === x.title ? "busy" : ""}`} style={{ "--c": x.color } as React.CSSProperties} onClick={() => add(x, x.title)} disabled={!!busy}>
+              <span className="hq-emo">{x.emoji}</span>
+              <span><b>{x.title}</b><small>{freqLabel(x.per_week)}</small></span>
+              <i aria-hidden="true">+</i>
+            </button>
+          ))}
+        </div>
+      )}
+      <form className="hq-own" onSubmit={(e) => { e.preventDefault(); add(d, "own"); }}>
+        <b className="hq-label">Своя привычка</b>
+        <div className="hq-line">
+          <button type="button" className="hq-emo pick" onClick={() => setMore(!more)} aria-label="Значок и цвет" aria-expanded={more}>{d.emoji}</button>
+          <div className="input grow"><input value={d.title} onChange={(e) => setD({ ...d, title: e.target.value })} maxLength={60} placeholder="Например: английский 15 минут" aria-label="Название привычки" /></div>
+          <button className="btn" type="submit" disabled={!!busy || !d.title.trim()}>{busy === "own" ? "…" : "Добавить"}</button>
+        </div>
+        <div className="hq-freq" role="radiogroup" aria-label="Как часто">
+          {[7, 5, 3, 1].map((n) => (
+            <button key={n} type="button" role="radio" aria-checked={d.per_week === n} className={d.per_week === n ? "on" : ""} onClick={() => setD({ ...d, per_week: n })}>{n === 7 ? "Каждый день" : `${n} ${plural(n, "раз", "раза", "раз")} в неделю`}</button>
+          ))}
+        </div>
+        {more && (
+          <div className="hb-pick">
+            <div className="hb-emojis">{EMOJI.map((x) => <button key={x} type="button" className={d.emoji === x ? "on" : ""} onClick={() => setD({ ...d, emoji: x })}>{x}</button>)}</div>
+            <div className="hb-colors">{COLORS.map((c) => <button key={c} type="button" className={d.color === c ? "on" : ""} style={{ background: c }} onClick={() => setD({ ...d, color: c })} aria-label="Цвет" />)}</div>
+          </div>
+        )}
+        {onCancel && <button type="button" className="link-btn hq-cancel" onClick={onCancel}>Свернуть</button>}
+      </form>
+    </section>
   );
 }
 
