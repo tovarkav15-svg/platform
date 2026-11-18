@@ -18,6 +18,12 @@ import { MediaLibrary, ReportDialog } from "./ChatTools";
 import { Linkify } from "./Linkify";
 import { ComposerPreview, LinkCard, firstUrl } from "./LinkPreview";
 import { isOwner } from "@/lib/supabase";
+import { ThemePicker, Wallpaper, useChatTheme } from "./ChatTheme";
+
+const QUICK = ["❤️", "👍", "🔥", "😂", "😮", "🙏"];
+type Reaction = { message_id: string; user_id: string; emoji: string };
+// Сообщение из 1–3 эмодзи показываем крупно, без пузыря
+const JUMBO = /^(?:\p{Extended_Pictographic}(?:\uFE0F|\u200D\p{Extended_Pictographic}|\p{Emoji_Modifier})*\s*){1,3}$/u;
 
 type Kind = "text" | "image" | "video" | "voice" | "file" | "system" | "sticker";
 type Msg = {
@@ -85,6 +91,59 @@ export function ChatThread({ chatId, meId, chat, onSettings, onCall }: { chatId:
   const [flash, setFlash] = useState<string | null>(null);
   const [block, setBlock] = useState<{ any: boolean; mine: boolean }>({ any: false, mine: false });
   const moderator = isOwner(me?.role);
+  const [theme, setTheme] = useChatTheme(chatId);
+  const [picker, setPicker] = useState(false);
+
+  // Реакции. Если в базе их ещё нет — просто не показываем
+  const [reacts, setReacts] = useState<Reaction[] | null>(null);
+  const [reactFor, setReactFor] = useState<string | null>(null);
+  const loadReacts = useCallback(async () => {
+    const { data, error } = await supabase.from("message_reactions").select("message_id, user_id, emoji").eq("chat_id", chatId);
+    setReacts(error ? null : ((data as Reaction[]) ?? []));
+  }, [chatId]);
+  useEffect(() => {
+    loadReacts();
+    const ch = supabase.channel(`reacts:${chatId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "message_reactions", filter: `chat_id=eq.${chatId}` }, () => loadReacts())
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [chatId, loadReacts]);
+  async function react(m: Msg, emoji: string) {
+    setReactFor(null);
+    if (!reacts) return;
+    const has = reacts.some((r) => r.message_id === m.id && r.user_id === meId && r.emoji === emoji);
+    if (!has && reacts.filter((r) => r.message_id === m.id && r.user_id === meId).length >= 3) return setNotice("На одно сообщение — до трёх реакций");
+    setReacts(has ? reacts.filter((r) => !(r.message_id === m.id && r.user_id === meId && r.emoji === emoji)) : [...reacts, { message_id: m.id, user_id: meId, emoji }]);
+    if ("vibrate" in navigator && !has) navigator.vibrate?.(8);
+    const { error } = has
+      ? await supabase.from("message_reactions").delete().eq("message_id", m.id).eq("user_id", meId).eq("emoji", emoji)
+      : await supabase.from("message_reactions").insert({ message_id: m.id, chat_id: chatId, emoji });
+    if (error) loadReacts();
+  }
+
+  // Свайп влево по сообщению на телефоне — ответить, как в Telegram
+  const swipe = useRef<{ id: string; x: number; y: number; dx: number; lock: "x" | "y" | null; el: HTMLElement } | null>(null);
+  function swipeStart(e: React.TouchEvent, m: Msg, ok: boolean) {
+    if (!ok || e.touches.length !== 1) return;
+    swipe.current = { id: m.id, x: e.touches[0].clientX, y: e.touches[0].clientY, dx: 0, lock: null, el: e.currentTarget as HTMLElement };
+  }
+  function swipeMove(e: React.TouchEvent) {
+    const s = swipe.current;
+    if (!s) return;
+    const dx = e.touches[0].clientX - s.x, dy = e.touches[0].clientY - s.y;
+    if (!s.lock) s.lock = Math.abs(dx) > Math.abs(dy) + 4 ? "x" : Math.abs(dy) > 8 ? "y" : null;
+    if (s.lock !== "x") return;
+    s.dx = Math.max(-90, Math.min(0, dx));
+    s.el.style.transform = `translateX(${s.dx}px)`;
+    s.el.style.setProperty("--sw", String(Math.min(1, -s.dx / 60)));
+  }
+  function swipeEnd(m: Msg) {
+    const s = swipe.current;
+    swipe.current = null;
+    if (!s) return;
+    s.el.style.transform = ""; s.el.style.removeProperty("--sw");
+    if (s.dx <= -60) { setReply(m); if ("vibrate" in navigator) navigator.vibrate?.(10); }
+  }
 
   // Блокировка в личке: кто-то из двоих заблокировал другого
   const loadBlock = useCallback(async () => {
@@ -366,7 +425,7 @@ export function ChatThread({ chatId, meId, chat, onSettings, onCall }: { chatId:
 
   return (
     <div
-      className={`thread ${dragging ? "dragging" : ""}`}
+      className={`thread th-${theme} ${dragging ? "dragging" : ""}`}
       onDragOver={(e) => { if (e.dataTransfer.types.includes("Files")) { e.preventDefault(); setDragging(true); } }}
       onDragLeave={(e) => { if (e.currentTarget === e.target) setDragging(false); }}
       onDrop={(e) => { e.preventDefault(); setDragging(false); pickFiles(e.dataTransfer.files); }}
@@ -408,6 +467,9 @@ export function ChatThread({ chatId, meId, chat, onSettings, onCall }: { chatId:
               </button>
             </>
           )}
+          <button type="button" className="icon-btn th-btn" onClick={() => setPicker((v) => !v)} aria-label="Оформление чата" title="Оформление чата" aria-expanded={picker}>
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M12 3a9 9 0 0 0 0 18c1.1 0 1.8-.8 1.8-1.7 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-.9.8-1.7 1.7-1.7H16a5 5 0 0 0 5-5c0-4-4-7.2-9-7.2zM6.5 12a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3-4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3 4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z" /></svg>
+          </button>
           <button type="button" className="icon-btn" onClick={() => setLibrary(true)} aria-label="Медиатека" title="Медиатека">
             <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="2" fill="currentColor" /><rect x="13" y="3" width="8" height="8" rx="2" fill="currentColor" opacity=".55" /><rect x="3" y="13" width="8" height="8" rx="2" fill="currentColor" opacity=".55" /><rect x="13" y="13" width="8" height="8" rx="2" fill="currentColor" /></svg>
           </button>
@@ -427,6 +489,8 @@ export function ChatThread({ chatId, meId, chat, onSettings, onCall }: { chatId:
           )}
         </span>
       </header>
+      {picker && <ThemePicker value={theme} onPick={(id, all) => setTheme(id, all)} onClose={() => setPicker(false)} />}
+      <Wallpaper />
 
       {extra?.pinned_message && (() => {
         const pm = messages.find((x) => x.id === extra.pinned_message);
@@ -480,6 +544,10 @@ export function ChatThread({ chatId, meId, chat, onSettings, onCall }: { chatId:
           const author = multi && !mine && !(chat.kind === "channel" && extra && !extra.sign_posts) ? people.get(m.sender_id) : undefined;
           const groupStart = !prev || prev.sender_id !== m.sender_id || prev.kind === "system" || newDay;
           const canReply = canWrite && !(isDm && block.any) && !m.deleted_at && !m.pending && !m.failed;
+          const jumbo = m.kind === "text" && !m.deleted_at && !m.media_meta?.reply && JUMBO.test(m.text.trim());
+          const canReact = !!reacts && !m.deleted_at && !m.pending && !m.failed && !m.id.startsWith("tmp-") && !(isDm && block.any);
+          const mineR = reacts?.filter((r) => r.message_id === m.id) ?? [];
+          const groups = Array.from(mineR.reduce((acc, r) => acc.set(r.emoji, [...(acc.get(r.emoji) ?? []), r.user_id]), new Map<string, string[]>()));
           return (
             <div key={m.id} id={`m-${m.id}`} className={`msg-wrap ${author ? "with-author" : ""} ${extra?.pinned_message === m.id ? "is-pinned" : ""}`}>
               {newDay && <div className="day-sep"><span>{dayLabel(m.created_at)}</span></div>}
@@ -491,8 +559,14 @@ export function ChatThread({ chatId, meId, chat, onSettings, onCall }: { chatId:
                   {chat.kind !== "support" && author.role !== "member" && <em>{author.role === "owner" ? "владелец" : "админ"}</em>}
                 </Link>
               )}
-              <div className={`msg kind-${m.kind} ${(visual && !m.text) || m.kind === "sticker" ? "bare" : ""} ${mine ? "mine" : ""} ${groupStart ? "start" : ""} ${groupEnd ? "end" : ""} ${m.pending ? "pending" : ""} ${m.failed ? "failed" : ""} ${flash === m.id ? "flash" : ""} ${m.media_meta?.reply && !m.deleted_at ? "has-reply" : ""}`}
-                onDoubleClick={(e) => { if (canReply && !(e.target as HTMLElement).closest("a, button, audio, video")) { window.getSelection()?.removeAllRanges(); setReply(m); } }}>
+              <div className={`msg kind-${m.kind} ${(visual && !m.text) || m.kind === "sticker" ? "bare" : ""} ${mine ? "mine" : ""} ${groupStart ? "start" : ""} ${groupEnd ? "end" : ""} ${m.pending ? "pending" : ""} ${m.failed ? "failed" : ""} ${flash === m.id ? "flash" : ""} ${m.media_meta?.reply && !m.deleted_at ? "has-reply" : ""} ${jumbo ? "jumbo bare" : ""}`}
+                onTouchStart={(e) => swipeStart(e, m, canReply)} onTouchMove={swipeMove} onTouchEnd={() => swipeEnd(m)} onTouchCancel={() => swipeEnd(m)}
+                onDoubleClick={(e) => {
+                  if ((e.target as HTMLElement).closest("a, button, audio, video")) return;
+                  window.getSelection()?.removeAllRanges();
+                  if (canReact) react(m, "❤️"); else if (canReply) setReply(m);
+                }}>
+                <span className="msg-swipe" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M10 8V4l-7 7 7 7v-4.1c5 0 8.5 1.6 11 5.1-1-5-4-10-11-11z" /></svg></span>
                 {m.media_meta?.reply && !m.deleted_at && (
                   <button type="button" className="msg-quote" onClick={() => jumpTo(m.media_meta.reply!.id)}>
                     <b>{m.media_meta.reply.user === meId ? "Ты" : m.media_meta.reply.name}</b>
@@ -517,7 +591,15 @@ export function ChatThread({ chatId, meId, chat, onSettings, onCall }: { chatId:
                 </span>
                 {!m.deleted_at && !m.pending && !m.failed && (
                   <span className={`msg-more-anchor ${mine ? "mine" : ""} ${menu === m.id ? "open" : ""}`}>
-                    {canReply && <button type="button" className="msg-more" onClick={() => setReply(m)} aria-label="Ответить" title="Ответить (или двойной клик)">
+                    {canReact && <button type="button" className="msg-more" onClick={() => setReactFor(reactFor === m.id ? null : m.id)} aria-label="Реакция" title="Реакция (или двойной клик — ❤️)">
+                      <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="1.8" /><circle cx="9" cy="10" r="1.2" fill="currentColor" /><circle cx="15" cy="10" r="1.2" fill="currentColor" /><path d="M8.5 14q3.5 3 7 0" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
+                    </button>}
+                    {reactFor === m.id && (
+                      <span className="react-bar" role="menu" onMouseLeave={() => setReactFor(null)}>
+                        {QUICK.map((q, qi) => <button key={q} type="button" role="menuitem" style={{ "--i": qi } as React.CSSProperties} className={mineR.some((r) => r.user_id === meId && r.emoji === q) ? "on" : ""} onClick={() => react(m, q)}>{q}</button>)}
+                      </span>
+                    )}
+                    {canReply && <button type="button" className="msg-more" onClick={() => setReply(m)} aria-label="Ответить" title="Ответить (или свайп влево)">
                       <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M10 8V4l-7 7 7 7v-4.1c5 0 8.5 1.6 11 5.1-1-5-4-10-11-11z" /></svg>
                     </button>}
                     <button type="button" className="msg-more" onClick={() => setMenu(menu === m.id ? null : m.id)} aria-label="Действия с сообщением">⋯</button>
@@ -534,6 +616,16 @@ export function ChatThread({ chatId, meId, chat, onSettings, onCall }: { chatId:
                 )}
 
               </div>
+              {groups.length > 0 && (
+                <div className={`msg-reacts ${mine ? "mine" : ""}`}>
+                  {groups.map(([emoji, users]) => (
+                    <button key={emoji} type="button" className={users.includes(meId) ? "on" : ""} onClick={() => canReact && react(m, emoji)}
+                      title={users.map((u) => (u === meId ? "Ты" : people.get(u)?.display_name ?? other.displayName)).join(", ")}>
+                      <span>{emoji}</span>{users.length > 1 && <em>{users.length}</em>}
+                    </button>
+                  ))}
+                </div>
+              )}
               {isAdmin && chat.kind !== "dm" && chat.kind !== "support" && !m.pending && !m.failed && extra?.pinned_message !== m.id && (
                 <button type="button" className={`pin-btn ${mine ? "mine" : ""}`} onClick={() => pin(m.id)} aria-label="Закрепить">📌</button>
               )}
