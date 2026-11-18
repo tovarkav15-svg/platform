@@ -7940,3 +7940,30 @@ html[data-theme="dark"] .hb-tick, html[data-theme="dark"] .hb-day.on i { filter:
 @media (prefers-reduced-motion: reduce) { .hq-idea { animation: none; } }
 @media (min-width: 561px) { .hq-ideas { grid-template-columns: repeat(3, minmax(0, 1fr)); } .hq-idea { flex-direction: row; align-items: center; gap: 14px; padding: 16px 52px 16px 16px; } .hq-idea .hq-emo { margin: 0; } .hq-idea b, .hq-idea small { display: block; } .hq-idea i { top: 50%; margin-top: -14px; } }
 .hq-idea > span:not(.hq-emo) { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+
+/* Профиль 2026-11-18: рейтинг и отзывы видно сразу */
+.xc-badges:empty { display: none; }
+.xh-rate { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px 0 10px; border: 0; border-radius: 99px; background: rgba(255,255,255,.2); color: #fff; font: inherit; cursor: pointer; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); box-shadow: inset 0 0 0 1px rgba(255,255,255,.3); transition: background .2s; }
+.xh-rate:hover { background: rgba(255,255,255,.3); }
+.xh-rate-star { color: #FFC83D; font-size: 15px; filter: drop-shadow(0 0 6px rgba(255,200,61,.6)); }
+.xh-rate b { font-size: 14px; font-weight: 800; }
+.xh-rate small { font-size: 12.5px; opacity: .85; }
+.xr-card { display: flex; flex-direction: column; gap: 12px; padding: 14px; margin-top: 4px; border-radius: 18px; background: rgba(255,255,255,.55); box-shadow: inset 0 0 0 1px rgba(255,255,255,.7); }
+.xr-card.empty { flex-direction: row; align-items: center; gap: 12px; }
+.xr-head { display: flex; align-items: center; gap: 12px; }
+.xr-big { font-family: "Archivo", var(--display); font-size: 40px; font-weight: 800; letter-spacing: -.04em; line-height: 1; }
+.xr-card.empty .xr-big { font-size: 30px; color: #b5b7bd; }
+.xr-meta { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.xr-meta small { font-size: 12.5px; color: #6b6e76; }
+.xr-meta small b { color: #1FA67A; font-weight: 650; }
+.xr-dist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+.xr-dist li { display: grid; grid-template-columns: 12px 1fr 22px; align-items: center; gap: 8px; font-size: 11.5px; color: #8b8e96; }
+.xr-dist li > i { display: block; height: 5px; border-radius: 5px; background: rgba(20,20,30,.07); overflow: hidden; }
+.xr-dist li > i > i { display: block; height: 100%; border-radius: inherit; background: #F2B400; animation: growX .8s var(--ease) both; transform-origin: left; }
+.xr-dist li em { font-style: normal; text-align: right; }
+.xr-quote { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 0; border-radius: 14px; background: #fff; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+.xr-quote p { margin: 0; font-size: 13.5px; line-height: 1.45; color: #2a2b30; }
+.xr-quote > span { display: flex; align-items: center; gap: 7px; font-size: 12px; }
+.xr-quote > span b { font-weight: 600; }
+.xr-all { align-self: flex-start; border: 0; background: none; padding: 0; font: 600 13px inherit; color: #7B61FF; cursor: pointer; }
+html[data-theme="dark"] .xh-rate-star, html[data-theme="dark"] .xr-dist li > i > i { filter: invert(1) hue-rotate(180deg); }

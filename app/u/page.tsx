@@ -28,7 +28,7 @@ import { chatHref, projectHref } from "@/lib/links";
 import { useRouter } from "next/navigation";
 import type { Deco } from "@/lib/shop";
 import { PageFx } from "../Deco";
-import { Reviews } from "../Reviews";
+import { RatingCard, RatingChip, Reviews } from "../Reviews";
 import { ReportDialog } from "../messages/ChatTools";
 import { useLive } from "@/lib/live";
 
@@ -152,8 +152,9 @@ function ProfileView({ user, earnings, friends, state, works, projects, aura, ch
             {user.emoji && <span className="xc-emoji" aria-hidden="true">{user.emoji}</span>}
           </div>
           <p className="xc-sub">@{user.username}{user.headline && <> · <b>{user.headline}</b></>}</p>
-          {(user.open_to_work || deco?.title) && (
+          {(
             <div className="xc-badges">
+              <RatingChip userId={user.id} />
               {user.open_to_work && <span className="xh-otw"><i />Открыт к работе</span>}
               <TitleChip id={deco?.title} />
             </div>
@@ -189,6 +190,7 @@ function ProfileView({ user, earnings, friends, state, works, projects, aura, ch
                 : <div key={i}>{inner}</div>;
             })}
           </div>
+          <RatingCard userId={user.id} isMe={isMe} />
           <AuraRow aura={aura} />
           {(user.city || user.telegram || user.website) && (
             <div className="xc-links">

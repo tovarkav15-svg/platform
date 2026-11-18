@@ -57,7 +57,7 @@ export function Reviews({ userId, meId, name }: { userId: string; meId: string |
   const shown = all ? list : list.slice(0, 3);
 
   return (
-    <section className="pf-card rv">
+    <section className="pf-card rv" id="reviews">
       <header><span className="pf-dot" /><b>Отзывы</b>{list.length > 0 && <span className="rv-avg"><Stars value={avg} /><em className="mono">{avg.toFixed(1)}</em><small>· {list.length}</small></span>}</header>
       {list.length === 0 && <p className="pf-muted">{meId === userId ? "Отзывов пока нет. Попроси клиентов оставить отзыв после работы: это сильнее любого портфолио." : `Об ${name} ещё никто не писал.`}</p>}
       <ul className="rv-list">
@@ -104,4 +104,69 @@ export function useRatings(ids: string[]) {
     });
   }, [key]);
   return map;
+}
+
+const plural = (n: number, one: string, few: string, many: string) => {
+  const a = n % 10, b = n % 100;
+  return a === 1 && b !== 11 ? one : a >= 2 && a <= 4 && (b < 12 || b > 14) ? few : many;
+};
+const toReviews = () => document.getElementById("reviews")?.scrollIntoView({ behavior: "smooth", block: "start" });
+
+/** Рейтинг крупно в шапке профиля: звёзды, оценка и сколько отзывов */
+export function RatingChip({ userId }: { userId: string }) {
+  const r = useRatings([userId])[userId];
+  if (!r || !r.n) return null;
+  return (
+    <button type="button" className="xh-rate" onClick={toReviews} aria-label={`Рейтинг ${r.avg.toFixed(1)} из 5, ${r.n} отзывов`}>
+      <span className="xh-rate-star" aria-hidden="true">★</span><b>{r.avg.toFixed(1)}</b><small>{r.n} {plural(r.n, "отзыв", "отзыва", "отзывов")}</small>
+    </button>
+  );
+}
+
+/** Карточка рейтинга в профиле: оценка, разбивка по звёздам, сделки и свежий отзыв */
+export function RatingCard({ userId, isMe }: { userId: string; isMe: boolean }) {
+  const [rows, setRows] = useState<Review[] | null>(null);
+  const load = useCallback(async () => {
+    const { data } = await supabase.from("reviews").select(`*, author:profiles!reviews_author_id_fkey(${PROFILE_CARD})`).eq("target_id", userId).order("created_at", { ascending: false });
+    setRows((data as unknown as Review[]) ?? []);
+  }, [userId]);
+  useEffect(() => { load(); }, [load]);
+  useLive(["reviews"], load);
+  if (!rows) return null;
+  if (!rows.length) {
+    return (
+      <div className="xr-card empty">
+        <span className="xr-big">—</span>
+        <span className="xr-meta"><Stars value={0} size={15} /><small>{isMe ? "Пока без отзывов — попроси первых клиентов оценить работу" : "Пока без отзывов"}</small></span>
+      </div>
+    );
+  }
+  const n = rows.length;
+  const avg = rows.reduce((s, r) => s + r.rating, 0) / n;
+  const deals = rows.filter((r) => r.deal_id).length;
+  const top = rows.find((r) => r.text && r.rating >= 4) ?? rows.find((r) => r.text);
+  const dist = [5, 4, 3, 2, 1].map((k) => rows.filter((r) => r.rating === k).length);
+  return (
+    <div className="xr-card">
+      <div className="xr-head">
+        <span className="xr-big">{avg.toFixed(1)}</span>
+        <span className="xr-meta">
+          <Stars value={avg} size={16} />
+          <small>{n} {plural(n, "отзыв", "отзыва", "отзывов")}{deals > 0 && <> · <b>{deals} {plural(deals, "сделка", "сделки", "сделок")}</b></>}</small>
+        </span>
+      </div>
+      {n >= 3 && <ul className="xr-dist" aria-label="Оценки по звёздам">
+        {dist.map((c, i) => (
+          <li key={i}><span>{5 - i}</span><i><i style={{ width: `${(c / n) * 100}%` }} /></i><em>{c}</em></li>
+        ))}
+      </ul>}
+      {top && (
+        <button type="button" className="xr-quote" onClick={toReviews}>
+          <p>«{top.text.length > 140 ? top.text.slice(0, 140).trimEnd() + "…" : top.text}»</p>
+          <span><Avatar name={top.author.display_name} avatar={top.author.avatar} accent={top.author.accent} size={22} /><b>{top.author.display_name}</b><Stars value={top.rating} size={11} /></span>
+        </button>
+      )}
+      <button type="button" className="xr-all" onClick={toReviews}>Все отзывы ↓</button>
+    </div>
+  );
 }
