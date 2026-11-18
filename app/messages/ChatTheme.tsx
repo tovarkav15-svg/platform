@@ -19,9 +19,9 @@ const key = (chatId: string) => `chat:theme:${chatId}`;
 const DEF = "chat:theme:default";
 
 export function useChatTheme(chatId: string) {
-  const [theme, setThemeState] = useState<ThemeId>("classic");
+  const [theme, setThemeState] = useState<ThemeId>("lavender");
   useEffect(() => {
-    try { setThemeState((localStorage.getItem(key(chatId)) || localStorage.getItem(DEF) || "classic") as ThemeId); } catch { setThemeState("classic"); }
+    try { setThemeState((localStorage.getItem(key(chatId)) || localStorage.getItem(DEF) || "lavender") as ThemeId); } catch { setThemeState("classic"); }
   }, [chatId]);
   function setTheme(id: ThemeId, all = false) {
     setThemeState(id);
